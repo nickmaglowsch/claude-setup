@@ -1,19 +1,67 @@
 # Claude Code Agent Setup
 
-A template for setting up Claude Code (agents, skills, memory) in any project. Copy this into your repo with the setup script and start building.
+A template for setting up Claude Code (agents, skills, memory) in any project. Use it to bootstrap a new repo or add Claude to an existing one.
 
-## Quick Start
+## Creating a New Project
+
+Use this repo as a GitHub template to start a new project with Claude Code pre-configured:
+
+1. Click **"Use this template"** → **"Create a new repository"** on GitHub
+2. Clone your new repo and start working:
+   ```bash
+   git clone git@github.com:you/your-new-project.git
+   cd your-new-project
+   claude login   # authenticate with your Max/Pro subscription
+   claude          # start coding
+   ```
+
+Everything is ready out of the box — agents, skills, and settings are already in place. Add your project code and go.
+
+## Adding Claude to an Existing Project
+
+### Option A: Setup script (recommended)
+
+The interactive setup script copies template files into your project and lets you pick what to include:
 
 ```bash
-# Clone this template
-git clone <this-repo> claude-setup
+# Clone this template somewhere
+git clone git@github.com:nickmaglowsch/claude-setup.git /tmp/claude-setup
 
-# Copy into your project
-./claude-setup/setup.sh /path/to/your/project
-
-# Or just copy .claude/ manually
-cp -r claude-setup/.claude/ /path/to/your/project/.claude/
+# Run the setup script pointing at your project
+/tmp/claude-setup/setup.sh /path/to/your/project
 ```
+
+The script will:
+- Copy `.claude/` (agents, skills, settings) — always included
+- Optionally add `.devcontainer/` for containerized development
+- Optionally add `run-claude.sh` for headless/automation mode
+- Update your `.gitignore` with the right entries
+
+### Option B: Manual copy
+
+If you just want the core Claude Code setup:
+
+```bash
+# Copy the .claude directory into your project
+cp -r /tmp/claude-setup/.claude/ /path/to/your/project/.claude/
+
+# Optionally copy dev container support
+cp -r /tmp/claude-setup/.devcontainer/ /path/to/your/project/.devcontainer/
+cp /tmp/claude-setup/run-claude.sh /path/to/your/project/
+```
+
+### After setup
+
+```bash
+cd /path/to/your/project
+claude login    # authenticate with your Max/Pro subscription
+claude           # start coding
+
+# Or use the build pipeline with a PRD:
+# /build <paste your PRD>
+```
+
+Review `.claude/settings.local.json` to adjust permissions for your project.
 
 ## Directory Structure
 
