@@ -1,6 +1,19 @@
 # Claude Code Agent Setup
 
-This directory contains the configuration for Claude Code's custom agents, skills, and memory.
+A template for setting up Claude Code (agents, skills, memory) in any project. Copy this into your repo with the setup script and start building.
+
+## Quick Start
+
+```bash
+# Clone this template
+git clone <this-repo> claude-setup
+
+# Copy into your project
+./claude-setup/setup.sh /path/to/your/project
+
+# Or just copy .claude/ manually
+cp -r claude-setup/.claude/ /path/to/your/project/.claude/
+```
 
 ## Directory Structure
 
@@ -84,3 +97,18 @@ When invoked directly (outside `/build`), the `prd-task-planner` runs all phases
 ## Agent Memory
 
 Each agent has persistent memory in `.claude/agent-memory/<agent-name>/`. Agents record codebase patterns, conventions, and insights they discover. This builds institutional knowledge across sessions — e.g., the planner remembers your project structure so future planning is faster.
+
+## Dev Container (Optional)
+
+Run Claude Code in an isolated Docker container — interactively via VS Code / Zed or headlessly via CLI. Supports running N containers on N branches simultaneously with no port collisions.
+
+```bash
+# VS Code / Zed: open the project, then reopen in container
+# Authenticate inside the container:
+claude login
+
+# Headless: spawn a container on a branch
+./run-claude.sh --branch feature-x --prompt "implement the feature"
+```
+
+See [`.devcontainer/README.md`](.devcontainer/README.md) for full documentation.
