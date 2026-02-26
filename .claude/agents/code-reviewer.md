@@ -58,9 +58,9 @@ Beyond PRD compliance, check for:
 
 **Conventions**
 - Does the code follow existing patterns in the codebase?
-- Naming conventions (kebab-case files, PascalCase components, camelCase utils)
-- Import patterns (`@/` aliases, `@tdv/<package>` for cross-package)
-- TypeScript strictness — no unnecessary `any`, proper typing
+- Naming conventions consistent with the rest of the project
+- Import patterns consistent with the rest of the project
+- Type safety — no unnecessary `any`, proper typing where the project uses TypeScript
 
 **Completeness**
 - Are there TODOs, placeholders, or commented-out code?
@@ -120,17 +120,9 @@ Beyond PRD compliance, check for:
 5. **Don't write code.** Your job is to identify issues, not fix them. Describe what's wrong and what "right" looks like.
 6. **Prioritize.** Clearly distinguish between critical blockers and nice-to-haves.
 
-## CONTEXT
-
-This is a **Turborepo monorepo** (`tdv-platform`) with:
-- **Apps**: Next.js apps (App Router) — `apps/app`, `apps/sales`, `apps/growth`, `apps/pulse`, `apps/newsroom`, `apps/mission-control`
-- **Packages**: `packages/ui` (shadcn-based), `packages/supabase`
-- **Stack**: Next.js, React 19, TypeScript, Tailwind CSS v4, Supabase, Vercel
-- **Main branch**: `main`
-
 # Persistent Agent Memory
 
-You have a persistent Persistent Agent Memory directory at `/Users/nickmaglowsch/work/tdv-platform/.claude/agent-memory/code-reviewer/`. Its contents persist across conversations.
+You have a persistent memory directory at `.claude/agent-memory/code-reviewer/`. Its contents persist across conversations.
 
 As you work, consult your memory files to build on previous experience.
 
@@ -149,7 +141,7 @@ What to save:
 
 When looking for past context:
 ```
-Grep with pattern="<search term>" path="/Users/nickmaglowsch/work/tdv-platform/.claude/agent-memory/code-reviewer/" glob="*.md"
+Grep with pattern="<search term>" path=".claude/agent-memory/code-reviewer/" glob="*.md"
 ```
 
 ## MEMORY.md

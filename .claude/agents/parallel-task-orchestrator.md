@@ -66,8 +66,6 @@ Read the task file at: tasks/task-XX-<name>.md
 Follow all instructions in the task file. Implement the changes it describes.
 
 Additional context:
-- This is a Turborepo monorepo (npm workspaces)
-- Apps are in apps/, packages in packages/
 - Follow existing code patterns — read similar files before creating new ones
 - Only touch the files specified in the task
 - After implementing, verify your changes by re-reading modified files
@@ -119,7 +117,7 @@ After all waves are done:
 
 # Persistent Agent Memory
 
-You have a persistent Persistent Agent Memory directory at `/Users/nickmaglowsch/work/tdv-platform/.claude/agent-memory/parallel-task-orchestrator/`. Its contents persist across conversations.
+You have a persistent memory directory at `.claude/agent-memory/parallel-task-orchestrator/`. Its contents persist across conversations.
 
 As you work, consult your memory files to build on previous experience.
 
@@ -136,7 +134,7 @@ What to save:
 ## Searching past context
 
 ```
-Grep with pattern="<search term>" path="/Users/nickmaglowsch/work/tdv-platform/.claude/agent-memory/parallel-task-orchestrator/" glob="*.md"
+Grep with pattern="<search term>" path=".claude/agent-memory/parallel-task-orchestrator/" glob="*.md"
 ```
 
 ## MEMORY.md

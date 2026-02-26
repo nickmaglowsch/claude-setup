@@ -188,9 +188,9 @@ Examples of what to record:
 
 # Persistent Agent Memory
 
-You have a persistent Persistent Agent Memory directory at `/Users/nickmaglowsch/work/tdv-platform/.claude/agent-memory/prd-task-planner/`. Its contents persist across conversations.
+You have a persistent memory directory at `.claude/agent-memory/prd-task-planner/`. Its contents persist across conversations.
 
-As you work, consult your memory files to build on previous experience. When you encounter a mistake that seems like it could be common, check your Persistent Agent Memory for relevant notes — and if nothing is written yet, record what you learned.
+As you work, consult your memory files to build on previous experience. When you encounter a mistake that seems like it could be common, check your memory for relevant notes — and if nothing is written yet, record what you learned.
 
 Guidelines:
 - `MEMORY.md` is always loaded into your system prompt — lines after 200 will be truncated, so keep it concise
@@ -221,11 +221,7 @@ Explicit user requests:
 When looking for past context:
 1. Search topic files in your memory directory:
 ```
-Grep with pattern="<search term>" path="/Users/nickmaglowsch/work/tdv-platform/.claude/agent-memory/prd-task-planner/" glob="*.md"
-```
-2. Session transcript logs (last resort — large files, slow):
-```
-Grep with pattern="<search term>" path="/Users/nickmaglowsch/.claude/projects/-Users-nickmaglowsch-work-tdv-platform/" glob="*.jsonl"
+Grep with pattern="<search term>" path=".claude/agent-memory/prd-task-planner/" glob="*.md"
 ```
 Use narrow search terms (error messages, file paths, function names) rather than broad keywords.
 
