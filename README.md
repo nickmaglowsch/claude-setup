@@ -19,17 +19,15 @@ Everything is ready out of the box — agents, skills, and settings are already 
 
 ## Adding Claude to an Existing Project
 
-### Option A: Setup script (recommended)
+### Option A: One-liner (recommended)
 
-The interactive setup script copies template files into your project and lets you pick what to include:
+No prior clone needed — just run:
 
 ```bash
-# Clone this template somewhere
-git clone git@github.com:nickmaglowsch/claude-setup.git /tmp/claude-setup
-
-# Run the setup script pointing at your project
-/tmp/claude-setup/setup.sh /path/to/your/project
+bash <(curl -fsSL https://raw.githubusercontent.com/nickmaglowsch/claude-setup/main/setup.sh) /path/to/your/project
 ```
+
+The script auto-clones the template repo to `/tmp/claude-setup` if needed, then runs the interactive setup.
 
 The script will:
 - Copy `.claude/` (agents, skills, settings) — always included
@@ -40,6 +38,12 @@ The script will:
 ### Updating an existing setup
 
 Pull the latest template improvements into a project that already has Claude set up:
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/nickmaglowsch/claude-setup/main/setup.sh) --update /path/to/your/project
+```
+
+Or if you already have the repo cloned:
 
 ```bash
 /tmp/claude-setup/setup.sh --update /path/to/your/project

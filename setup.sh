@@ -3,10 +3,49 @@
 #
 # Usage: ./setup.sh <target-directory>            # First-time setup (interactive)
 #        ./setup.sh --update <target-directory>    # Update existing setup from latest template
+#
+# One-liner (no prior clone needed):
+#   bash <(curl -fsSL https://raw.githubusercontent.com/nickmaglowsch/claude-setup/main/setup.sh) /path/to/project
+#   bash <(curl -fsSL https://raw.githubusercontent.com/nickmaglowsch/claude-setup/main/setup.sh) --update /path/to/project
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_URL="https://github.com/nickmaglowsch/claude-setup.git"
+CLONE_DIR="/tmp/claude-setup"
+
+# --- Bootstrap: ensure we're running from a full repo clone ---
+# When piped via curl or run standalone without the repo files around it,
+# clone the repo to /tmp and re-exec from there.
+_self_bootstrap() {
+  # Check if the template files exist next to this script
+  local dir
+  dir="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd)" || dir=""
+
+  # If .claude/agents/ exists next to us, we're running from the repo — nothing to do
+  if [ -n "$dir" ] && [ -d "$dir/.claude/agents" ]; then
+    SCRIPT_DIR="$dir"
+    return
+  fi
+
+  # We're running standalone (curl pipe, downloaded copy, etc.) — need the full repo
+  echo "=== Fetching claude-setup template ==="
+
+  if [ -d "$CLONE_DIR/.git" ]; then
+    echo "  Found existing clone at $CLONE_DIR, pulling latest..."
+    git -C "$CLONE_DIR" pull --ff-only 2>&1 | sed 's/^/  /'
+  else
+    echo "  Cloning $REPO_URL to $CLONE_DIR..."
+    rm -rf "$CLONE_DIR"
+    git clone --depth 1 "$REPO_URL" "$CLONE_DIR" 2>&1 | sed 's/^/  /'
+  fi
+
+  echo ""
+
+  # Re-exec from the cloned repo, passing all original args
+  exec "$CLONE_DIR/setup.sh" "$@"
+}
+
+_self_bootstrap "$@"
 
 # --- Parse flags ---
 UPDATE_MODE=false
