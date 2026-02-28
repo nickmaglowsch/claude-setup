@@ -37,6 +37,21 @@ The script will:
 - Optionally add `run-claude.sh` for headless/automation mode
 - Update your `.gitignore` with the right entries
 
+### Updating an existing setup
+
+Pull the latest template improvements into a project that already has Claude set up:
+
+```bash
+/tmp/claude-setup/setup.sh --update /path/to/your/project
+```
+
+This will:
+- Pull the latest changes from the template repo
+- Replace all agent and skill files with the latest versions
+- Preserve your `settings.local.json` (your custom permissions stay intact)
+- Preserve `agent-memory/` (accumulated project knowledge is kept)
+- Only update `.devcontainer/` and `run-claude.sh` if they were previously installed
+
 ### Option B: Manual copy
 
 If you just want the core Claude Code setup:
