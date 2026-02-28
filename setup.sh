@@ -1,19 +1,38 @@
 #!/usr/bin/env bash
 # setup.sh — Copy Claude Code template files into a target repository
 #
-# Usage: ./setup.sh <target-directory>
+# Usage: ./setup.sh <target-directory>            # First-time setup (interactive)
+#        ./setup.sh --update <target-directory>    # Update existing setup from latest template
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
-# --- Validate arguments ---
-if [ $# -lt 1 ]; then
-  echo "Usage: $0 <target-directory>"
+# --- Parse flags ---
+UPDATE_MODE=false
+TARGET_DIR=""
+
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --update|-u)
+      UPDATE_MODE=true
+      shift
+      ;;
+    -h|--help)
+      head -5 "$0" | tail -3
+      exit 0
+      ;;
+    *)
+      TARGET_DIR="$1"
+      shift
+      ;;
+  esac
+done
+
+if [ -z "$TARGET_DIR" ]; then
+  echo "Usage: $0 [--update] <target-directory>"
   exit 1
 fi
-
-TARGET_DIR="$1"
 
 if [ ! -d "$TARGET_DIR" ]; then
   echo "Error: '$TARGET_DIR' does not exist or is not a directory" >&2
@@ -31,8 +50,24 @@ if ! git -C "$TARGET_DIR" rev-parse --git-dir &>/dev/null; then
   fi
 fi
 
-echo "Setting up Claude Code in: $TARGET_DIR"
-echo ""
+# --- Core template files (agents, skills, settings) ---
+CLAUDE_FILES=(
+  ".claude/README.md"
+  ".claude/settings.local.json"
+  ".claude/agents/code-reviewer.md"
+  ".claude/agents/parallel-task-orchestrator.md"
+  ".claude/agents/prd-task-planner.md"
+  ".claude/agents/task-implementer.md"
+  ".claude/skills/build/SKILL.md"
+  ".claude/skills/craft-pr/SKILL.md"
+)
+
+DEVCONTAINER_FILES=(
+  ".devcontainer/Dockerfile"
+  ".devcontainer/devcontainer.json"
+  ".devcontainer/init-firewall.sh"
+  ".devcontainer/README.md"
+)
 
 # --- Helper: copy file with overwrite prompt ---
 copy_file() {
@@ -52,20 +87,99 @@ copy_file() {
   echo "  Copied: ${dest#"$TARGET_DIR"/}"
 }
 
+# --- Helper: force-copy file (no prompt) ---
+force_copy_file() {
+  local src="$1"
+  local dest="$2"
+
+  mkdir -p "$(dirname "$dest")"
+  cp "$src" "$dest"
+  echo "  Updated: ${dest#"$TARGET_DIR"/}"
+}
+
+# ===========================================================================
+# UPDATE MODE
+# ===========================================================================
+if [ "$UPDATE_MODE" = true ]; then
+  # Verify target already has a Claude setup
+  if [ ! -d "$TARGET_DIR/.claude/agents" ]; then
+    echo "Error: '$TARGET_DIR' does not have an existing Claude setup (.claude/agents/ not found)." >&2
+    echo "Run without --update for first-time setup." >&2
+    exit 1
+  fi
+
+  echo "Updating Claude Code setup in: $TARGET_DIR"
+  echo ""
+
+  # Pull latest template if this is a git repo
+  if git -C "$SCRIPT_DIR" rev-parse --git-dir &>/dev/null; then
+    echo "=== Pulling latest template ==="
+    git -C "$SCRIPT_DIR" pull --ff-only 2>&1 | sed 's/^/  /'
+    echo ""
+  else
+    echo "Warning: Template directory is not a git repo, using files as-is."
+    echo ""
+  fi
+
+  # Update core .claude/ files (skip settings.local.json to preserve user config)
+  echo "=== Updating: .claude/ agents, skills ==="
+  echo ""
+
+  for file in "${CLAUDE_FILES[@]}"; do
+    # Skip settings — the user has likely customized these
+    if [[ "$file" == *"settings.local.json"* ]]; then
+      echo "  Skipped: $file (preserving local settings)"
+      continue
+    fi
+
+    if [ -f "$SCRIPT_DIR/$file" ]; then
+      force_copy_file "$SCRIPT_DIR/$file" "$TARGET_DIR/$file"
+    fi
+  done
+
+  echo ""
+
+  # Update devcontainer if it already exists in target
+  if [ -d "$TARGET_DIR/.devcontainer" ]; then
+    echo "=== Updating: .devcontainer/ ==="
+    echo ""
+
+    for file in "${DEVCONTAINER_FILES[@]}"; do
+      if [ -f "$SCRIPT_DIR/$file" ]; then
+        force_copy_file "$SCRIPT_DIR/$file" "$TARGET_DIR/$file"
+      fi
+    done
+
+    chmod +x "$TARGET_DIR/.devcontainer/init-firewall.sh" 2>/dev/null || true
+    echo ""
+  fi
+
+  # Update run-claude.sh if it already exists in target
+  if [ -f "$TARGET_DIR/run-claude.sh" ]; then
+    echo "=== Updating: run-claude.sh ==="
+    echo ""
+    force_copy_file "$SCRIPT_DIR/run-claude.sh" "$TARGET_DIR/run-claude.sh"
+    chmod +x "$TARGET_DIR/run-claude.sh" 2>/dev/null || true
+    echo ""
+  fi
+
+  echo "=== Update complete! ==="
+  echo ""
+  echo "  Updated template files. Your settings.local.json and agent-memory/ were preserved."
+  echo "  Review the changes with: cd $TARGET_DIR && git diff"
+  echo ""
+  exit 0
+fi
+
+# ===========================================================================
+# FIRST-TIME SETUP (original behavior)
+# ===========================================================================
+echo "Setting up Claude Code in: $TARGET_DIR"
+echo ""
+
 # --- Step 1: Core .claude/ files (always) ---
 echo "=== Core: .claude/ agents, skills, settings ==="
 echo ""
-
-CLAUDE_FILES=(
-  ".claude/README.md"
-  ".claude/settings.local.json"
-  ".claude/agents/code-reviewer.md"
-  ".claude/agents/parallel-task-orchestrator.md"
-  ".claude/agents/prd-task-planner.md"
-  ".claude/agents/task-implementer.md"
-  ".claude/skills/build/SKILL.md"
-  ".claude/skills/craft-pr/SKILL.md"
-)
 
 for file in "${CLAUDE_FILES[@]}"; do
   copy_file "$SCRIPT_DIR/$file" "$TARGET_DIR/$file"
@@ -80,13 +194,6 @@ echo ""
 if [[ "$install_devcontainer" =~ ^[Yy]$ ]]; then
   echo "=== Dev Container: .devcontainer/ ==="
   echo ""
-
-  DEVCONTAINER_FILES=(
-    ".devcontainer/Dockerfile"
-    ".devcontainer/devcontainer.json"
-    ".devcontainer/init-firewall.sh"
-    ".devcontainer/README.md"
-  )
 
   for file in "${DEVCONTAINER_FILES[@]}"; do
     copy_file "$SCRIPT_DIR/$file" "$TARGET_DIR/$file"

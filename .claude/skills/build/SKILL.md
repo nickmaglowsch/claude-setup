@@ -14,6 +14,12 @@ The user's PRD or feature spec:
 
 $ARGUMENTS
 
+## Step 0: Clean up — Remove stale task files
+
+Before starting, remove any leftover files from a previous build run:
+- Use Bash to run `rm -rf tasks/` to clear the entire tasks directory
+- This prevents stale task files from being picked up by the orchestrator
+
 ## Step 1: Plan — Two-phase planning with user Q&A
 
 ### Step 1a: Discovery — Explore codebase & surface questions
@@ -50,11 +56,20 @@ Launch the `parallel-task-orchestrator` agent using the Task tool with:
 
 Wait for it to complete. Note any issues reported.
 
+## Step 2b: Build check — Verify the project compiles
+
+Before reviewing, run a quick build/lint check to catch obvious breakage:
+- Look for a `package.json`, `Makefile`, `Cargo.toml`, or similar build config in the project root
+- Run the appropriate build command (e.g., `npm run build`, `pnpm build`, `make`, `cargo check`)
+- If the build fails, report the errors to the user and ask whether to proceed with the review or fix first
+- If no build system is detected, skip this step
+
 ## Step 3: Review — Run code-reviewer
 
 Launch the `code-reviewer` agent using the Task tool with:
 - `subagent_type: "code-reviewer"`
 - Tell it to review all changes against `tasks/updated-prd.md`
+- Tell it to write the review report to `tasks/review-report.md`
 
 Wait for it to complete.
 

@@ -1,7 +1,7 @@
 ---
 name: code-reviewer
 description: "Use this agent to review code changes against a PRD, task specification, or general quality standards. It can review uncommitted changes, specific files, or a full feature branch. Run it after implementation to catch compliance gaps, bugs, and convention violations.\n\nExamples:\n\n- User: \"Review the current changes against the PRD\"\n  Assistant: \"I'll use the Task tool to launch the code-reviewer agent to check all changes against the PRD requirements.\"\n\n- User: \"Review what was just implemented\"\n  Assistant: \"Let me use the Task tool to launch the code-reviewer agent to audit the recent changes for quality and correctness.\"\n\n- User: \"Check if the sales intel feature matches the requirements\"\n  Assistant: \"I'll use the Task tool to launch the code-reviewer agent to verify the sales intel implementation against its requirements.\"\n\n- (Spawned by orchestrator): \"Review all changes against tasks/updated-prd.md\"\n  The agent diffs all changes, reads the PRD, and produces a compliance report."
-tools: Bash, Glob, Grep, Read
+tools: Bash, Glob, Grep, Read, Write
 model: opus
 color: blue
 memory: project
@@ -110,6 +110,10 @@ Beyond PRD compliance, check for:
 ## Recommendations
 - [actionable next steps, ordered by priority]
 ```
+
+## SAVING THE REPORT
+
+If your prompt specifies an output file path (e.g., `tasks/review-report.md`), write the full report to that file using the Write tool. Always output the report as text too so the caller sees it.
 
 ## CRITICAL RULES
 

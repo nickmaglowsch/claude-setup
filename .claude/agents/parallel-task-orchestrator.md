@@ -52,7 +52,7 @@ Wave 3 (sequential): [Task 6] — depends on Wave 2
 
 ## PHASE 3: EXECUTION
 
-For each wave, spawn **one sub-agent per task** using the Task tool. All sub-agents in a wave run in parallel.
+For each wave, spawn **one sub-agent per task** using the Agent tool. To achieve actual parallelism, you MUST call multiple Agent tools **in a single message** — one tool call per task in the wave. Do NOT launch them one at a time sequentially.
 
 ### Sub-agent Prompt Template
 
@@ -73,7 +73,7 @@ Additional context:
 When done, report: what you implemented, files changed, and any issues encountered.
 ```
 
-Use `subagent_type: "general-purpose"` for each sub-agent. They will have access to all the tools they need.
+Use `subagent_type: "task-implementer"` for each sub-agent. This uses the specialized task-implementer agent which reads conventions, verifies context, and follows existing patterns.
 
 **IMPORTANT**: Wait for ALL sub-agents in a wave to complete before starting the next wave.
 
