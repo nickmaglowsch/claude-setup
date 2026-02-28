@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
-# setup.sh — Copy Claude Code template files into a target repository
+# setup.sh — Set up or update Claude Code agents/skills in any project
 #
-# Usage: ./setup.sh <target-directory>            # First-time setup (interactive)
-#        ./setup.sh --update <target-directory>    # Update existing setup from latest template
+# Usage: ./setup.sh [target-directory]    # Auto-detects setup vs update
+#        ./setup.sh --update [target-directory]   # Force update mode
 #
-# One-liner (no prior clone needed):
-#   bash <(curl -fsSL https://raw.githubusercontent.com/nickmaglowsch/claude-setup/main/setup.sh) /path/to/project
-#   bash <(curl -fsSL https://raw.githubusercontent.com/nickmaglowsch/claude-setup/main/setup.sh) --update /path/to/project
+# One-liner (run from your project directory):
+#   bash <(curl -fsSL https://raw.githubusercontent.com/nickmaglowsch/claude-setup/main/setup.sh)
 
 set -euo pipefail
 
@@ -48,17 +47,23 @@ _self_bootstrap() {
 _self_bootstrap "$@"
 
 # --- Parse flags ---
-UPDATE_MODE=false
+FORCE_UPDATE=false
 TARGET_DIR=""
 
 while [[ $# -gt 0 ]]; do
   case $1 in
     --update|-u)
-      UPDATE_MODE=true
+      FORCE_UPDATE=true
       shift
       ;;
     -h|--help)
-      head -5 "$0" | tail -3
+      echo "Usage: $0 [--update] [target-directory]"
+      echo ""
+      echo "  target-directory  Project to set up (default: current directory)"
+      echo "  --update, -u      Force update mode (skip auto-detection)"
+      echo ""
+      echo "One-liner (run from your project directory):"
+      echo "  bash <(curl -fsSL https://raw.githubusercontent.com/nickmaglowsch/claude-setup/main/setup.sh)"
       exit 0
       ;;
     *)
@@ -68,9 +73,9 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+# Default to current directory if no target specified
 if [ -z "$TARGET_DIR" ]; then
-  echo "Usage: $0 [--update] <target-directory>"
-  exit 1
+  TARGET_DIR="$(pwd)"
 fi
 
 if [ ! -d "$TARGET_DIR" ]; then
@@ -80,6 +85,13 @@ fi
 
 TARGET_DIR="$(cd "$TARGET_DIR" && pwd)"
 
+# Don't run setup on the template repo itself
+if [ "$TARGET_DIR" = "$SCRIPT_DIR" ]; then
+  echo "Error: Target directory is the template repo itself." >&2
+  echo "Run this from your project directory, or pass the project path as an argument." >&2
+  exit 1
+fi
+
 if ! git -C "$TARGET_DIR" rev-parse --git-dir &>/dev/null; then
   echo "Warning: '$TARGET_DIR' is not a git repository."
   read -rp "Continue anyway? [y/N] " confirm
@@ -87,6 +99,16 @@ if ! git -C "$TARGET_DIR" rev-parse --git-dir &>/dev/null; then
     echo "Aborted."
     exit 0
   fi
+fi
+
+# --- Auto-detect: update if .claude/agents/ already exists, otherwise fresh setup ---
+UPDATE_MODE=false
+if [ "$FORCE_UPDATE" = true ]; then
+  UPDATE_MODE=true
+elif [ -d "$TARGET_DIR/.claude/agents" ]; then
+  echo "Existing Claude setup detected in $TARGET_DIR"
+  echo ""
+  UPDATE_MODE=true
 fi
 
 # --- Core template files (agents, skills, settings) ---
@@ -140,7 +162,7 @@ force_copy_file() {
 # UPDATE MODE
 # ===========================================================================
 if [ "$UPDATE_MODE" = true ]; then
-  # Verify target already has a Claude setup
+  # Verify target already has a Claude setup (relevant when --update is forced)
   if [ ! -d "$TARGET_DIR/.claude/agents" ]; then
     echo "Error: '$TARGET_DIR' does not have an existing Claude setup (.claude/agents/ not found)." >&2
     echo "Run without --update for first-time setup." >&2

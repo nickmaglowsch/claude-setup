@@ -21,40 +21,18 @@ Everything is ready out of the box — agents, skills, and settings are already 
 
 ### Option A: One-liner (recommended)
 
-No prior clone needed — just run:
+Run from your project directory — no prior clone needed:
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/nickmaglowsch/claude-setup/main/setup.sh) /path/to/your/project
+cd /path/to/your/project
+bash <(curl -fsSL https://raw.githubusercontent.com/nickmaglowsch/claude-setup/main/setup.sh)
 ```
 
-The script auto-clones the template repo to `/tmp/claude-setup` if needed, then runs the interactive setup.
+The script auto-detects whether this is a first-time setup or an update:
+- **New project** (no `.claude/agents/`): runs the interactive setup — copies agents, skills, settings, and optionally adds devcontainer + headless runner
+- **Existing setup** (`.claude/agents/` found): updates all agent and skill files to the latest version while preserving your `settings.local.json` and `agent-memory/`
 
-The script will:
-- Copy `.claude/` (agents, skills, settings) — always included
-- Optionally add `.devcontainer/` for containerized development
-- Optionally add `run-claude.sh` for headless/automation mode
-- Update your `.gitignore` with the right entries
-
-### Updating an existing setup
-
-Pull the latest template improvements into a project that already has Claude set up:
-
-```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/nickmaglowsch/claude-setup/main/setup.sh) --update /path/to/your/project
-```
-
-Or if you already have the repo cloned:
-
-```bash
-/tmp/claude-setup/setup.sh --update /path/to/your/project
-```
-
-This will:
-- Pull the latest changes from the template repo
-- Replace all agent and skill files with the latest versions
-- Preserve your `settings.local.json` (your custom permissions stay intact)
-- Preserve `agent-memory/` (accumulated project knowledge is kept)
-- Only update `.devcontainer/` and `run-claude.sh` if they were previously installed
+The template repo is auto-cloned to `/tmp/claude-setup` (or pulled if already there).
 
 ### Option B: Manual copy
 
