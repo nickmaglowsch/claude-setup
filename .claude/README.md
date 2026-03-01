@@ -7,13 +7,16 @@ This directory contains the configuration for Claude Code's custom agents, skill
 ```
 .claude/
 ├── agents/                  # Custom agent definitions
+│   ├── bug-fixer.md             # Fixes diagnosed bugs using adaptive TDD
+│   ├── bug-investigator.md      # Investigates bugs, reads logs, produces diagnosis
 │   ├── prd-task-planner.md      # Analyzes PRDs, explores codebase, generates task files
 │   ├── task-implementer.md      # Implements a single task from a task file
 │   ├── parallel-task-orchestrator.md  # Executes task files in parallel waves
 │   └── code-reviewer.md        # Reviews changes against PRD/spec
 ├── skills/                  # User-invocable skills (slash commands)
 │   ├── build/SKILL.md           # /build — full pipeline: plan → implement → review
-│   └── craft-pr/SKILL.md       # /craft-pr — generates PR description from tasks + diff
+│   ├── craft-pr/SKILL.md       # /craft-pr — generates PR description from tasks + diff
+│   └── debug/SKILL.md          # /debug — investigate → diagnose → TDD fix → review
 ├── agent-memory/            # Persistent memory per agent (survives across sessions)
 └── settings.local.json      # Local Claude Code settings
 ```
@@ -80,6 +83,57 @@ Task: code-reviewer — "Review changes against tasks/updated-prd.md"
 ```
 
 When invoked directly (outside `/build`), the `prd-task-planner` runs all phases end-to-end without the Q&A pause. The two-phase flow only activates when the prompt includes `MODE: DISCOVERY` or `MODE: GENERATE`.
+
+## The Debug Pipeline (`/debug`)
+
+The `/debug` skill orchestrates an investigative debugging workflow. Describe a bug and it handles investigation, diagnosis, TDD fix, and review.
+
+### How it works
+
+```
+Bug Report → [Investigate] → [User Q&A] → [Diagnose] → [TDD Fix] → [Review] → Done
+```
+
+#### Step 1: Two-Phase Investigation (with user input)
+
+**Step 1a — Discovery**
+The `bug-investigator` agent reads logs, searches the codebase, attempts to reproduce the issue, and writes `tasks/debug-questions.md` with:
+- A summary of what it found (symptoms confirmed, code traced, hypotheses)
+- 2-6 questions about environment, recent changes, reproduction conditions
+
+**Step 1b — User Q&A**
+The debug orchestrator reads the questions file and presents them to you interactively.
+
+**Step 1c — Diagnosis**
+The same investigator agent is **resumed** with your answers. It then produces:
+- `tasks/bug-diagnosis.md` — root cause analysis, affected files, fix recommendations, test strategy
+
+#### Step 2: TDD Fix
+
+The `bug-fixer` agent reads the diagnosis, writes a failing test (when feasible), implements the fix, and verifies no regressions. If TDD is not feasible, it documents why and uses alternative verification.
+
+#### Step 3: Code Review
+
+The `code-reviewer` audits the fix against `tasks/bug-diagnosis.md` with debug-specific criteria (root cause addressed, regressions checked, test coverage).
+
+### Usage
+
+```
+/debug Login fails with 500 error after upgrading auth library. Logs: 'docker logs app-api'. Tests: 'npm test -- --grep auth'
+```
+
+### Running agents individually
+
+```
+# Just investigate (discovery + diagnose in one shot, no Q&A pause)
+Task: bug-investigator — "Investigate: Login fails with 500 error..."
+
+# Just fix a diagnosed bug
+Task: bug-fixer — "Fix the bug. Diagnosis: tasks/bug-diagnosis.md. Tests: npm test"
+
+# Just review a bug fix
+Task: code-reviewer — "Review changes against tasks/bug-diagnosis.md"
+```
 
 ## Agent Memory
 

@@ -115,12 +115,15 @@ fi
 CLAUDE_FILES=(
   ".claude/README.md"
   ".claude/settings.local.json"
+  ".claude/agents/bug-fixer.md"
+  ".claude/agents/bug-investigator.md"
   ".claude/agents/code-reviewer.md"
   ".claude/agents/parallel-task-orchestrator.md"
   ".claude/agents/prd-task-planner.md"
   ".claude/agents/task-implementer.md"
   ".claude/skills/build/SKILL.md"
   ".claude/skills/craft-pr/SKILL.md"
+  ".claude/skills/debug/SKILL.md"
 )
 
 DEVCONTAINER_FILES=(
