@@ -220,6 +220,30 @@ if [ "$UPDATE_MODE" = true ]; then
     echo ""
   fi
 
+  # Ensure .gitignore has required entries
+  echo "=== Updating .gitignore ==="
+  echo ""
+
+  GITIGNORE_ENTRIES=(
+    ".devcontainer/.env"
+    ".claude/settings.local.json"
+    ".claude-worktrees/"
+    ".DS_Store"
+    "tasks/"
+  )
+
+  GITIGNORE_FILE="$TARGET_DIR/.gitignore"
+  touch "$GITIGNORE_FILE"
+
+  for entry in "${GITIGNORE_ENTRIES[@]}"; do
+    if ! grep -qxF "$entry" "$GITIGNORE_FILE" 2>/dev/null; then
+      echo "$entry" >> "$GITIGNORE_FILE"
+      echo "  Added to .gitignore: $entry"
+    fi
+  done
+
+  echo ""
+
   echo "=== Update complete! ==="
   echo ""
   echo "  Updated template files. Your settings.local.json and agent-memory/ were preserved."
@@ -300,6 +324,7 @@ GITIGNORE_ENTRIES=(
   ".claude/settings.local.json"
   ".claude-worktrees/"
   ".DS_Store"
+  "tasks/"
 )
 
 GITIGNORE_FILE="$TARGET_DIR/.gitignore"
