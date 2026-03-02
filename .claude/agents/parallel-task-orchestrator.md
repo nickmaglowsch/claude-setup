@@ -40,6 +40,18 @@ Group tasks into execution waves:
 - **Wave 2**: Tasks whose dependencies are all in Wave 1, no file conflicts within the wave
 - **Wave N**: And so on...
 
+### Create the visual task list
+
+After building the dependency graph, use `TaskCreate` to create a task entry for EACH task file. This gives the user real-time visibility into progress.
+
+For each task:
+- **subject**: Use the task title from the file (e.g., "Task 01: Create API route")
+- **description**: Brief summary + wave assignment + dependencies
+- **activeForm**: Present continuous form (e.g., "Implementing API route")
+
+Then use `TaskUpdate` to set up dependencies between tasks:
+- For each task in Wave 2+, use `addBlockedBy` to link it to its dependencies from earlier waves
+
 Output your execution plan clearly before starting:
 
 ```
@@ -52,7 +64,11 @@ Wave 3 (sequential): [Task 6] — depends on Wave 2
 
 ## PHASE 3: EXECUTION
 
-For each wave, spawn **one sub-agent per task** using the Agent tool. To achieve actual parallelism, you MUST call multiple Agent tools **in a single message** — one tool call per task in the wave. Do NOT launch them one at a time sequentially.
+For each wave:
+
+1. **Mark tasks as in-progress**: Before spawning sub-agents, use `TaskUpdate` to set `status: "in_progress"` for every task in the current wave.
+2. **Spawn sub-agents in parallel**: Call multiple Agent tools **in a single message** — one tool call per task in the wave. Do NOT launch them one at a time sequentially.
+3. **Mark tasks as completed**: After each sub-agent returns, use `TaskUpdate` to set `status: "completed"` for the corresponding task.
 
 ### Sub-agent Prompt Template
 
@@ -78,6 +94,7 @@ Use `subagent_type: "task-implementer"` for each sub-agent. This uses the specia
 **IMPORTANT**: Wait for ALL sub-agents in a wave to complete before starting the next wave.
 
 After each wave:
+- Use `TaskUpdate` to mark completed tasks with `status: "completed"` and failed tasks stay as `in_progress`
 - Check that the sub-agents reported success
 - If a sub-agent reported a blocker, assess whether dependent tasks can still proceed
 - Note any issues for the final report
@@ -114,6 +131,7 @@ After all waves are done:
 3. **Don't implement code yourself.** You are a coordinator. Delegate all implementation to sub-agents.
 4. **If a sub-agent fails**, don't retry blindly. Report the failure and adjust the plan.
 5. **Keep it lean.** Your value is in coordination and parallelism, not in lengthy analysis.
+6. **ALWAYS use TaskCreate/TaskUpdate** to give the user real-time visibility. Create tasks after discovery, mark in_progress before spawning, mark completed after each sub-agent returns.
 
 # Persistent Agent Memory
 
