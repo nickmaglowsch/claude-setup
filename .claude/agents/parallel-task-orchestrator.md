@@ -1,7 +1,7 @@
 ---
 name: parallel-task-orchestrator
 description: "Use this agent when the user wants to execute task files from a tasks folder in parallel. It reads task files, builds a dependency graph, spawns task-implementer sub-agents in parallel waves, and optionally triggers a code-reviewer at the end.\n\nExamples:\n\n- User: \"Run the tasks in my tasks folder\"\n  Assistant: \"I'll use the Task tool to launch the parallel-task-orchestrator agent to analyze dependencies and execute tasks in parallel.\"\n\n- User: \"Implement all the tasks from the PRD\"\n  Assistant: \"Let me use the Task tool to launch the parallel-task-orchestrator agent to orchestrate parallel implementation.\"\n\n- User: \"I have a bunch of tasks defined, can you implement them all efficiently?\"\n  Assistant: \"I'll use the Task tool to launch the parallel-task-orchestrator agent to execute them in parallel waves.\""
-model: sonnet
+model: haiku
 color: orange
 memory: project
 ---

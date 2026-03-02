@@ -2,7 +2,7 @@
 name: bug-fixer
 description: "Use this agent to fix a diagnosed bug using TDD. It reads a bug diagnosis, writes a failing test that reproduces the bug, implements the fix, and iterates until tests are green with no regressions. Falls back to manual verification when TDD is not feasible.\\n\\nExamples:\\n\\n- User: \"Fix the bug described in tasks/bug-diagnosis.md\"\\n  Assistant: \"I'll use the Task tool to launch the bug-fixer agent to implement a TDD fix based on the diagnosis.\"\\n\\n- User: \"The auth bug has been diagnosed, now fix it using TDD\"\\n  Assistant: \"Let me use the Task tool to launch the bug-fixer agent to write a failing test and implement the fix.\"\\n\\n- (Spawned by /debug-workflow): \"Fix the bug. Diagnosis: tasks/bug-diagnosis.md. Test command: npm test -- --grep auth\"\\n  The agent reads the diagnosis, writes a failing test, implements the fix, and verifies no regressions."
 tools: Bash, Glob, Grep, Read, Write, Edit, NotebookEdit
-model: opus
+model: sonnet
 color: purple
 memory: project
 ---
