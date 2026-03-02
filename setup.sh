@@ -114,7 +114,6 @@ fi
 # --- Core template files (agents, skills, settings) ---
 CLAUDE_FILES=(
   ".claude/README.md"
-  ".claude/settings.local.json"
   ".claude/agents/bug-fixer.md"
   ".claude/agents/bug-investigator.md"
   ".claude/agents/code-reviewer.md"
@@ -190,12 +189,6 @@ if [ "$UPDATE_MODE" = true ]; then
   echo ""
 
   for file in "${CLAUDE_FILES[@]}"; do
-    # Skip settings — the user has likely customized these
-    if [[ "$file" == *"settings.local.json"* ]]; then
-      echo "  Skipped: $file (preserving local settings)"
-      continue
-    fi
-
     if [ -f "$SCRIPT_DIR/$file" ]; then
       force_copy_file "$SCRIPT_DIR/$file" "$TARGET_DIR/$file"
     fi
@@ -249,6 +242,23 @@ for file in "${CLAUDE_FILES[@]}"; do
   copy_file "$SCRIPT_DIR/$file" "$TARGET_DIR/$file"
 done
 
+# Create default settings.local.json if it doesn't exist
+SETTINGS_FILE="$TARGET_DIR/.claude/settings.local.json"
+if [ ! -f "$SETTINGS_FILE" ]; then
+  mkdir -p "$TARGET_DIR/.claude"
+  cat > "$SETTINGS_FILE" <<'SETTINGS_EOF'
+{
+  "permissions": {
+    "allow": [],
+    "deny": []
+  }
+}
+SETTINGS_EOF
+  echo "  Created: .claude/settings.local.json (add your permission rules here)"
+else
+  echo "  Kept existing: .claude/settings.local.json"
+fi
+
 echo ""
 
 # --- Step 2: Dev container (optional) ---
@@ -287,6 +297,7 @@ echo ""
 
 GITIGNORE_ENTRIES=(
   ".devcontainer/.env"
+  ".claude/settings.local.json"
   ".claude-worktrees/"
   ".DS_Store"
 )
