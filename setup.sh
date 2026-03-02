@@ -123,7 +123,7 @@ CLAUDE_FILES=(
   ".claude/agents/task-implementer.md"
   ".claude/skills/build/SKILL.md"
   ".claude/skills/craft-pr/SKILL.md"
-  ".claude/skills/debug/SKILL.md"
+  ".claude/skills/debug-workflow/SKILL.md"
 )
 
 DEVCONTAINER_FILES=(

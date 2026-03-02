@@ -1,5 +1,5 @@
 ---
-name: debug
+name: debug-workflow
 description: "Debug pipeline: investigates a bug, diagnoses root cause, writes failing tests, implements fix via TDD, and reviews the result. Orchestrates bug-investigator -> bug-fixer -> code-reviewer."
 argument-hint: "[bug description] [Logs: 'command'] [Tests: 'command']"
 ---

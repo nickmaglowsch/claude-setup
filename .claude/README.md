@@ -16,7 +16,7 @@ This directory contains the configuration for Claude Code's custom agents, skill
 ├── skills/                  # User-invocable skills (slash commands)
 │   ├── build/SKILL.md           # /build — full pipeline: plan → implement → review
 │   ├── craft-pr/SKILL.md       # /craft-pr — generates PR description from tasks + diff
-│   └── debug/SKILL.md          # /debug — investigate → diagnose → TDD fix → review
+│   └── debug-workflow/SKILL.md  # /debug-workflow — investigate → diagnose → TDD fix → review
 ├── agent-memory/            # Persistent memory per agent (survives across sessions)
 └── settings.local.json      # Local Claude Code settings
 ```
@@ -84,9 +84,9 @@ Task: code-reviewer — "Review changes against tasks/updated-prd.md"
 
 When invoked directly (outside `/build`), the `prd-task-planner` runs all phases end-to-end without the Q&A pause. The two-phase flow only activates when the prompt includes `MODE: DISCOVERY` or `MODE: GENERATE`.
 
-## The Debug Pipeline (`/debug`)
+## The Debug Pipeline (`/debug-workflow`)
 
-The `/debug` skill orchestrates an investigative debugging workflow. Describe a bug and it handles investigation, diagnosis, TDD fix, and review.
+The `/debug-workflow` skill orchestrates an investigative debugging workflow. Describe a bug and it handles investigation, diagnosis, TDD fix, and review.
 
 ### How it works
 
@@ -119,7 +119,7 @@ The `code-reviewer` audits the fix against `tasks/bug-diagnosis.md` with debug-s
 ### Usage
 
 ```
-/debug Login fails with 500 error after upgrading auth library. Logs: 'docker logs app-api'. Tests: 'npm test -- --grep auth'
+/debug-workflow Login fails with 500 error after upgrading auth library. Logs: 'docker logs app-api'. Tests: 'npm test -- --grep auth'
 ```
 
 ### Running agents individually
