@@ -72,6 +72,38 @@ Resume the **same** prd-task-planner agent (using the agent ID from Step 1a) wit
 
 Wait for it to complete. Confirm that task files were created in `tasks/`.
 
+### Step 1d: Task review — Present plan and get approval
+
+This step always runs. Do not skip it.
+
+1. Read all `task-*.md` files from `tasks/`. For each, extract:
+   - Task number and title (from filename or `# Task N:` heading)
+   - Objective (first line of `## Objective` section)
+   - Dependencies (from `## Dependencies` section)
+
+2. Present the full task plan to the user as a formatted list:
+   ```
+   ## Task Plan (N tasks)
+
+   1. task-01-name — [Objective]
+      Dependencies: None
+   2. task-02-name — [Objective]
+      Dependencies: task-01
+   ...
+   ```
+   Then add: "You can also open and edit any file in `tasks/` directly before proceeding."
+
+3. Use `AskUserQuestion` with a single question: "How would you like to proceed?"
+   - **"Looks good — start implementation"** — continue to Step 2
+   - **"Regenerate with feedback"** — user provides feedback via the "Other" field
+
+4. **If user approves**: proceed to Step 2.
+
+5. **If user requests regeneration**: resume the **same** prd-task-planner agent (from Step 1a/1c) with:
+   - `resume: "<agent-id-from-step-1a>"`
+   - Prompt: `MODE: GENERATE\n\nUser feedback on the task plan:\n<feedback>\n\nPlease regenerate the task files incorporating this feedback.`
+   - Wait for it to complete, then **loop back to the top of Step 1d** to re-present the updated plan.
+
 ## Step 2: Implement — Run parallel-task-orchestrator
 
 Launch the `parallel-task-orchestrator` agent using the Task tool with:
