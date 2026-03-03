@@ -104,15 +104,52 @@ Search for credentials in the codebase:
 - Search for test fixtures, seed scripts, or test helpers that create test users/tokens: `Grep pattern="test.*token|seed|fixture|createUser|getToken" glob="**/*.{ts,js,py,rb}"`
 - Look for existing HTTP test files (`.http`, `.rest`) that show example authenticated requests
 
-### Step 3: Derive credentials from the app itself
-If no credentials were found statically, try to generate them:
+### Step 3: Detect auth type and derive credentials
+Identify the auth mechanism used by the app, then try to bypass or derive credentials without human interaction:
+
+**Detect auth type first:**
+- Grep for auth-related patterns: `Grep pattern="magic.?link|passwordless|otp|one.?time|sendgrid|postmark|resend|nodemailer" glob="**/*.{ts,js,py,rb}" -i`
+- Check login/auth routes and middleware to understand the mechanism
+- Look at `.env.example` for keys like `MAGIC_LINK_SECRET`, `JWT_SECRET`, `EMAIL_PROVIDER`, etc.
+
+**If magic link / passwordless / OTP auth detected:**
+
+Magic links require inbox access which the agent cannot perform. Try these bypasses in order:
+
+1. **Dev login shortcut** — Search for endpoints that skip the email step in dev/test:
+   - `Grep pattern="dev.?login|test.?login|bypass|skip.*auth|auth.*skip" glob="**/*.{ts,js,py,rb}" -i`
+   - Try hitting `/auth/dev-login`, `/api/auth/test`, `/auth/magic?token=dev` with the app running
+2. **JWT forgery** — If `JWT_SECRET` is in `.env` and the app uses JWTs, forge a valid token:
+   - Find the JWT signing code to understand the payload shape
+   - Use `node -e` or `python3 -c` to generate a valid signed token with a known user ID
+3. **Test session helper** — Search for test utilities that create sessions directly:
+   - `Grep pattern="createSession|signToken|generateToken|mockAuth|testUser" glob="**/*.{ts,js,py,rb}"`
+   - If found, call it via a script or test runner to get a usable token
+4. **Auth bypass env var** — Check for flags like `AUTH_DISABLED`, `SKIP_AUTH`, `E2E_BYPASS_TOKEN` in `.env.example` or code. If present, set them and reproduce without auth.
+5. **Seeded long-lived token** — Search for hardcoded dev tokens in seed scripts or test fixtures:
+   - `Grep pattern="dev.*token|test.*token|seed.*token|BYPASS" glob="**/*.{ts,js,py,rb,sql,json}" -i`
+
+**If standard auth (password, API key, OAuth):**
 - Look for a script to create a dev user or seed the database (e.g., `npm run seed`, `make seed`, `rails db:seed`)
-- Check if the app has a signup/login endpoint you can hit to get a token
+- Check if the app has a signup/login endpoint you can hit to get a token directly
 - Look for a test/dev mode that bypasses auth (e.g., `AUTH_DISABLED=true`)
 
 ### Step 4: Ask the user (fallback)
-If all above steps fail, add this as a question in `tasks/debug-questions.md`:
+If all above steps fail, add a targeted question to `tasks/debug-questions.md` based on the auth type detected:
 
+**If magic link auth and no bypass found:**
+```
+### Q: Magic link authentication — session token needed
+**Context:** This app uses magic link / passwordless auth. I cannot click email links automatically.
+I tried: dev login endpoints, JWT forgery, test session helpers, and auth bypass env vars — none found.
+**Question:** To reproduce this bug, I need an authenticated session. Please do ONE of:
+- A) Trigger a magic link yourself, click it in your browser, then open DevTools →
+     Application → Cookies (or Local Storage) and paste the session cookie/token here
+- B) Tell me if there's a dev bypass I missed (e.g., a command or env var to get a token)
+- C) Add an `## Auth` section to `CLAUDE.md` explaining how to get a dev token for future sessions
+```
+
+**If other auth and no credentials found:**
 ```
 ### Q: Authentication credentials needed
 **Context:** I need to hit authenticated endpoints to reproduce this bug. I couldn't find credentials in .env files, test fixtures, or CLAUDE.md.
@@ -128,20 +165,28 @@ Once auth is resolved (from any step above, or after user answers), save it to `
 ```markdown
 # Auth — [Project Name]
 
+## Auth type
+[e.g., Magic link, JWT, API key, OAuth, Session cookie]
+
 ## How to get credentials
-[Steps to obtain a dev/test token, or where they come from]
+[Steps to obtain a dev/test token — include the bypass method if one was found,
+or the manual steps if the user had to extract a session token from DevTools]
+
+## Bypass method (if found)
+[e.g., "JWT forgery using JWT_SECRET from .env", "dev login at /auth/dev-login",
+"AUTH_DISABLED=true env var", or "manual: user extracts session cookie from DevTools"]
 
 ## Current credentials
-[Token, API key, or credentials — redact production secrets]
+[Token, API key, or session cookie — redact production secrets. Note expiry if known.]
 
 ## Usage
-[How to use them — e.g., curl -H "Authorization: Bearer <token>"]
+[How to use them — e.g., `curl -H "Authorization: Bearer <token>"` or `-H "Cookie: session=<value>"`]
 
 ## Last updated
 [Date]
 ```
 
-This file is gitignored and persists across debugging sessions.
+This file is gitignored and persists across debugging sessions. If the token expires, delete the `## Current credentials` section and re-run auth discovery.
 
 ---
 
