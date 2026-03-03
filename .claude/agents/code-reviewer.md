@@ -74,6 +74,19 @@ Beyond PRD compliance, check for:
 - Large bundle additions
 - Unbounded list rendering
 
+**Test Coverage**
+- Do tests exist for new or significantly modified code?
+- Do existing tests still pass with the changes? (check test output if available)
+- Are there obvious gaps where tests should exist but don't?
+- Do test files follow project naming conventions (`*.test.*`, `*.spec.*`, etc.)?
+- Are edge cases and error paths covered by tests?
+
+If TDD-specific review criteria are included in your prompt, also evaluate TDD compliance:
+- Were tests written for each task/feature that had TDD mode enabled?
+- Do the tests meaningfully validate the acceptance criteria (not just trivial assertions like `expect(true).toBe(true)`)?
+- Are there features or tasks that should have had tests but appear to lack them?
+- Do tests appear to have been written as specifications (testing behavior/requirements) rather than as after-the-fact verification?
+
 ### Step 5: Produce Report
 
 ## REPORT FORMAT
@@ -107,8 +120,28 @@ Beyond PRD compliance, check for:
 ## What Looks Good
 - [positive observations — acknowledge good patterns and decisions]
 
+## Test Coverage
+
+| Area | Tests Exist | Coverage Notes |
+|------|-------------|----------------|
+| [feature/module] | Yes/No/Partial | [what's covered, what's missing] |
+
+**Test Coverage Assessment**: [brief overall assessment]
+
 ## Recommendations
 - [actionable next steps, ordered by priority]
+```
+
+When TDD-specific review criteria are provided in your prompt, also include the following section in the report:
+
+```markdown
+## TDD Compliance
+
+| Task | Tests Written | Tests Meaningful | Notes |
+|------|---------------|-----------------|-------|
+| [task name] | Yes/No | Yes/No | [details] |
+
+**TDD Assessment**: [brief overall assessment of TDD adherence]
 ```
 
 ## SAVING THE REPORT

@@ -64,12 +64,31 @@ Before reviewing, run a quick build/lint check to catch obvious breakage:
 - If the build fails, report the errors to the user and ask whether to proceed with the review or fix first
 - If no build system is detected, skip this step
 
+## Step 2c: Test verification — Run the project's test suite
+
+After the build check, run the project's full test suite to catch regressions and verify implementation:
+- Look for test configuration: `package.json` (check for "test" script), `pytest.ini`/`pyproject.toml`, `go.mod`, `Cargo.toml`, or other test framework config
+- Run the appropriate test command (e.g., `npm test`, `pnpm test`, `pytest`, `go test ./...`, `cargo test`)
+- If tests fail:
+  - Report the failures to the user
+  - Ask whether to proceed with the review, fix the issues first, or skip
+- If no test infrastructure is detected, skip this step
+- This step runs regardless of whether TDD mode was used — it is part of the always-on test awareness
+
 ## Step 3: Review — Run code-reviewer
+
+Before launching the code-reviewer, check if TDD mode was used by reading any task file from `tasks/` and looking for a `## TDD Mode` section.
 
 Launch the `code-reviewer` agent using the Task tool with:
 - `subagent_type: "code-reviewer"`
 - Tell it to review all changes against `tasks/updated-prd.md`
 - Tell it to write the review report to `tasks/review-report.md`
+- **If TDD mode was used**, include these additional review criteria in the prompt:
+  - Were tests written for each task that had TDD mode enabled?
+  - Do the tests meaningfully cover the acceptance criteria from the task files?
+  - Are there tasks with TDD mode that appear to be missing tests?
+  - Do tests follow project conventions?
+- **If TDD mode was not used**, still tell the reviewer to check general test coverage as part of the standard review
 
 Wait for it to complete.
 
@@ -86,6 +105,13 @@ Summarize the full pipeline run to the user:
 ### Implementation
 - [tasks completed / total]
 - [any issues]
+
+### Build Check
+- [passed / failed / skipped]
+
+### Testing
+- [test suite status: all passed / X failed / not detected]
+- [if TDD: TDD compliance summary]
 
 ### Review
 - [compliance score]

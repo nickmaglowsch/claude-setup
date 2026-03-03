@@ -44,6 +44,8 @@ The `tasks/planning-questions.md` file MUST follow this format:
 
 Keep questions focused on things that would **materially change the implementation plan** — architectural decisions, scope clarifications, integration choices. Don't ask about trivial details. Aim for 3-8 questions.
 
+**Always include a TDD question**: Regardless of the PRD content, always include one standing question asking whether the user wants TDD mode for this build. Add it as a final question in `tasks/planning-questions.md`. Example: "Do you want TDD mode for this build? If yes, the task implementer will write failing tests before implementation code for each task."
+
 #### MODE: GENERATE
 When your prompt contains `MODE: GENERATE` along with user answers, proceed with Phase 2 and Phase 3 below. You will still have your codebase exploration context from the discovery phase (you are being resumed). Use the user's answers to resolve ambiguities.
 
@@ -60,6 +62,7 @@ Before touching the PRD, you MUST thoroughly explore the existing codebase to un
 - **Dependencies**: What libraries, services, and integrations are already available
 - **Data Models**: Existing schemas, types, interfaces that relate to the PRD
 - **Reusable Components**: UI components, utilities, helpers, middleware that can be leveraged
+- **Testing patterns**: Discover the test framework in use (Jest, pytest, Go test, etc.), test file naming conventions (`*.test.*`, `*.spec.*`, `__tests__/`), test directory locations, and available test commands (e.g., `npm test`, `pytest`, `go test ./...`)
 
 Use file search, directory listing, and code reading extensively. Do NOT skip this phase. Read key files. Understand the project structure deeply.
 
@@ -72,6 +75,7 @@ Create an **Updated PRD** that transforms the generic PRD into a codebase-aware 
 - Flag potential conflicts, risks, or architectural concerns
 - Preserve the original intent while grounding it in reality
 - Note any ambiguities or gaps in the original PRD that need resolution
+- Note whether TDD mode was requested by the user and document the project's test infrastructure (framework, test command, test file conventions) so task-level TDD specifications are consistent
 
 Write this updated PRD to a file called `updated-prd.md` (or a name specified by the user) in a designated tasks directory.
 
@@ -119,6 +123,29 @@ Each task file MUST contain:
 - Blocks: [task numbers that depend on this task]
 ```
 
+When TDD mode was requested by the user, task files for functional code tasks MUST also include the following optional section:
+
+```markdown
+## TDD Mode
+
+This task uses Test-Driven Development. Write tests BEFORE implementation.
+
+### Test Specifications
+- **Test file**: `path/to/test-file` (following project conventions)
+- **Test framework**: [detected framework]
+- **Test command**: [detected command]
+
+### Tests to Write
+1. **[Test name]**: [What to test] — Expected: [expected behavior]
+2. ...
+
+### TDD Process
+1. Write the tests above — they should FAIL (RED)
+2. Implement the minimum code to make them pass (GREEN)
+3. Run the full test suite to check for regressions
+4. Refactor if needed while keeping tests green
+```
+
 #### Task Decomposition Principles
 1. **Right-sized**: Each task should be completable in a single agent session — not too large (entire feature) or too small (rename a variable)
 2. **Self-contained**: Each task file has ALL the context an agent needs. Don't assume the agent has read other task files unless explicitly stated in Dependencies.
@@ -126,6 +153,18 @@ Each task file MUST contain:
 4. **Dependency-aware**: Clearly state what must come before and after
 5. **Pattern-consistent**: Instructions should reference and follow existing codebase patterns
 6. **Deletable**: These files are ephemeral — they exist only until the task is done. Note this in the task directory README.
+
+#### TDD Mode (when user opted in)
+When the user requested TDD mode, every task that creates or modifies functional code MUST include a `## TDD Mode` section (see Task File Format above). For each such task:
+- Generate specific, meaningful test specifications based on the task's requirements and acceptance criteria
+- Include the detected test framework, test command, and a concrete test file path following project conventions
+- Write out specific named tests with clear expected behaviors — not generic placeholders
+- Pure config tasks, documentation tasks, and tasks with no testable logic do NOT need TDD sections
+
+#### Test-Aware Default (when TDD mode is OFF)
+Even without TDD mode, make task files test-aware:
+- Include test-related notes in the Acceptance Criteria (e.g., "Existing tests still pass", "Consider adding tests for [X]")
+- Note the available test command in the Context section so the implementing agent can run tests after implementation
 
 #### Task Categories (use as needed)
 - **Schema/Model tasks**: Data model changes, migrations, type definitions

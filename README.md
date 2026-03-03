@@ -89,7 +89,7 @@ The `/build` skill orchestrates the full feature implementation lifecycle. Paste
 ### How it works
 
 ```
-PRD → [Plan] → [User Q&A] → [Implement] → [Review] → Done
+PRD → [Plan] → [User Q&A] → [Implement] → [Test] → [Review] → Done
 ```
 
 #### Step 1: Two-Phase Planning (with user input)
@@ -144,6 +144,27 @@ Task: code-reviewer — "Review changes against tasks/updated-prd.md"
 ```
 
 When invoked directly (outside `/build`), the `prd-task-planner` runs all phases end-to-end without the Q&A pause. The two-phase flow only activates when the prompt includes `MODE: DISCOVERY` or `MODE: GENERATE`.
+
+### TDD Mode (opt-in)
+
+The build pipeline supports optional Test-Driven Development. When TDD is active, tests are written before implementation code for every task.
+
+#### How to enable
+
+During the planning Q&A step (Step 1b), the planner will ask: "Do you want TDD mode for this build?" Answer yes to enable it.
+
+#### What changes with TDD enabled
+
+1. **Task files include test specifications**: Each task gets a `## TDD Mode` section with specific tests to write, expected behaviors, and the test framework/command to use
+2. **Implementer follows RED->GREEN->verify**: The `task-implementer` writes failing tests first, then implements code to make them pass, then checks for regressions
+3. **Code review includes TDD compliance**: The `code-reviewer` verifies that tests were written, are meaningful, and cover the acceptance criteria
+
+#### Always-on test awareness (even without TDD)
+
+Even when TDD mode is not enabled, the pipeline is test-aware:
+- The `task-implementer` discovers and runs existing tests related to modified files
+- The build pipeline runs the project's full test suite after implementation (Step 2c)
+- The `code-reviewer` evaluates test coverage as a standard quality check
 
 ## The Debug Pipeline (`/debug-workflow`)
 
