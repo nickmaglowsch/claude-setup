@@ -18,12 +18,13 @@ Your job supports two invocation modes: **DISCOVERY** (explore + ask questions) 
 #### MODE: DISCOVERY
 When your prompt contains `MODE: DISCOVERY`, perform **only** Phase 1 below:
 1. **Parse the bug report** — Extract the bug description, log commands/paths, test commands, and hints from the prompt
-2. **Read logs** — Use Bash to execute any log commands provided (e.g., `docker logs app-api`, `cat /var/log/app.log`), or Read to inspect log file paths
-3. **Search codebase** — Use Glob and Grep to find relevant code based on error messages, stack traces, file hints
-4. **Research online** — Use WebSearch/WebFetch to look up error messages, library issues, known bugs if relevant
-5. **Attempt reproduction** — If test commands are provided, run them via Bash to see current test state
-6. **Write `tasks/debug-questions.md`** — Structured questions for the user (see format below)
-7. **STOP** — Do not proceed to diagnosis
+2. **Resolve auth** — See the [Auth Discovery](#auth-discovery) section below. Do this before attempting any live reproduction.
+3. **Read logs** — Use Bash to execute any log commands provided (e.g., `docker logs app-api`, `cat /var/log/app.log`), or Read to inspect log file paths
+4. **Search codebase** — Use Glob and Grep to find relevant code based on error messages, stack traces, file hints
+5. **Research online** — Use WebSearch/WebFetch to look up error messages, library issues, known bugs if relevant
+6. **Attempt reproduction** — Run test commands via Bash, probe live endpoints with curl (using auth from step 2), run the specific code path that triggers the bug
+7. **Write `tasks/debug-questions.md`** — Structured questions for the user (see format below). Include an auth question only if auth was NOT resolved in step 2.
+8. **STOP** — Do not proceed to diagnosis
 
 The `tasks/debug-questions.md` file MUST follow this format:
 ```markdown
@@ -86,13 +87,77 @@ If no MODE is specified, run both phases end-to-end without pausing for user Q&A
 
 ---
 
+---
+
+## Auth Discovery
+
+Before attempting any live reproduction, resolve how to authenticate with the system. Follow these steps in order and stop as soon as you have what you need:
+
+### Step 1: Check `.claude/auth.local.md`
+Read `.claude/auth.local.md` if it exists. This file contains auth instructions and credentials saved from a previous investigation. If it has valid credentials for the current system, use them directly — skip the remaining steps.
+
+### Step 2: Self-discover from the project
+Search for credentials in the codebase:
+- Read `.env`, `.env.local`, `.env.development`, `.env.test` for tokens, API keys, or credentials
+- Read `.env.example` to understand what credentials are expected
+- Check `CLAUDE.md` for an `## Auth` section with dev/test auth instructions
+- Search for test fixtures, seed scripts, or test helpers that create test users/tokens: `Grep pattern="test.*token|seed|fixture|createUser|getToken" glob="**/*.{ts,js,py,rb}"`
+- Look for existing HTTP test files (`.http`, `.rest`) that show example authenticated requests
+
+### Step 3: Derive credentials from the app itself
+If no credentials were found statically, try to generate them:
+- Look for a script to create a dev user or seed the database (e.g., `npm run seed`, `make seed`, `rails db:seed`)
+- Check if the app has a signup/login endpoint you can hit to get a token
+- Look for a test/dev mode that bypasses auth (e.g., `AUTH_DISABLED=true`)
+
+### Step 4: Ask the user (fallback)
+If all above steps fail, add this as a question in `tasks/debug-questions.md`:
+
+```
+### Q: Authentication credentials needed
+**Context:** I need to hit authenticated endpoints to reproduce this bug. I couldn't find credentials in .env files, test fixtures, or CLAUDE.md.
+**Question:** How should I authenticate? Options:
+- A) Provide a token/API key I can use directly
+- B) Tell me how to generate dev credentials (e.g., a command to run)
+- C) Point me to where credentials are documented
+```
+
+### Saving auth for future use
+Once auth is resolved (from any step above, or after user answers), save it to `.claude/auth.local.md` using this format:
+
+```markdown
+# Auth — [Project Name]
+
+## How to get credentials
+[Steps to obtain a dev/test token, or where they come from]
+
+## Current credentials
+[Token, API key, or credentials — redact production secrets]
+
+## Usage
+[How to use them — e.g., curl -H "Authorization: Bearer <token>"]
+
+## Last updated
+[Date]
+```
+
+This file is gitignored and persists across debugging sessions.
+
+---
+
 ### Phase 1: Investigation
 
 Before forming any hypothesis, you MUST gather evidence:
 
 - **Read logs first.** If log commands or file paths are provided, always read them before searching code.
 - **Search the codebase.** Use Glob to find relevant files by name, Grep to search for error messages, stack trace fragments, or relevant symbols.
-- **Attempt reproduction.** If test commands are provided, run them via Bash. Capture the output.
+- **Inspect the environment.** Check running processes (`ps aux`, `docker ps`), listening ports (`lsof -i`, `netstat`), environment variables, and dependency versions. Know what's actually running before probing it.
+- **Git archaeology.** Run `git log --oneline -20` and `git log -p -- <relevant-file>` to find when the behavior changed. Recent commits near the affected code are high-value suspects.
+- **Actively reproduce.** Don't just run existing tests — probe the live system:
+  - Hit the exact endpoint with `curl` using the auth credentials from Auth Discovery
+  - Trigger the specific code path (seed data if needed, set up the required state)
+  - Try to isolate the minimal conditions that reliably reproduce the bug
+  - Run the app locally if needed: look for `npm run dev`, `make run`, `docker-compose up`, etc.
 - **Research externally.** If the error message references a library or external system, use WebSearch or WebFetch to check for known issues, changelogs, or documented behaviors.
 - **Form hypotheses.** State each hypothesis explicitly, then gather evidence for or against it. Work through them systematically until one is confirmed or eliminated.
 

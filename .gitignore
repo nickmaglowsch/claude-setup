@@ -2,3 +2,4 @@
 .devcontainer/.env
 .claude/settings.local.json
 .claude-worktrees/
+.claude/auth.local.md

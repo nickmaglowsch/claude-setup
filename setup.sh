@@ -227,6 +227,7 @@ if [ "$UPDATE_MODE" = true ]; then
   GITIGNORE_ENTRIES=(
     ".devcontainer/.env"
     ".claude/settings.local.json"
+    ".claude/auth.local.md"
     ".claude-worktrees/"
     ".DS_Store"
     "tasks/"
@@ -322,6 +323,7 @@ echo ""
 GITIGNORE_ENTRIES=(
   ".devcontainer/.env"
   ".claude/settings.local.json"
+  ".claude/auth.local.md"
   ".claude-worktrees/"
   ".DS_Store"
   "tasks/"
