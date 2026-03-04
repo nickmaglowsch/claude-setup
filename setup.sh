@@ -29,7 +29,7 @@ _self_bootstrap() {
   # We're running standalone (curl pipe, downloaded copy, etc.) — need the full repo
   echo "=== Fetching claude-setup template ==="
 
-  if [ -d "$CLONE_DIR/.git" ]; then
+  if [ -d "$CLONE_DIR/.git" ] && git -C "$CLONE_DIR" rev-parse --git-dir &>/dev/null; then
     echo "  Found existing clone at $CLONE_DIR, pulling latest..."
     git -C "$CLONE_DIR" pull --ff-only 2>&1 | sed 's/^/  /'
   else
