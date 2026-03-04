@@ -48,6 +48,36 @@ Resume the **same** bug-investigator agent (using the agent ID from Step 1a) wit
 
 Wait for it to complete. Confirm that `tasks/bug-diagnosis.md` was created.
 
+### Step 1d: Diagnosis review — Present diagnosis and get approval
+
+This step always runs. Do not skip it.
+
+1. Read `tasks/bug-diagnosis.md`. Extract:
+   - Root cause summary
+   - Proposed fix approach
+   - Affected files
+
+2. Present the diagnosis to the user as a formatted summary:
+   ```
+   ## Diagnosis Summary
+
+   **Root cause:** [root cause]
+   **Proposed fix:** [fix approach]
+   **Affected files:** [list]
+   ```
+   Then add: "You can also open `tasks/bug-diagnosis.md` directly to read the full diagnosis."
+
+3. Use `AskUserQuestion` with a single question: "How would you like to proceed?"
+   - **"Looks good — apply the fix"** — continue to Step 2
+   - **"Re-diagnose with feedback"** — user provides feedback via the "Other" field
+
+4. **If user approves**: proceed to Step 2.
+
+5. **If user requests re-diagnosis**: resume the **same** bug-investigator agent (from Step 1a) with:
+   - `resume: "<agent-id-from-step-1a>"`
+   - Prompt: `MODE: DIAGNOSE\n\nUser feedback on the diagnosis:\n<feedback>\n\nPlease revise the diagnosis incorporating this feedback.`
+   - Wait for it to complete, then **loop back to the top of Step 1d** to re-present the updated diagnosis.
+
 ## Step 2: Fix — Run bug-fixer with adaptive TDD
 
 Launch the `bug-fixer` agent using the Task tool with:
