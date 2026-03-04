@@ -20,14 +20,40 @@ Before starting, remove any leftover files from a previous debug run:
 - Use Bash to run `rm -rf tasks/` to clear the entire tasks directory
 - This prevents stale diagnosis and questions files from interfering
 
+## Step 0.5: App Recon — Discover how to interact with the app
+
+Check if `.claude/app-context.md` already exists (use Read or Bash).
+
+**If it exists:** Use it directly — skip launching the app-scout. Proceed to Step 1.
+
+**If it does NOT exist:** Launch the `app-scout` agent using the Task tool with:
+- `subagent_type: "app-scout"`
+- Prompt: `Perform project recon. Write your findings to .claude/app-context.md.`
+
+Wait for it to complete. If the agent fails or the file is not created, log a warning and proceed without it — this is a best-effort step.
+
 ## Step 1: Investigate — Two-phase investigation with user Q&A
 
 ### Step 1a: Discovery — Explore codebase & surface questions
 
+Read `.claude/app-context.md` (from Step 0.5). If it exists, build the bug-investigator prompt as follows — otherwise use just the bug report:
+
+```
+MODE: DISCOVERY
+
+<full bug report from $ARGUMENTS>
+
+## App Context (from pre-recon)
+
+The following was pre-discovered about this project. Use these commands directly —
+do not re-discover what is already documented here. Re-check running status yourself.
+
+<full content of .claude/app-context.md>
+```
+
 Launch the `bug-investigator` agent using the Task tool with:
 - `subagent_type: "bug-investigator"`
-- Provide the full bug report content above as the prompt
-- Prepend `MODE: DISCOVERY` to the prompt
+- Provide the constructed prompt above
 - Tell it to output questions to `tasks/debug-questions.md`
 
 Wait for it to complete. **Save the returned agent ID** — you will resume this agent in Step 1c.
@@ -139,6 +165,7 @@ Summarize the full debug pipeline run to the user:
 
 ## Rules
 - Run the steps **sequentially** — each depends on the previous
+- If Step 0.5 fails (no app-context.md created), log a warning and continue
 - If Step 1 fails (no diagnosis created), stop and report the issue
 - If Step 2 fails (fix could not be implemented), still run Step 3 to review what was attempted
 - Always run Step 3 — never skip the review

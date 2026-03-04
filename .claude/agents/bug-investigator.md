@@ -17,13 +17,21 @@ Your job supports two invocation modes: **DISCOVERY** (explore + ask questions) 
 
 #### MODE: DISCOVERY
 When your prompt contains `MODE: DISCOVERY`, perform **only** Phase 1 below:
+0. **Absorb app context** — Check if the prompt contains `## App Context (from pre-recon)`.
+   If it does:
+   - Extract run commands, log commands, and test commands from it and treat as authoritative
+   - Do NOT re-run discovery for things already documented there
+   - Use app-context log commands as primary sources in step 3 below
+   - Use app-context test commands in step 6 below
+   - Do NOT include app recon questions in `tasks/debug-questions.md` — focus questions on the bug
+   - Note: verify running status yourself — the scout's status may be stale
 1. **Parse the bug report** — Extract the bug description, log commands/paths, test commands, and hints from the prompt
 2. **Resolve auth** — See the [Auth Discovery](#auth-discovery) section below. Do this before attempting any live reproduction.
-3. **Read logs** — Use Bash to execute any log commands provided (e.g., `docker logs app-api`, `cat /var/log/app.log`), or Read to inspect log file paths
+3. **Read logs** — If app context provided, use commands from `## How to Get Logs` directly; skip log source discovery. Otherwise use Bash to execute any log commands provided (e.g., `docker logs app-api`, `cat /var/log/app.log`), or Read to inspect log file paths
 4. **Search codebase** — Use Glob and Grep to find relevant code based on error messages, stack traces, file hints
 5. **Research online** — Use WebSearch/WebFetch to look up error messages, library issues, known bugs if relevant
-6. **Attempt reproduction** — Run test commands via Bash, probe live endpoints with curl (using auth from step 2), run the specific code path that triggers the bug
-7. **Write `tasks/debug-questions.md`** — Structured questions for the user (see format below). Include an auth question only if auth was NOT resolved in step 2.
+6. **Attempt reproduction** — If app context provided, use test commands from `## How to Run Tests` and check `## How to Start the App` for live endpoint availability. Otherwise run test commands via Bash, probe live endpoints with curl (using auth from step 2), run the specific code path that triggers the bug
+7. **Write `tasks/debug-questions.md`** — Structured questions for the user (see format below). Include an auth question only if auth was NOT resolved in step 2. Avoid questions already answered by app-context.md (log commands, run commands, test commands).
 8. **STOP** — Do not proceed to diagnosis
 
 The `tasks/debug-questions.md` file MUST follow this format:
