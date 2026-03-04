@@ -119,10 +119,13 @@ CLAUDE_FILES=(
   ".claude/agents/code-reviewer.md"
   ".claude/agents/parallel-task-orchestrator.md"
   ".claude/agents/prd-task-planner.md"
+  ".claude/agents/refactor-planner.md"
   ".claude/agents/task-implementer.md"
+  ".claude/agents/test-writer.md"
   ".claude/skills/build/SKILL.md"
   ".claude/skills/craft-pr/SKILL.md"
   ".claude/skills/debug-workflow/SKILL.md"
+  ".claude/skills/refactor/SKILL.md"
 )
 
 DEVCONTAINER_FILES=(
