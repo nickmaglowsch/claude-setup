@@ -114,17 +114,20 @@ fi
 # --- Core template files (agents, skills, settings) ---
 CLAUDE_FILES=(
   ".claude/README.md"
+  ".claude/agents/app-scout.md"
   ".claude/agents/bug-fixer.md"
   ".claude/agents/bug-investigator.md"
   ".claude/agents/code-reviewer.md"
   ".claude/agents/parallel-task-orchestrator.md"
   ".claude/agents/prd-task-planner.md"
+  ".claude/agents/qa-agent.md"
   ".claude/agents/refactor-planner.md"
   ".claude/agents/task-implementer.md"
   ".claude/agents/test-writer.md"
   ".claude/skills/build/SKILL.md"
   ".claude/skills/craft-pr/SKILL.md"
   ".claude/skills/debug-workflow/SKILL.md"
+  ".claude/skills/qa/SKILL.md"
   ".claude/skills/refactor/SKILL.md"
 )
 
@@ -223,6 +226,33 @@ if [ "$UPDATE_MODE" = true ]; then
     echo ""
   fi
 
+  # Configure Playwright MCP if qa-agent is installed and not already configured
+  SETTINGS_JSON="$TARGET_DIR/.claude/settings.json"
+  if [ -f "$SETTINGS_JSON" ] && grep -q '"playwright"' "$SETTINGS_JSON" 2>/dev/null; then
+    echo "=== Playwright MCP already configured — skipping ==="
+    echo ""
+  elif [ ! -f "$SETTINGS_JSON" ]; then
+    echo "=== Playwright MCP (for /qa browser testing) ==="
+    echo ""
+    read -rp "  Add Playwright MCP for browser-based QA (/qa skill)? [y/N] " install_playwright
+    echo ""
+    if [[ "$install_playwright" =~ ^[Yy]$ ]]; then
+      mkdir -p "$TARGET_DIR/.claude"
+      cat > "$SETTINGS_JSON" <<'MCP_EOF'
+{
+  "mcpServers": {
+    "playwright": {
+      "command": "npx",
+      "args": ["@playwright/mcp@latest"]
+    }
+  }
+}
+MCP_EOF
+      echo "  Created: .claude/settings.json (Playwright MCP configured)"
+      echo ""
+    fi
+  fi
+
   # Ensure .gitignore has required entries
   echo "=== Updating .gitignore ==="
   echo ""
@@ -319,6 +349,30 @@ if [[ "$install_devcontainer" =~ ^[Yy]$ ]]; then
   fi
 fi
 
+# --- Step 3b: Playwright MCP (optional) ---
+SETTINGS_JSON="$TARGET_DIR/.claude/settings.json"
+if [ ! -f "$SETTINGS_JSON" ]; then
+  echo "=== Playwright MCP (for /qa browser testing) ==="
+  echo ""
+  read -rp "Add Playwright MCP for browser-based QA (/qa skill)? [y/N] " install_playwright
+  echo ""
+  if [[ "$install_playwright" =~ ^[Yy]$ ]]; then
+    mkdir -p "$TARGET_DIR/.claude"
+    cat > "$SETTINGS_JSON" <<'MCP_EOF'
+{
+  "mcpServers": {
+    "playwright": {
+      "command": "npx",
+      "args": ["@playwright/mcp@latest"]
+    }
+  }
+}
+MCP_EOF
+    echo "  Created: .claude/settings.json (Playwright MCP configured)"
+    echo ""
+  fi
+fi
+
 # --- Step 4: Update .gitignore ---
 echo "=== Updating .gitignore ==="
 echo ""
@@ -365,5 +419,11 @@ fi
 if [[ "${install_runner:-}" =~ ^[Yy]$ ]]; then
   echo "  Headless mode:"
   echo "    ./run-claude.sh --branch feature-x --prompt 'implement the feature'"
+  echo ""
+fi
+if [[ "${install_playwright:-}" =~ ^[Yy]$ ]]; then
+  echo "  Browser QA:"
+  echo "    Run /qa in Claude Code with your app running to test it like a user"
+  echo "    First run will auto-install @playwright/mcp via npx"
   echo ""
 fi
