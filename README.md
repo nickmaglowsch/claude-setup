@@ -34,6 +34,23 @@ The script auto-detects whether this is a first-time setup or an update:
 
 The template repo is auto-cloned to `/tmp/claude-setup` (or pulled if already there).
 
+#### Updating an existing setup
+
+Same one-liner — the script auto-detects the existing setup and runs in update mode:
+
+```bash
+cd /path/to/your/project
+bash <(curl -fsSL https://raw.githubusercontent.com/nickmaglowsch/claude-setup/main/setup.sh)
+```
+
+To force update mode explicitly:
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/nickmaglowsch/claude-setup/main/setup.sh) --update
+```
+
+Update mode pulls the latest template, overwrites all agent and skill files, and leaves your `settings.local.json` and `agent-memory/` untouched.
+
 #### Other coding agents (OpenCode, Gemini CLI)
 
 Add `--compatible` to generate native agent files for other tools alongside the Claude setup:
