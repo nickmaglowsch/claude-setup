@@ -34,6 +34,25 @@ The script auto-detects whether this is a first-time setup or an update:
 
 The template repo is auto-cloned to `/tmp/claude-setup` (or pulled if already there).
 
+#### Other coding agents (OpenCode, Gemini CLI)
+
+Add `--compatible` to generate native agent files for other tools alongside the Claude setup:
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/nickmaglowsch/claude-setup/main/setup.sh) --compatible opencode,gemini
+```
+
+You'll be prompted to choose models per agent system (heavy-tier and standard-tier). Generated files:
+
+| Flag | Generated | Also creates |
+|---|---|---|
+| `opencode` | `.opencode/agents/*.md` | `AGENTS.md → CLAUDE.md` symlink |
+| `gemini` | `.gemini/agents/*.toml` | `GEMINI.md → CLAUDE.md` symlink |
+
+All agents are transpiled from the `.claude/agents/` source files — same system prompts, same role split (heavy tier: `bug-investigator`, `code-reviewer`, `qa-agent`; standard tier: everything else). Defaults: `anthropic/claude-opus-4-6` / `anthropic/claude-sonnet-4-6` for OpenCode, `gemini-2.5-pro` / `gemini-2.5-flash` for Gemini CLI.
+
+The `AGENTS.md` / `GEMINI.md` symlinks point to `CLAUDE.md` so project-level instructions are shared across all agents automatically. Commit these files so teammates using other agents benefit too.
+
 ### Option B: Manual copy
 
 If you just want the core Claude Code setup:
