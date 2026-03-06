@@ -120,23 +120,27 @@ if [ "$TARGET_DIR" = "$SCRIPT_DIR" ]; then
   exit 1
 fi
 
-if ! git -C "$TARGET_DIR" rev-parse --git-dir &>/dev/null; then
-  echo "Warning: '$TARGET_DIR' is not a git repository."
-  read -rp "Continue anyway? [y/N] " confirm
-  if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
-    echo "Aborted."
-    exit 0
+if [ "$GLOBAL_MODE" = false ]; then
+  if ! git -C "$TARGET_DIR" rev-parse --git-dir &>/dev/null; then
+    echo "Warning: '$TARGET_DIR' is not a git repository."
+    read -rp "Continue anyway? [y/N] " confirm
+    if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+      echo "Aborted."
+      exit 0
+    fi
   fi
 fi
 
 # --- Auto-detect: update if .claude/agents/ already exists, otherwise fresh setup ---
 UPDATE_MODE=false
-if [ "$FORCE_UPDATE" = true ]; then
-  UPDATE_MODE=true
-elif [ -d "$TARGET_DIR/.claude/agents" ]; then
-  echo "Existing Claude setup detected in $TARGET_DIR"
-  echo ""
-  UPDATE_MODE=true
+if [ "$GLOBAL_MODE" = false ]; then
+  if [ "$FORCE_UPDATE" = true ]; then
+    UPDATE_MODE=true
+  elif [ -d "$TARGET_DIR/.claude/agents" ]; then
+    echo "Existing Claude setup detected in $TARGET_DIR"
+    echo ""
+    UPDATE_MODE=true
+  fi
 fi
 
 # --- Core template files (agents, skills, settings) ---
