@@ -159,6 +159,7 @@ CLAUDE_FILES=(
   ".claude/skills/build/SKILL.md"
   ".claude/skills/craft-pr/SKILL.md"
   ".claude/skills/debug-workflow/SKILL.md"
+  ".claude/skills/init-claude-setup/SKILL.md"
   ".claude/skills/qa/SKILL.md"
   ".claude/skills/refactor/SKILL.md"
 )
