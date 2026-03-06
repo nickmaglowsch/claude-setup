@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 # setup.sh — Set up or update Claude Code agents/skills in any project
 #
-# Usage: ./setup.sh [target-directory]    # Auto-detects setup vs update
-#        ./setup.sh --update [target-directory]   # Force update mode
+# Usage: ./setup.sh [target-directory]                        # Auto-detects setup vs update
+#        ./setup.sh --update [target-directory]               # Force update mode
+#        ./setup.sh --compatible codex,gemini [target-dir]    # Add compat symlinks for other agents
 #
 # One-liner (run from your project directory):
 #   bash <(curl -fsSL https://raw.githubusercontent.com/nickmaglowsch/claude-setup/main/setup.sh)
+#   bash <(curl -fsSL https://raw.githubusercontent.com/nickmaglowsch/claude-setup/main/setup.sh) --compatible codex,gemini
 
 set -euo pipefail
 
@@ -49,6 +51,7 @@ _self_bootstrap "$@"
 # --- Parse flags ---
 FORCE_UPDATE=false
 TARGET_DIR=""
+COMPATIBLE_AGENTS=()
 
 while [[ $# -gt 0 ]]; do
   case $1 in
@@ -56,11 +59,24 @@ while [[ $# -gt 0 ]]; do
       FORCE_UPDATE=true
       shift
       ;;
+    --compatible|-c)
+      IFS=',' read -ra COMPATIBLE_AGENTS <<< "$2"
+      shift 2
+      ;;
     -h|--help)
-      echo "Usage: $0 [--update] [target-directory]"
+      echo "Usage: $0 [--update] [--compatible <agents>] [target-directory]"
       echo ""
-      echo "  target-directory  Project to set up (default: current directory)"
-      echo "  --update, -u      Force update mode (skip auto-detection)"
+      echo "  target-directory          Project to set up (default: current directory)"
+      echo "  --update, -u              Force update mode (skip auto-detection)"
+      echo "  --compatible, -c <list>   Comma-separated list of agents to add symlinks for"
+      echo "                            Supported: codex, opencode, gemini, cursor, copilot"
+      echo "                            Example: --compatible codex,gemini,cursor"
+      echo ""
+      echo "  Symlinks created (all point to CLAUDE.md):"
+      echo "    codex / opencode  →  AGENTS.md"
+      echo "    gemini            →  GEMINI.md"
+      echo "    cursor            →  .cursorrules"
+      echo "    copilot           →  .github/copilot-instructions.md"
       echo ""
       echo "One-liner (run from your project directory):"
       echo "  bash <(curl -fsSL https://raw.githubusercontent.com/nickmaglowsch/claude-setup/main/setup.sh)"
@@ -164,6 +180,88 @@ force_copy_file() {
   mkdir -p "$(dirname "$dest")"
   cp "$src" "$dest"
   echo "  Updated: ${dest#"$TARGET_DIR"/}"
+}
+
+# --- Helper: create compatibility symlinks for other coding agents ---
+# All symlinks point to CLAUDE.md as the single source of truth.
+setup_compat_symlinks() {
+  if [ ${#COMPATIBLE_AGENTS[@]} -eq 0 ]; then
+    return
+  fi
+
+  echo "=== Compatibility layer ==="
+  echo ""
+
+  if [ ! -f "$TARGET_DIR/CLAUDE.md" ]; then
+    echo "  Note: CLAUDE.md not found — symlinks will resolve once you create it."
+    echo ""
+  fi
+
+  local made_symlink=false
+
+  for agent in "${COMPATIBLE_AGENTS[@]}"; do
+    case "$agent" in
+      codex|opencode)
+        local target="$TARGET_DIR/AGENTS.md"
+        if [ -L "$target" ]; then
+          echo "  Already exists: AGENTS.md -> CLAUDE.md"
+        elif [ -f "$target" ]; then
+          echo "  Skipped: AGENTS.md already exists (not a symlink) — remove it manually to replace"
+        else
+          ln -s "CLAUDE.md" "$target"
+          echo "  Created symlink: AGENTS.md -> CLAUDE.md"
+          made_symlink=true
+        fi
+        ;;
+      gemini)
+        local target="$TARGET_DIR/GEMINI.md"
+        if [ -L "$target" ]; then
+          echo "  Already exists: GEMINI.md -> CLAUDE.md"
+        elif [ -f "$target" ]; then
+          echo "  Skipped: GEMINI.md already exists (not a symlink) — remove it manually to replace"
+        else
+          ln -s "CLAUDE.md" "$target"
+          echo "  Created symlink: GEMINI.md -> CLAUDE.md"
+          made_symlink=true
+        fi
+        ;;
+      cursor)
+        local target="$TARGET_DIR/.cursorrules"
+        if [ -L "$target" ]; then
+          echo "  Already exists: .cursorrules -> CLAUDE.md"
+        elif [ -f "$target" ]; then
+          echo "  Skipped: .cursorrules already exists (not a symlink) — remove it manually to replace"
+        else
+          ln -s "CLAUDE.md" "$target"
+          echo "  Created symlink: .cursorrules -> CLAUDE.md"
+          made_symlink=true
+        fi
+        ;;
+      copilot)
+        local target="$TARGET_DIR/.github/copilot-instructions.md"
+        mkdir -p "$TARGET_DIR/.github"
+        if [ -L "$target" ]; then
+          echo "  Already exists: .github/copilot-instructions.md -> ../CLAUDE.md"
+        elif [ -f "$target" ]; then
+          echo "  Skipped: .github/copilot-instructions.md already exists (not a symlink) — remove it manually to replace"
+        else
+          ln -s "../CLAUDE.md" "$target"
+          echo "  Created symlink: .github/copilot-instructions.md -> ../CLAUDE.md"
+          made_symlink=true
+        fi
+        ;;
+      *)
+        echo "  Unknown agent: '$agent' (supported: codex, opencode, gemini, cursor, copilot)"
+        ;;
+    esac
+  done
+
+  if [ "$made_symlink" = true ]; then
+    echo ""
+    echo "  Tip: commit these symlinks so teammates using other agents benefit too."
+  fi
+
+  echo ""
 }
 
 # ===========================================================================
@@ -294,6 +392,8 @@ MCP_EOF
   done
 
   echo ""
+
+  setup_compat_symlinks
 
   echo "=== Update complete! ==="
   echo ""
@@ -433,6 +533,9 @@ for entry in "${GITIGNORE_ENTRIES[@]}"; do
 done
 
 echo ""
+
+# --- Step 5: Compatibility symlinks (optional, via --compatible flag) ---
+setup_compat_symlinks
 
 # --- Done ---
 echo "=== Setup complete! ==="
