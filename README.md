@@ -57,6 +57,16 @@ To add devcontainer support during an update (if you skipped it during initial s
 bash <(curl -fsSL https://raw.githubusercontent.com/nickmaglowsch/claude-setup/main/setup.sh) --update --add-devcontainer
 ```
 
+#### Global install (all projects at once)
+
+Install agents and skills into `~/.claude/` so they're available globally across every project — no per-project setup needed:
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/nickmaglowsch/claude-setup/main/setup.sh) --global
+```
+
+Re-run the same command to update. It auto-detects whether `~/.claude/agents/` already exists and updates in place (no prompts) or installs fresh (with overwrite prompts).
+
 #### Other coding agents (OpenCode, Gemini CLI)
 
 Add `--compatible` to generate native agent files for other tools alongside the Claude setup:
