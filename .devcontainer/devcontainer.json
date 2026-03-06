@@ -7,6 +7,11 @@
   "features": {
     "ghcr.io/devcontainers/features/git:1": {}
   },
+  // Mount the parent directory so git worktrees can resolve their main .git dir.
+  // This enables multi-branch devcontainers via `git worktree add`.
+  // The workspace folder is unchanged: /workspaces/<project-name>
+  "workspaceMount": "source=${localWorkspaceFolder}/..,target=/workspaces,type=bind,consistency=cached",
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
   "mounts": [
     "source=claude-config-${devcontainerId},target=/home/vscode/.claude,type=volume",
     "source=claude-history-${devcontainerId},target=/home/vscode/.claude.history,type=volume"
@@ -15,6 +20,8 @@
     "--cap-add=NET_ADMIN",
     "--cap-add=NET_RAW"
   ],
+  // Rewrites the .git worktree reference to use the container path (no-op for normal repos).
+  "postCreateCommand": "bash .devcontainer/fix-git-worktree.sh || true",
   // Uncomment to enable network firewall (restricts outbound to Claude API, GitHub, npm, etc.)
   // "postStartCommand": "sudo /usr/local/bin/init-firewall.sh",
   "customizations": {

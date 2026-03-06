@@ -48,13 +48,15 @@ You can run multiple Claude containers simultaneously with no port collisions.
 
 ### Using git worktrees
 ```bash
-# Create worktrees for different branches
+# Create worktrees as siblings of your main repo
 git worktree add ../my-project-feature-a feature-a
 git worktree add ../my-project-feature-b feature-b
 
 # Open each worktree in your editor → "Reopen in Container"
 # Each gets isolated volumes (scoped by devcontainerId)
 ```
+
+Git worktrees work out of the box — the devcontainer mounts the parent directory so the main `.git` is accessible, and `fix-git-worktree.sh` rewrites the worktree reference on container start. No manual setup needed.
 
 ### Using multiple clones
 ```bash

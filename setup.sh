@@ -150,6 +150,7 @@ CLAUDE_FILES=(
 DEVCONTAINER_FILES=(
   ".devcontainer/Dockerfile"
   ".devcontainer/devcontainer.json"
+  ".devcontainer/fix-git-worktree.sh"
   ".devcontainer/init-firewall.sh"
   ".devcontainer/README.md"
 )
@@ -311,7 +312,7 @@ if [ "$UPDATE_MODE" = true ]; then
       fi
     done
 
-    chmod +x "$TARGET_DIR/.devcontainer/init-firewall.sh" 2>/dev/null || true
+    chmod +x "$TARGET_DIR/.devcontainer/init-firewall.sh" "$TARGET_DIR/.devcontainer/fix-git-worktree.sh" 2>/dev/null || true
     echo ""
   fi
 
@@ -449,7 +450,7 @@ if [[ "$install_devcontainer" =~ ^[Yy]$ ]]; then
   done
 
   # Make firewall script executable
-  chmod +x "$TARGET_DIR/.devcontainer/init-firewall.sh" 2>/dev/null || true
+  chmod +x "$TARGET_DIR/.devcontainer/init-firewall.sh" "$TARGET_DIR/.devcontainer/fix-git-worktree.sh" 2>/dev/null || true
 
   echo ""
 
