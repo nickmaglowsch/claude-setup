@@ -120,12 +120,6 @@ if [ "$TARGET_DIR" = "$SCRIPT_DIR" ]; then
   exit 1
 fi
 
-# Global mode: install into ~/.claude/ and exit early (no git/project checks needed)
-if [ "$GLOBAL_MODE" = true ]; then
-  perform_global_install
-  exit 0
-fi
-
 if ! git -C "$TARGET_DIR" rev-parse --git-dir &>/dev/null; then
   echo "Warning: '$TARGET_DIR' is not a git repository."
   read -rp "Continue anyway? [y/N] " confirm
@@ -415,6 +409,12 @@ perform_global_install() {
   echo "  Location: $global_dir"
   echo ""
 }
+
+# Global mode: install into ~/.claude/ and exit early (no git/project checks needed)
+if [ "$GLOBAL_MODE" = true ]; then
+  perform_global_install
+  exit 0
+fi
 
 # ===========================================================================
 # UPDATE MODE
