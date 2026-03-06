@@ -269,6 +269,23 @@ MCP_EOF
   GITIGNORE_FILE="$TARGET_DIR/.gitignore"
   touch "$GITIGNORE_FILE"
 
+  # Ensure file ends with a newline before appending
+  if [ -s "$GITIGNORE_FILE" ] && [ "$(tail -c1 "$GITIGNORE_FILE" | wc -l)" -eq 0 ]; then
+    echo "" >> "$GITIGNORE_FILE"
+  fi
+
+  # Add section comment if any entries are missing and comment doesn't exist yet
+  NEEDS_SECTION=false
+  for entry in "${GITIGNORE_ENTRIES[@]}"; do
+    if ! grep -qxF "$entry" "$GITIGNORE_FILE" 2>/dev/null; then
+      NEEDS_SECTION=true
+      break
+    fi
+  done
+  if [ "$NEEDS_SECTION" = true ] && ! grep -qxF "# .claude" "$GITIGNORE_FILE" 2>/dev/null; then
+    echo "# .claude" >> "$GITIGNORE_FILE"
+  fi
+
   for entry in "${GITIGNORE_ENTRIES[@]}"; do
     if ! grep -qxF "$entry" "$GITIGNORE_FILE" 2>/dev/null; then
       echo "$entry" >> "$GITIGNORE_FILE"
@@ -388,6 +405,23 @@ GITIGNORE_ENTRIES=(
 
 GITIGNORE_FILE="$TARGET_DIR/.gitignore"
 touch "$GITIGNORE_FILE"
+
+# Ensure file ends with a newline before appending
+if [ -s "$GITIGNORE_FILE" ] && [ "$(tail -c1 "$GITIGNORE_FILE" | wc -l)" -eq 0 ]; then
+  echo "" >> "$GITIGNORE_FILE"
+fi
+
+# Add section comment if any entries are missing and comment doesn't exist yet
+NEEDS_SECTION=false
+for entry in "${GITIGNORE_ENTRIES[@]}"; do
+  if ! grep -qxF "$entry" "$GITIGNORE_FILE" 2>/dev/null; then
+    NEEDS_SECTION=true
+    break
+  fi
+done
+if [ "$NEEDS_SECTION" = true ] && ! grep -qxF "# .claude" "$GITIGNORE_FILE" 2>/dev/null; then
+  echo "# .claude" >> "$GITIGNORE_FILE"
+fi
 
 for entry in "${GITIGNORE_ENTRIES[@]}"; do
   if ! grep -qxF "$entry" "$GITIGNORE_FILE" 2>/dev/null; then
