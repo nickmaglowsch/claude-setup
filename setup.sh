@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # setup.sh — Set up or update Claude Code agents/skills in any project
 #
-# Usage: ./setup.sh [target-directory]                        # Auto-detects setup vs update
-#        ./setup.sh --update [target-directory]               # Force update mode
-#        ./setup.sh --compatible codex,gemini [target-dir]    # Add compat symlinks for other agents
+# Usage: ./setup.sh [target-directory]                          # Auto-detects setup vs update
+#        ./setup.sh --update [target-directory]                 # Force update mode
+#        ./setup.sh --compatible opencode,gemini [target-dir]   # Generate native agent files for other agents
 #
 # One-liner (run from your project directory):
 #   bash <(curl -fsSL https://raw.githubusercontent.com/nickmaglowsch/claude-setup/main/setup.sh)
-#   bash <(curl -fsSL https://raw.githubusercontent.com/nickmaglowsch/claude-setup/main/setup.sh) --compatible codex,gemini
+#   bash <(curl -fsSL https://raw.githubusercontent.com/nickmaglowsch/claude-setup/main/setup.sh) --compatible opencode,gemini
 
 set -euo pipefail
 
@@ -68,15 +68,15 @@ while [[ $# -gt 0 ]]; do
       echo ""
       echo "  target-directory          Project to set up (default: current directory)"
       echo "  --update, -u              Force update mode (skip auto-detection)"
-      echo "  --compatible, -c <list>   Comma-separated list of agents to add symlinks for"
-      echo "                            Supported: codex, opencode, gemini, cursor, copilot"
-      echo "                            Example: --compatible codex,gemini,cursor"
+      echo "  --compatible, -c <list>   Comma-separated list of agents to generate native files for"
+      echo "                            Supported: opencode, gemini"
+      echo "                            Example: --compatible opencode,gemini"
       echo ""
-      echo "  Symlinks created (all point to CLAUDE.md):"
-      echo "    codex / opencode  →  AGENTS.md"
-      echo "    gemini            →  GEMINI.md"
-      echo "    cursor            →  .cursorrules"
-      echo "    copilot           →  .github/copilot-instructions.md"
+      echo "  What gets generated:"
+      echo "    opencode  →  .opencode/agents/*.md  +  AGENTS.md -> CLAUDE.md symlink"
+      echo "    gemini    →  .gemini/agents/*.toml  +  GEMINI.md -> CLAUDE.md symlink"
+      echo ""
+      echo "  You will be prompted to choose models (heavy/standard tier) for each agent system."
       echo ""
       echo "One-liner (run from your project directory):"
       echo "  bash <(curl -fsSL https://raw.githubusercontent.com/nickmaglowsch/claude-setup/main/setup.sh)"
@@ -183,9 +183,40 @@ force_copy_file() {
   echo "  Updated: ${dest#"$TARGET_DIR"/}"
 }
 
-# --- Helper: create compatibility symlinks for other coding agents ---
-# All symlinks point to CLAUDE.md as the single source of truth.
-setup_compat_symlinks() {
+# --- Compat helpers ---
+
+# Returns "heavy" for agents that use opus, "standard" for sonnet-tier agents.
+_agent_tier() {
+  case "$1" in
+    bug-investigator|code-reviewer|qa-agent) echo "heavy" ;;
+    *) echo "standard" ;;
+  esac
+}
+
+# Extracts the markdown body of an agent file (content after the closing --- of frontmatter).
+_agent_body() {
+  awk 'BEGIN{c=0} /^---/{c++; next} c>=2{print}' "$1"
+}
+
+# Extracts the first sentence of the description field from YAML frontmatter.
+# Some agent files escape newlines as \\n (3 bytes) and others as \n (2 bytes);
+# try the 3-byte form first so we don't clip one character too late.
+_agent_desc() {
+  awk '/^---/{f++; next}
+       f==1 && /^description:/{
+         sub(/^description: */, "")
+         gsub(/^"/, "")
+         idx = index($0, "\\\\n")
+         if (idx == 0) idx = index($0, "\\n")
+         if (idx > 0) $0 = substr($0, 1, idx-1)
+         gsub(/"$/, "")
+         print; exit
+       }' "$1"
+}
+
+# --- Compatibility layer: generate native agent files for OpenCode and Gemini CLI ---
+# Also creates AGENTS.md / GEMINI.md symlinks to CLAUDE.md for project-level context.
+setup_compat_layer() {
   if [ ${#COMPATIBLE_AGENTS[@]} -eq 0 ]; then
     return
   fi
@@ -194,74 +225,122 @@ setup_compat_symlinks() {
   echo ""
 
   if [ ! -f "$TARGET_DIR/CLAUDE.md" ]; then
-    echo "  Note: CLAUDE.md not found — symlinks will resolve once you create it."
+    echo "  Note: CLAUDE.md not found — create it to give all agents project-level context."
     echo ""
   fi
 
-  local made_symlink=false
+  for compat_agent in "${COMPATIBLE_AGENTS[@]}"; do
+    case "$compat_agent" in
 
-  for agent in "${COMPATIBLE_AGENTS[@]}"; do
-    case "$agent" in
-      codex|opencode)
-        local target="$TARGET_DIR/AGENTS.md"
-        if [ -L "$target" ]; then
+      opencode)
+        echo "--- OpenCode ---"
+        echo ""
+        echo "  Heavy agents (bug-investigator, code-reviewer, qa-agent):"
+        read -rp "    Model [anthropic/claude-opus-4-6]: " oc_heavy
+        oc_heavy="${oc_heavy:-anthropic/claude-opus-4-6}"
+        echo "  Standard agents (all others):"
+        read -rp "    Model [anthropic/claude-sonnet-4-6]: " oc_standard
+        oc_standard="${oc_standard:-anthropic/claude-sonnet-4-6}"
+        echo ""
+
+        local oc_dir="$TARGET_DIR/.opencode/agents"
+        mkdir -p "$oc_dir"
+
+        for agent_file in "$SCRIPT_DIR/.claude/agents/"*.md; do
+          local name tier model body desc out_file
+          name=$(basename "$agent_file" .md)
+          tier=$(_agent_tier "$name")
+          if [ "$tier" = "heavy" ]; then model="$oc_heavy"; else model="$oc_standard"; fi
+          body=$(_agent_body "$agent_file")
+          desc=$(_agent_desc "$agent_file")
+          out_file="$oc_dir/${name}.md"
+
+          {
+            echo "---"
+            echo "name: ${name}"
+            printf 'description: "%s"\n' "$desc"
+            echo "model: ${model}"
+            echo "mode: subagent"
+            echo "---"
+            echo ""
+            echo "$body"
+          } > "$out_file"
+          echo "  Generated: .opencode/agents/${name}.md  (${model})"
+        done
+
+        # AGENTS.md -> CLAUDE.md symlink for project-level context
+        local agents_md="$TARGET_DIR/AGENTS.md"
+        if [ -L "$agents_md" ]; then
           echo "  Already exists: AGENTS.md -> CLAUDE.md"
-        elif [ -f "$target" ]; then
-          echo "  Skipped: AGENTS.md already exists (not a symlink) — remove it manually to replace"
-        else
-          ln -s "CLAUDE.md" "$target"
+        elif [ ! -f "$agents_md" ]; then
+          ln -s "CLAUDE.md" "$agents_md"
           echo "  Created symlink: AGENTS.md -> CLAUDE.md"
-          made_symlink=true
+        else
+          echo "  Skipped: AGENTS.md already exists (not a symlink)"
         fi
+        echo ""
         ;;
+
       gemini)
-        local target="$TARGET_DIR/GEMINI.md"
-        if [ -L "$target" ]; then
+        echo "--- Gemini CLI ---"
+        echo ""
+        echo "  Heavy agents (bug-investigator, code-reviewer, qa-agent):"
+        read -rp "    Model [gemini-2.5-pro]: " gem_heavy
+        gem_heavy="${gem_heavy:-gemini-2.5-pro}"
+        echo "  Standard agents (all others):"
+        read -rp "    Model [gemini-2.5-flash]: " gem_standard
+        gem_standard="${gem_standard:-gemini-2.5-flash}"
+        echo ""
+
+        local gem_dir="$TARGET_DIR/.gemini/agents"
+        mkdir -p "$gem_dir"
+
+        for agent_file in "$SCRIPT_DIR/.claude/agents/"*.md; do
+          local name tier model body desc out_file display_name safe_desc
+          name=$(basename "$agent_file" .md)
+          tier=$(_agent_tier "$name")
+          if [ "$tier" = "heavy" ]; then model="$gem_heavy"; else model="$gem_standard"; fi
+          body=$(_agent_body "$agent_file")
+          desc=$(_agent_desc "$agent_file")
+          display_name="${name//-/ }"
+          safe_desc="${desc//\"/\\\"}"
+          out_file="$gem_dir/${name}.toml"
+
+          {
+            echo "name = \"${name}\""
+            echo "display_name = \"${display_name}\""
+            echo "description = \"${safe_desc}\""
+            echo "model = \"${model}\""
+            echo ""
+            echo "[prompts]"
+            printf 'system_prompt = """\n'
+            echo "$body"
+            printf '"""\n'
+          } > "$out_file"
+          echo "  Generated: .gemini/agents/${name}.toml  (${model})"
+        done
+
+        # GEMINI.md -> CLAUDE.md symlink for project-level context
+        local gemini_md="$TARGET_DIR/GEMINI.md"
+        if [ -L "$gemini_md" ]; then
           echo "  Already exists: GEMINI.md -> CLAUDE.md"
-        elif [ -f "$target" ]; then
-          echo "  Skipped: GEMINI.md already exists (not a symlink) — remove it manually to replace"
-        else
-          ln -s "CLAUDE.md" "$target"
+        elif [ ! -f "$gemini_md" ]; then
+          ln -s "CLAUDE.md" "$gemini_md"
           echo "  Created symlink: GEMINI.md -> CLAUDE.md"
-          made_symlink=true
-        fi
-        ;;
-      cursor)
-        local target="$TARGET_DIR/.cursorrules"
-        if [ -L "$target" ]; then
-          echo "  Already exists: .cursorrules -> CLAUDE.md"
-        elif [ -f "$target" ]; then
-          echo "  Skipped: .cursorrules already exists (not a symlink) — remove it manually to replace"
         else
-          ln -s "CLAUDE.md" "$target"
-          echo "  Created symlink: .cursorrules -> CLAUDE.md"
-          made_symlink=true
+          echo "  Skipped: GEMINI.md already exists (not a symlink)"
         fi
+        echo ""
         ;;
-      copilot)
-        local target="$TARGET_DIR/.github/copilot-instructions.md"
-        mkdir -p "$TARGET_DIR/.github"
-        if [ -L "$target" ]; then
-          echo "  Already exists: .github/copilot-instructions.md -> ../CLAUDE.md"
-        elif [ -f "$target" ]; then
-          echo "  Skipped: .github/copilot-instructions.md already exists (not a symlink) — remove it manually to replace"
-        else
-          ln -s "../CLAUDE.md" "$target"
-          echo "  Created symlink: .github/copilot-instructions.md -> ../CLAUDE.md"
-          made_symlink=true
-        fi
-        ;;
+
       *)
-        echo "  Unknown agent: '$agent' (supported: codex, opencode, gemini, cursor, copilot)"
+        echo "  Unknown agent: '$compat_agent' (supported: opencode, gemini)"
+        echo ""
         ;;
     esac
   done
 
-  if [ "$made_symlink" = true ]; then
-    echo ""
-    echo "  Tip: commit these symlinks so teammates using other agents benefit too."
-  fi
-
+  echo "  Tip: commit these files so teammates using other agents benefit too."
   echo ""
 }
 
@@ -394,7 +473,7 @@ MCP_EOF
 
   echo ""
 
-  setup_compat_symlinks
+  setup_compat_layer
 
   echo "=== Update complete! ==="
   echo ""
@@ -536,7 +615,7 @@ done
 echo ""
 
 # --- Step 5: Compatibility symlinks (optional, via --compatible flag) ---
-setup_compat_symlinks
+setup_compat_layer
 
 # --- Done ---
 echo "=== Setup complete! ==="
