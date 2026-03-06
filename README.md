@@ -51,6 +51,12 @@ bash <(curl -fsSL https://raw.githubusercontent.com/nickmaglowsch/claude-setup/m
 
 Update mode pulls the latest template, overwrites all agent and skill files, and leaves your `settings.local.json` and `agent-memory/` untouched.
 
+To add devcontainer support during an update (if you skipped it during initial setup):
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/nickmaglowsch/claude-setup/main/setup.sh) --update --add-devcontainer
+```
+
 #### Other coding agents (OpenCode, Gemini CLI)
 
 Add `--compatible` to generate native agent files for other tools alongside the Claude setup:
