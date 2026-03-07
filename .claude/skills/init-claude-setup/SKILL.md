@@ -1,6 +1,6 @@
 ---
 name: init-claude-setup
-description: "Initialize project-level Claude setup (gitignore entries, settings.local.json, optional Playwright MCP) without copying agent/skill files. Use this in projects where agents were installed globally via --global."
+description: "Initialize project-level Claude setup (gitignore entries, settings.local.json) without copying agent/skill files. Use this in projects where agents were installed globally via --global."
 argument-hint: ""
 ---
 
@@ -46,26 +46,7 @@ tasks/
 ```
 3. If it already exists, skip this step and note it.
 
-## Step 4 — Optional: Playwright MCP
-
-1. Check if `.claude/settings.json` exists.
-2. If it does not exist, ask the user:
-   - Question: "Add Playwright MCP for browser-based QA (/qa skill)?"
-   - Options: Yes / No (default No)
-3. If the user answers Yes, create `.claude/settings.json` with:
-```json
-{
-  "mcpServers": {
-    "playwright": {
-      "command": "npx",
-      "args": ["@playwright/mcp@latest"]
-    }
-  }
-}
-```
-4. If `.claude/settings.json` already exists, skip this step entirely (do not ask, do not overwrite).
-
-## Step 5 — Summary
+## Step 4 — Summary
 
 Print a clear summary of what was done:
 
@@ -74,15 +55,14 @@ Print a clear summary of what was done:
 
 - .gitignore: [added N entries / already up to date]
 - .claude/settings.local.json: [created / already existed]
-- .claude/settings.json (Playwright MCP): [created / skipped / already existed]
 
 ### Next steps
 - Run `claude login` if you haven't already
 - Edit `.claude/settings.local.json` to configure per-project tool permissions
 - Agents and skills are available globally via your ~/.claude/ install
+- The /qa skill uses `npx @playwright/cli` for browser automation — no extra config needed
 ```
 
 ## Rules
-- Never overwrite files that already exist (settings.local.json, settings.json) — only create them if missing
+- Never overwrite files that already exist (settings.local.json) — only create them if missing
 - Never remove existing .gitignore entries — only add missing ones
-- Always complete Steps 2 and 3 even if Playwright is declined

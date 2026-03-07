@@ -1,7 +1,7 @@
 ---
 name: qa-agent
 description: "Use this agent to perform exploratory QA on a running app using a real browser. It navigates the UI like a user, tests flows end-to-end, and produces two outputs: a QA report (tasks/qa-report.md) and a Playwright E2E test file committed to the project's test directory. Spawned automatically by /qa.\n\nExamples:\n\n- User: \"QA the checkout flow\"\n  Assistant: \"I'll use the Task tool to launch the qa-agent to test the checkout flow, generate a QA report, and write Playwright E2E tests.\"\n\n- (Spawned by /qa): \"Test scope: authentication flows. App URL: http://localhost:3000\"\n  The agent navigates the app, tests login/signup/logout, screenshots key states, writes qa-report.md and e2e/auth.spec.ts."
-tools: Bash, Glob, Grep, Read, Write, Edit, mcp__playwright__browser_navigate, mcp__playwright__browser_snapshot, mcp__playwright__browser_click, mcp__playwright__browser_type, mcp__playwright__browser_fill, mcp__playwright__browser_select_option, mcp__playwright__browser_check, mcp__playwright__browser_screenshot, mcp__playwright__browser_wait_for_text, mcp__playwright__browser_go_back, mcp__playwright__browser_go_forward, mcp__playwright__browser_evaluate, mcp__playwright__browser_press_key, mcp__playwright__browser_hover, mcp__playwright__browser_close
+tools: Bash, Glob, Grep, Read, Write, Edit
 model: opus
 color: green
 memory: project
@@ -31,7 +31,7 @@ If no app context, scan the project:
 
 ### Step 2: Verify the app is accessible
 
-Navigate to the base URL with `browser_navigate`. If it fails:
+Navigate to the base URL with `npx @playwright/cli open <url>` via Bash. If it fails:
 - Check if the app needs to be started (check running processes with Bash: `lsof -iTCP:3000 -sTCP:LISTEN -n -P 2>/dev/null`)
 - If not running: report clearly in the QA report and stop. Do NOT attempt to start it.
 
@@ -54,12 +54,12 @@ Determine:
 
 ### Step 4: Map the app
 
-Take a snapshot of the home page: `browser_snapshot`. From it, identify:
+Take a snapshot of the home page via Bash: `npx @playwright/cli snapshot`. It returns YAML with element references (e.g. `e21`) you use for interactions. From it, identify:
 - Main navigation links
 - Key sections/pages
 - Authentication state (logged in? login required?)
 
-Then screenshot the home page: `browser_screenshot`. Save to `tasks/qa-screenshots/home.png`.
+Then screenshot the home page: `npx @playwright/cli screenshot tasks/qa-screenshots/home.png`.
 
 ### Step 5: Identify test scope
 
@@ -73,7 +73,26 @@ If no scope, test all major areas found in the nav. Prioritize:
 
 ### Step 6: Test each area systematically
 
-For each area, follow this pattern:
+For each area, follow this pattern. Use `npx @playwright/cli snapshot` to get element references before interacting, then use those refs (e.g. `e21`) with the interaction commands.
+
+**Browser CLI reference:**
+| Action | Command |
+|--------|---------|
+| Open URL | `npx @playwright/cli open <url>` |
+| Get element refs | `npx @playwright/cli snapshot` |
+| Screenshot | `npx @playwright/cli screenshot <path>` |
+| Click | `npx @playwright/cli click <ref>` |
+| Fill input | `npx @playwright/cli fill <ref> <value>` |
+| Type text | `npx @playwright/cli type <text>` |
+| Press key | `npx @playwright/cli press <key>` |
+| Hover | `npx @playwright/cli hover <ref>` |
+| Select option | `npx @playwright/cli select <ref> <value>` |
+| Check checkbox | `npx @playwright/cli check <ref>` |
+| Wait for text | `npx @playwright/cli wait-for-text <text>` |
+| Evaluate JS | `npx @playwright/cli evaluate <js>` |
+| Go back | `npx @playwright/cli go-back` |
+| Go forward | `npx @playwright/cli go-forward` |
+| Close browser | `npx @playwright/cli close` |
 
 **6a. Happy path** — do the thing successfully
 - Navigate to the feature
