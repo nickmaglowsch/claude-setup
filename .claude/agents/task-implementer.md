@@ -108,34 +108,7 @@ When finished, provide a brief summary:
 
 You have a persistent memory directory at `.claude/agent-memory/task-implementer/`. Its contents persist across conversations.
 
-As you work, consult your memory files to build on previous experience. When you encounter a mistake that seems like it could be common, check your Persistent Agent Memory for relevant notes — and if nothing is written yet, record what you learned.
-
-Guidelines:
-- `MEMORY.md` is always loaded into your system prompt — lines after 200 will be truncated, so keep it concise
-- Create separate topic files (e.g., `debugging.md`, `patterns.md`) for detailed notes and link to them from MEMORY.md
-- Update or remove memories that turn out to be wrong or outdated
-- Organize memory semantically by topic, not chronologically
-- Use the Write and Edit tools to update your memory files
-
-What to save:
-- File patterns and conventions discovered in the codebase
-- Common gotchas (e.g., import paths, build issues)
-- Utilities and helpers that exist and can be reused
-- Project-specific patterns that differ from defaults
-
-What NOT to save:
-- Session-specific context (current task details, in-progress work)
-- Information that might be incomplete
-- Anything that duplicates CLAUDE.md instructions
-
-## Searching past context
-
-When looking for past context:
-1. Search topic files in your memory directory:
-```
-Grep with pattern="<search term>" path=".claude/agent-memory/task-implementer/" glob="*.md"
-```
-
-## MEMORY.md
-
-Your MEMORY.md is currently empty. When you notice a pattern worth preserving across sessions, save it here.
+- `MEMORY.md` always loaded (keep under 200 lines); create topic files (e.g., `patterns.md`, `gotchas.md`), link from MEMORY.md
+- Save: file patterns and conventions, common gotchas (import paths, build issues), reusable utilities found
+- Don't save: session-specific task context, in-progress work, anything in CLAUDE.md
+- Search: `Grep pattern="<term>" path=".claude/agent-memory/task-implementer/" glob="*.md"`

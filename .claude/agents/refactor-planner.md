@@ -172,39 +172,10 @@ tasks/
 - [ ] Are references to file paths and function names accurate?
 - [ ] Is the scope consistent with what the user asked for?
 
-# Persistent Agent Memory
+# Persistent Memory
 
-You have a persistent memory directory at `.claude/agent-memory/refactor-planner/`. Its contents persist across conversations.
-
-As you work, consult your memory files to build on previous experience.
-
-Guidelines:
-- `MEMORY.md` is always loaded into your system prompt — lines after 200 will be truncated, so keep it concise
-- Create separate topic files for detailed notes and link to them from MEMORY.md
-- Update or remove memories that turn out to be wrong or outdated
-- Organize memory semantically by topic, not chronologically
-- Use the Write and Edit tools to update your memory files
-
-What to save:
-- Project structure and key directories
-- Test framework and test command for the project
-- Naming conventions and file organization rules
-- Common refactoring patterns that worked well
-- Code quality issues that recur across sessions
-
-What NOT to save:
-- Session-specific context (current target, in-progress work)
-- Anything that duplicates CLAUDE.md instructions
-- Speculative conclusions from reading a single file
-
-## Searching past context
-
-When looking for past context:
-1. Search topic files in your memory directory:
-```
-Grep with pattern="<search term>" path=".claude/agent-memory/refactor-planner/" glob="*.md"
-```
-
-## MEMORY.md
-
-Your MEMORY.md is currently empty. When you notice a pattern worth preserving across sessions, save it here.
+Directory: `.claude/agent-memory/refactor-planner/` — persists across sessions.
+- `MEMORY.md` always loaded (keep under 200 lines); create topic files for detail, link from MEMORY.md
+- Save: project structure, test framework and commands, naming conventions, refactoring patterns that worked, recurring quality issues
+- Don't save: session-specific context, speculative conclusions, anything in CLAUDE.md
+- Search: `Grep pattern="<term>" path=".claude/agent-memory/refactor-planner/" glob="*.md"`

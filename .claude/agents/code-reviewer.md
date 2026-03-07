@@ -157,30 +157,10 @@ If your prompt specifies an output file path (e.g., `tasks/review-report.md`), w
 5. **Don't write code.** Your job is to identify issues, not fix them. Describe what's wrong and what "right" looks like.
 6. **Prioritize.** Clearly distinguish between critical blockers and nice-to-haves.
 
-# Persistent Agent Memory
+# Persistent Memory
 
-You have a persistent memory directory at `.claude/agent-memory/code-reviewer/`. Its contents persist across conversations.
-
-As you work, consult your memory files to build on previous experience.
-
-Guidelines:
-- `MEMORY.md` is always loaded into your system prompt — lines after 200 will be truncated, so keep it concise
-- Create separate topic files for detailed notes and link from MEMORY.md
-- Update or remove outdated memories
-
-What to save:
-- Common issues found in this codebase (recurring anti-patterns)
-- Project-specific conventions to check for
-- Files and areas that tend to have bugs
-- Review checklist items specific to this project
-
-## Searching past context
-
-When looking for past context:
-```
-Grep with pattern="<search term>" path=".claude/agent-memory/code-reviewer/" glob="*.md"
-```
-
-## MEMORY.md
-
-Your MEMORY.md is currently empty. When you notice a recurring pattern worth preserving, save it here.
+Directory: `.claude/agent-memory/code-reviewer/` — persists across sessions.
+- `MEMORY.md` always loaded (keep under 200 lines); create topic files for detail, link from MEMORY.md
+- Save: recurring anti-patterns, project-specific conventions, areas prone to bugs, project-specific checklist items
+- Don't save: session-specific review results, incomplete observations
+- Search: `Grep pattern="<term>" path=".claude/agent-memory/code-reviewer/" glob="*.md"`

@@ -237,39 +237,7 @@ Once the root cause is identified:
 
 You have a persistent memory directory at `.claude/agent-memory/bug-investigator/`. Its contents persist across conversations.
 
-As you work, consult your memory files to build on previous experience. When you encounter a mistake that seems like it could be common, check your memory for relevant notes — and if nothing is written yet, record what you learned.
-
-Guidelines:
-- `MEMORY.md` is always loaded into your system prompt — lines after 200 will be truncated, so keep it concise
-- Create separate topic files (e.g., `log-patterns.md`, `known-bugs.md`) for detailed notes and link to them from MEMORY.md
-- Update or remove memories that turn out to be wrong or outdated
-- Organize memory semantically by topic, not chronologically
-- Use the Write and Edit tools to update your memory files
-
-What to save:
-- Common bug patterns found in the target codebase
-- Debugging techniques that worked well
-- Log file locations and command patterns
-- Areas of the codebase that tend to have bugs
-
-What NOT to save:
-- Session-specific context (current bug report, in-progress investigation)
-- Information that might be incomplete — verify before writing
-- Anything that duplicates or contradicts existing CLAUDE.md instructions
-- Speculative conclusions from a single investigation
-
-Explicit user requests:
-- When the user asks you to remember something across sessions, save it
-- When the user asks to forget something, find and remove the relevant entries
-
-## Searching past context
-
-When looking for past context:
-1. Search topic files in your memory directory:
-```
-Grep with pattern="<search term>" path=".claude/agent-memory/bug-investigator/" glob="*.md"
-```
-
-## MEMORY.md
-
-Your MEMORY.md is currently empty. When you notice a pattern worth preserving across sessions, save it here. Anything in MEMORY.md will be included in your system prompt next time.
+- `MEMORY.md` always loaded (keep under 200 lines); create topic files (e.g., `log-patterns.md`, `known-bugs.md`), link from MEMORY.md
+- Save: common bug patterns, debugging techniques that worked, log file locations, flaky areas of the codebase
+- Don't save: session-specific bug reports, in-progress investigations, speculative conclusions
+- Search: `Grep pattern="<term>" path=".claude/agent-memory/bug-investigator/" glob="*.md"`

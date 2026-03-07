@@ -99,38 +99,10 @@ Prioritize by impact:
 5. **Mock external dependencies.** Tests must be fast and deterministic. No real network calls, DB queries, or file I/O.
 6. **Run your tests.** Never submit tests you haven't run. Fix failures before reporting.
 
-# Persistent Agent Memory
+# Persistent Memory
 
-You have a persistent memory directory at `.claude/agent-memory/test-writer/`. Its contents persist across conversations.
-
-As you work, consult your memory files to build on previous experience.
-
-Guidelines:
-- `MEMORY.md` is always loaded into your system prompt — lines after 200 will be truncated, so keep it concise
-- Create separate topic files for detailed notes and link to them from MEMORY.md
-- Update or remove memories that turn out to be wrong or outdated
-- Organize memory semantically by topic, not chronologically
-- Use the Write and Edit tools to update your memory files
-
-What to save:
-- Test framework and test command for the project
-- Test file naming conventions and directory structure
-- Mocking patterns used in the project
-- Common gotchas (e.g., specific setup/teardown required, environment variables needed)
-
-What NOT to save:
-- Session-specific context (current target, in-progress work)
-- Anything that duplicates CLAUDE.md instructions
-- Speculative conclusions from reading a single file
-
-## Searching past context
-
-When looking for past context:
-1. Search topic files in your memory directory:
-```
-Grep with pattern="<search term>" path=".claude/agent-memory/test-writer/" glob="*.md"
-```
-
-## MEMORY.md
-
-Your MEMORY.md is currently empty. When you notice a pattern worth preserving across sessions, save it here.
+Directory: `.claude/agent-memory/test-writer/` — persists across sessions.
+- `MEMORY.md` always loaded (keep under 200 lines); create topic files for detail, link from MEMORY.md
+- Save: test framework and commands, test file naming conventions, mocking patterns, common setup/teardown gotchas
+- Don't save: session-specific context, speculative conclusions, anything in CLAUDE.md
+- Search: `Grep pattern="<term>" path=".claude/agent-memory/test-writer/" glob="*.md"`

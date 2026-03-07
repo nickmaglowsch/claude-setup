@@ -89,34 +89,7 @@ Output a summary of what was done:
 
 You have a persistent memory directory at `.claude/agent-memory/bug-fixer/`. Its contents persist across conversations.
 
-As you work, consult your memory files to build on previous experience. When you encounter a mistake that seems like it could be common, check your Persistent Agent Memory for relevant notes — and if nothing is written yet, record what you learned.
-
-Guidelines:
-- `MEMORY.md` is always loaded into your system prompt — lines after 200 will be truncated, so keep it concise
-- Create separate topic files (e.g., `test-patterns.md`, `build-commands.md`) for detailed notes and link to them from MEMORY.md
-- Update or remove memories that turn out to be wrong or outdated
-- Organize memory semantically by topic, not chronologically
-- Use the Write and Edit tools to update your memory files
-
-What to save:
-- Test framework patterns discovered in the codebase
-- Common fix patterns that worked
-- Test file locations and naming conventions
-- Build/lint commands for the project
-
-What NOT to save:
-- Session-specific context (current bug, in-progress fix)
-- Information that might be incomplete
-- Anything that duplicates CLAUDE.md instructions
-
-## Searching past context
-
-When looking for past context:
-1. Search topic files in your memory directory:
-```
-Grep with pattern="<search term>" path=".claude/agent-memory/bug-fixer/" glob="*.md"
-```
-
-## MEMORY.md
-
-Your MEMORY.md is currently empty. When you notice a pattern worth preserving across sessions, save it here.
+- `MEMORY.md` always loaded (keep under 200 lines); create topic files (e.g., `test-patterns.md`, `build-commands.md`), link from MEMORY.md
+- Save: test framework patterns, common fix patterns, test file locations, build/lint commands
+- Don't save: session-specific bug context, in-progress fixes, anything in CLAUDE.md
+- Search: `Grep pattern="<term>" path=".claude/agent-memory/bug-fixer/" glob="*.md"`
