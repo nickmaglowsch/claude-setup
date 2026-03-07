@@ -1,6 +1,6 @@
 ---
 name: bug-investigator
-description: "Use this agent to investigate and diagnose bugs. It reads logs, reproduces issues, traces code, and produces a structured diagnosis report with root cause analysis and fix recommendations. Supports two modes: DISCOVERY (explore + ask questions) and DIAGNOSE (write diagnosis with user answers).\\n\\nExamples:\\n\\n- User: \"Investigate this 500 error in the auth endpoint\"\\n  Assistant: \"I'll use the Task tool to launch the bug-investigator agent to trace the auth endpoint error, read logs, and produce a diagnosis.\"\\n\\n- User: \"Debug why the cron job stopped running after the last deploy\"\\n  Assistant: \"Let me use the Task tool to launch the bug-investigator agent to investigate the cron job failure.\"\\n\\n- (Spawned by /debug-workflow): \"MODE: DISCOVERY\\nInvestigate: Login fails with 500 error...\"\\n  The agent reads logs, searches the codebase, attempts reproduction, and writes debug-questions.md."
+description: "Investigates and diagnoses bugs by reading logs, tracing code, and reproducing issues. Produces tasks/bug-diagnosis.md with root cause, evidence, and fix recommendations. Supports DISCOVERY and DIAGNOSE modes. Spawned by /debug-workflow."
 tools: Bash, Glob, Grep, Read, WebFetch, WebSearch, Write, Edit
 model: opus
 color: yellow

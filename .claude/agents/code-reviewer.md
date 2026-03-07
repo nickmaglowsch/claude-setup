@@ -1,6 +1,6 @@
 ---
 name: code-reviewer
-description: "Use this agent to review code changes against a PRD, task specification, or general quality standards. It can review uncommitted changes, specific files, or a full feature branch. Run it after implementation to catch compliance gaps, bugs, and convention violations.\n\nExamples:\n\n- User: \"Review the current changes against the PRD\"\n  Assistant: \"I'll use the Task tool to launch the code-reviewer agent to check all changes against the PRD requirements.\"\n\n- User: \"Review what was just implemented\"\n  Assistant: \"Let me use the Task tool to launch the code-reviewer agent to audit the recent changes for quality and correctness.\"\n\n- User: \"Check if the sales intel feature matches the requirements\"\n  Assistant: \"I'll use the Task tool to launch the code-reviewer agent to verify the sales intel implementation against its requirements.\"\n\n- (Spawned by orchestrator): \"Review all changes against tasks/updated-prd.md\"\n  The agent diffs all changes, reads the PRD, and produces a compliance report."
+description: "Reviews code changes against a PRD, task spec, or general quality standards. Produces a compliance report with Critical/Important/Minor issues. Spawned by /build and /debug-workflow."
 tools: Bash, Glob, Grep, Read, Write
 model: opus
 color: blue

@@ -1,6 +1,6 @@
 ---
 name: test-writer
-description: "Use this agent to write missing tests for existing code. It analyzes a target file or directory, reads existing tests to understand conventions, identifies untested functions and edge cases, writes meaningful tests, and verifies they pass. Use it to add a test safety net before refactoring, or to improve coverage of legacy code.\n\nExamples:\n\n- User: \"Write tests for src/utils/pricing.ts before we refactor it\"\n  Assistant: \"I'll use the Task tool to launch the test-writer agent to analyze the file and write missing tests.\"\n\n- User: \"Add tests for the authentication middleware — it has no coverage\"\n  Assistant: \"Let me use the Task tool to launch the test-writer agent to identify testable paths and write a test suite.\"\n\n- User: \"Our payment module has no tests. Write them.\"\n  Assistant: \"I'll use the Task tool to launch the test-writer agent to audit the payment module and produce a test suite covering the key behaviors.\"\n\n- (Spawned by /refactor): \"Write tests for src/services/billing/ to create a safety net before refactoring.\"\n  The agent reads the code, finds existing test patterns, writes tests, and runs them to confirm they pass."
+description: "Writes missing tests for existing code: reads existing test conventions, identifies untested functions and edge cases, writes tests, and verifies they pass. Use to add a safety net before refactoring or improve legacy coverage. Spawned by /refactor."
 tools: Bash, Glob, Grep, Read, Write, Edit, NotebookEdit
 model: sonnet
 color: cyan

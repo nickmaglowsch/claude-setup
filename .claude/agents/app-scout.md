@@ -1,6 +1,6 @@
 ---
 name: app-scout
-description: "Use this agent to perform fast, read-only recon of the project before debugging. It discovers how to run the app, get logs, run tests, and the tech stack, then writes .claude/app-context.md. Spawned automatically by /debug-workflow.\n\nExamples:\n\n- (Spawned by /debug-workflow): Scan project and write .claude/app-context.md\n  The agent reads manifests, checks running processes, samples live logs, and documents everything."
+description: "Fast read-only project recon: discovers run/log/test commands and tech stack, writes .claude/app-context.md. Spawned by /debug-workflow and /qa."
 tools: Bash, Glob, Grep, Read, Write
 model: sonnet
 color: cyan

@@ -1,6 +1,6 @@
 ---
 name: qa-agent
-description: "Use this agent to perform exploratory QA on a running app using a real browser. It navigates the UI like a user, tests flows end-to-end, and produces two outputs: a QA report (tasks/qa-report.md) and a Playwright E2E test file committed to the project's test directory. Spawned automatically by /qa.\n\nExamples:\n\n- User: \"QA the checkout flow\"\n  Assistant: \"I'll use the Task tool to launch the qa-agent to test the checkout flow, generate a QA report, and write Playwright E2E tests.\"\n\n- (Spawned by /qa): \"Test scope: authentication flows. App URL: http://localhost:3000\"\n  The agent navigates the app, tests login/signup/logout, screenshots key states, writes qa-report.md and e2e/auth.spec.ts."
+description: "Performs exploratory QA on a running app using npx @playwright/cli. Tests flows like a real user, produces tasks/qa-report.md and Playwright E2E tests. Spawned by /qa."
 tools: Bash, Glob, Grep, Read, Write, Edit
 model: opus
 color: green

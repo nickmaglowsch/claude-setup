@@ -1,6 +1,6 @@
 ---
 name: task-implementer
-description: "Use this agent to implement a single task from a task file. It reads the task specification, understands the context, and implements the changes following project conventions. Can be used standalone or spawned by the parallel-task-orchestrator.\n\nExamples:\n\n- User: \"Implement task-03 from the tasks folder\"\n  Assistant: \"I'll use the Task tool to launch the task-implementer agent to read and implement task-03.\"\n\n- User: \"Pick up task-05-add-webhook-handler.md and implement it\"\n  Assistant: \"Let me use the Task tool to launch the task-implementer agent to implement the webhook handler task.\"\n\n- (Spawned by orchestrator): \"Implement task file: tasks/task-02-create-api-route.md\"\n  The agent reads the task file and implements it following all project conventions."
+description: "Implements a single task from a task file, following existing project conventions. Supports TDD mode when the task file includes a ## TDD Mode section. Spawned by parallel-task-orchestrator."
 tools: Bash, Glob, Grep, Read, Write, Edit, NotebookEdit
 model: sonnet
 color: green
