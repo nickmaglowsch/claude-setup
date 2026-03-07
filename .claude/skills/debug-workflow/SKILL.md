@@ -1,7 +1,7 @@
 ---
 name: debug-workflow
 description: "Debug pipeline: investigates a bug, diagnoses root cause, writes failing tests, implements fix via TDD, and reviews the result. Orchestrates bug-investigator -> bug-fixer -> code-reviewer."
-argument-hint: "[bug description] [Logs: 'command'] [Tests: 'command']"
+argument-hint: "[--fresh] [bug description] [Logs: 'command'] [Tests: 'command']"
 ---
 
 # Debug Pipeline
@@ -22,13 +22,14 @@ Before starting, remove any leftover files from a previous debug run:
 
 ## Step 0.5: App Recon — Discover how to interact with the app
 
-Check if `.claude/app-context.md` already exists (use Read or Bash).
+**Parse flags:** If `$ARGUMENTS` starts with `--fresh`, set `FRESH=true` and strip `--fresh` to get the clean bug report. Otherwise `FRESH=false`.
 
-**If it exists:** Use it directly — skip launching the app-scout. Proceed to Step 1.
-
-**If it does NOT exist:** Launch the `app-scout` agent using the Task tool with:
-- `subagent_type: "app-scout"`
-- Prompt: `Perform project recon. Write your findings to .claude/app-context.md.`
+Check whether to run app-scout:
+- Run via Bash: `find .claude/app-context.md -mmin -60 2>/dev/null`
+- **If the file path is returned (exists and < 1 hour old) AND `FRESH=false`:** Use it directly — skip launching app-scout. Proceed to Step 1.
+- **Otherwise (file missing, stale, or `--fresh` was passed):** Launch the `app-scout` agent using the Task tool with:
+  - `subagent_type: "app-scout"`
+  - Prompt: `Perform project recon. Write your findings to .claude/app-context.md.`
 
 Wait for it to complete. If the agent fails or the file is not created, log a warning and proceed without it — this is a best-effort step.
 
@@ -135,6 +136,22 @@ Launch the `code-reviewer` agent using the Task tool with:
   - Are the changes minimal and focused on the bug fix (no unrelated changes)?
 
 Wait for it to complete.
+
+## Step 3b: Auto-fix — Address critical review issues (one pass)
+
+Read `tasks/debug-review-report.md`. Check if the `### Critical` section contains any items.
+
+**If critical issues are found:**
+1. Collect all items listed under `### Critical` (file paths, line numbers, descriptions)
+2. Launch a `task-implementer` sub-agent with a prompt that includes:
+   - The list of critical issues verbatim from the report
+   - Instruction to fix only these specific issues, touching no other code
+3. Wait for it to complete.
+4. Re-run the code-reviewer (same criteria as Step 3) **once more**. Write the updated report to `tasks/debug-review-report.md` (overwrite).
+
+**If no critical issues:** proceed directly to Step 4.
+
+Do not loop — the auto-fix runs at most once. If critical issues persist after the retry, report them to the user in Step 4.
 
 ## Step 4: Report
 

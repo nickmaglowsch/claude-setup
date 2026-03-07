@@ -1,7 +1,7 @@
 ---
 name: qa
 description: "QA pipeline: explores the running app like a real user using a browser, then produces a QA report and Playwright E2E tests for regression. Orchestrates app-scout → qa-agent."
-argument-hint: "[scope or feature to test — leave empty to test everything]"
+argument-hint: "[--fresh] [scope or feature to test — leave empty to test everything]"
 ---
 
 # QA Pipeline
@@ -22,13 +22,14 @@ Remove leftover files from a previous QA run:
 
 ## Step 0.5: App Recon — Discover how to interact with the app
 
-Check if `.claude/app-context.md` already exists (use Read or Bash).
+**Parse flags:** If `$ARGUMENTS` starts with `--fresh`, set `FRESH=true` and strip `--fresh` to get the clean scope. Otherwise `FRESH=false`.
 
-**If it exists:** Use it directly — skip launching the app-scout. Proceed to Step 1.
-
-**If it does NOT exist:** Launch the `app-scout` agent using the Task tool with:
-- `subagent_type: "app-scout"`
-- Prompt: `Perform project recon. Write your findings to .claude/app-context.md.`
+Check whether to run app-scout:
+- Run via Bash: `find .claude/app-context.md -mmin -60 2>/dev/null`
+- **If the file path is returned (exists and < 1 hour old) AND `FRESH=false`:** Use it directly — skip launching app-scout. Proceed to Step 1.
+- **Otherwise (file missing, stale, or `--fresh` was passed):** Launch the `app-scout` agent using the Task tool with:
+  - `subagent_type: "app-scout"`
+  - Prompt: `Perform project recon. Write your findings to .claude/app-context.md.`
 
 Wait for it to complete. If the agent fails or the file is not created, log a warning and proceed without it — this is a best-effort step.
 

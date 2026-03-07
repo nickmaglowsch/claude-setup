@@ -94,10 +94,20 @@ Use `subagent_type: "task-implementer"` for each sub-agent. This uses the specia
 **IMPORTANT**: Wait for ALL sub-agents in a wave to complete before starting the next wave.
 
 After each wave:
-- Use `TaskUpdate` to mark completed tasks with `status: "completed"` and failed tasks stay as `in_progress`
-- Check that the sub-agents reported success
-- If a sub-agent reported a blocker, assess whether dependent tasks can still proceed
-- Note any issues for the final report
+- Use `TaskUpdate` to mark completed tasks with `status: "completed"`
+- **Retry failed sub-agents once**: For any sub-agent that reported failure or a blocker:
+  1. Re-spawn a single `task-implementer` sub-agent with the same prompt PLUS an appended section:
+     ```
+     ## Previous Attempt Failed
+
+     The previous attempt reported this error or blocker:
+     <paste the failure output from the failed sub-agent>
+
+     Please address this issue and complete the task.
+     ```
+  2. If the retry succeeds: use `TaskUpdate` to mark the task `status: "completed"`
+  3. If the retry also fails: leave the task `status: "in_progress"`, note the failure, and assess whether dependent tasks can still proceed
+- Only retry once per task — do not retry the retry
 
 ## PHASE 4: COMPLETION
 

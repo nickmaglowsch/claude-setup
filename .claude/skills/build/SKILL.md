@@ -148,6 +148,22 @@ Launch the `code-reviewer` agent using the Task tool with:
 
 Wait for it to complete.
 
+## Step 3b: Auto-fix — Address critical review issues (one pass)
+
+Read `tasks/review-report.md`. Check if the `### Critical` section contains any items.
+
+**If critical issues are found:**
+1. Collect all items listed under `### Critical` (file paths, line numbers, descriptions)
+2. For each distinct file affected, launch a `task-implementer` sub-agent (parallel where no file conflicts) with a prompt that includes:
+   - The specific critical issue(s) for that file verbatim from the report
+   - Instruction to fix only these specific issues, touching no other code
+3. Wait for all task-implementers to complete.
+4. Re-run the code-reviewer (same criteria as Step 3) **once more** against `tasks/updated-prd.md`. Write the updated report to `tasks/review-report.md` (overwrite).
+
+**If no critical issues:** proceed directly to Step 4.
+
+Do not loop — the auto-fix runs at most once. If critical issues persist after the retry, report them in Step 4.
+
 ## Step 4: Report
 
 Summarize the full pipeline run to the user:
