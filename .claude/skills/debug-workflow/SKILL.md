@@ -16,41 +16,16 @@ $ARGUMENTS
 
 ## Step 0.1: Parse flags and auto-commit opt-in
 
-**Parse flags:** If `$ARGUMENTS` starts with `--fresh`, set `FRESH=true` and strip `--fresh` to get the clean bug report. Store the cleaned bug report as `BUG_DESCRIPTION`. Otherwise `FRESH=false` and `BUG_DESCRIPTION=$ARGUMENTS`.
+If `$ARGUMENTS` starts with `--fresh`: `FRESH=true`, strip it → `BUG_DESCRIPTION`. Else `FRESH=false`, `BUG_DESCRIPTION=$ARGUMENTS`.
 
-Use `AskUserQuestion` to ask: "Enable auto-commit and PR for this run?"
-- Option A: "Yes — create a branch, commit the fix when it's complete, and open a PR"
-- Option B: "No — skip all git automation (default)"
-
-Store result as `AUTO_COMMIT` = true / false.
+Ask: "Enable auto-commit and PR?" (Yes / No) → `AUTO_COMMIT`.
 
 **If `AUTO_COMMIT=true`:**
+1. Run `git rev-parse --abbrev-ref HEAD`. If `main`/`master`: `BRANCH_ACTION=new`. Else ask: "Branch `<name>` exists — create new or commit here?" → `BRANCH_ACTION=new/current`. (No commit granularity question — debug always uses a single commit.)
+2. Generate `fix/<3-5-word-slug>` from `BUG_DESCRIPTION` → `AUTO_COMMIT_BRANCH`.
+3. `git checkout -b <AUTO_COMMIT_BRANCH>`. On failure append `-2`, retry once.
 
-1. Check the current branch:
-   ```bash
-   git rev-parse --abbrev-ref HEAD
-   ```
-   - If the result is `main` or `master`: set `BRANCH_ACTION=new` (no question needed)
-   - If on any other branch: use `AskUserQuestion`:
-     - "A branch already exists (`<current-branch-name>`). What would you like to do?"
-     - Option A: "Create a new branch (recommended)"
-     - Option B: "Commit to the current branch (`<current-branch-name>`)"
-   - Store as `BRANCH_ACTION` = new / current
-
-   Note: there is no commit granularity question for debug-workflow — always a single commit.
-
-2. Derive branch name from `BUG_DESCRIPTION` (the clean bug description, after stripping `--fresh`):
-   - Generate a kebab-case 3-5 word slug (e.g., `login-500-auth-upgrade`)
-   - Branch name: `fix/<slug>`
-   - Store as `AUTO_COMMIT_BRANCH`
-
-3. **Create and check out the branch now** (before any work begins):
-   ```bash
-   git checkout -b <AUTO_COMMIT_BRANCH>
-   ```
-   If the command fails (branch already exists), append `-2` to the name and retry once. Update `AUTO_COMMIT_BRANCH` with the final name used.
-
-**If `AUTO_COMMIT=false`:** set `BRANCH_ACTION=none`. Skip all follow-up questions.
+**If `AUTO_COMMIT=false`:** `BRANCH_ACTION=none`.
 
 ## Step 0: Clean up — Remove stale debug artifacts
 
@@ -161,94 +136,19 @@ Before reviewing, run a quick build/lint check to catch obvious breakage:
 
 ## Step 2.5: Auto-commit and PR
 
-**Skip this entire step if `AUTO_COMMIT=false`.**
+**Skip if `AUTO_COMMIT=false`.**
 
-### 2.5a: Safety check
+**2.5a Safety:** Run `git rev-parse --abbrev-ref HEAD`. If `main`/`master`: abort ("Auto-commit aborted: on main/master. Commit manually.") → proceed to Step 3.
 
-Run:
-```bash
-git rev-parse --abbrev-ref HEAD
-```
+**2.5c Commit:** Read `tasks/bug-diagnosis.md` for `## Bug Summary` and root cause. Run `git add -A && git commit -m "fix: <BUG_DESCRIPTION summary>" -m "- <root cause>\n- <fix approach>"` (72-char subject, 1-2 body bullets).
 
-If the result is `main` or `master`, abort this step with:
-```
-Auto-commit aborted: currently on main/master branch. Commit manually.
-```
-Do not run any git add/commit/push. Proceed to Step 3.
+**2.5d Push:** `git push -u origin <branch-name>`. On failure, show manual command and continue.
 
+**2.5e PR:** Run `gh auth status 2>/dev/null && echo GH_OK || echo GH_UNAVAILABLE`.
+- `GH_OK`: Create PR body (1-2 sentence bug/fix summary + "## Root Cause" from diagnosis + "## Changes" files + "## Test Plan"). Run `gh pr create --title "fix: <desc>" --body "<body>" --base main`. Display URL.
+- `GH_UNAVAILABLE`: Display ready-to-copy `gh pr create` command.
 
-### 2.5c: Stage and commit
-
-Read `tasks/bug-diagnosis.md` to extract:
-- The `## Bug Summary` paragraph (for the commit body)
-- The root cause line (one sentence, for context)
-
-Generate a Conventional Commit message:
-- Format: `fix(<optional-scope>): <short description>` (max 72 chars for subject line)
-- Short description derived from `BUG_DESCRIPTION`
-- Optional body: 1-2 bullet points from `## Bug Summary` or `## Root Cause` in `tasks/bug-diagnosis.md`
-
-Run:
-```bash
-git add -A
-git commit -m "fix: <description>" -m "- <root cause summary>
-- <fix approach>"
-```
-
-### 2.5d: Push
-
-```bash
-git push -u origin <branch-name>
-```
-
-If push fails, display a warning with the manual push command but continue.
-
-### 2.5e: Open PR
-
-Check if `gh` is available and authenticated:
-```bash
-gh auth status 2>/dev/null && echo "GH_OK" || echo "GH_UNAVAILABLE"
-```
-
-**If `GH_OK`:**
-
-Generate PR body:
-- 1-2 sentence summary of the bug and fix
-- "## Root Cause" section (from `tasks/bug-diagnosis.md`)
-- "## Changes" section listing affected files
-- "## Test Plan" section (from the test strategy in `tasks/bug-diagnosis.md`)
-
-Run:
-```bash
-gh pr create \
-  --title "fix: <description>" \
-  --body "<pr-body>" \
-  --base main
-```
-
-If successful, display the PR URL.
-
-**If `GH_UNAVAILABLE`:**
-
-Display a ready-to-copy command block:
-```
-Run this to open the PR:
-
-  gh pr create \
-    --title "fix: <description>" \
-    --base main \
-    --body '<pr-body>'
-```
-
-### 2.5f: Report status
-
-```
-## Auto-commit complete
-- Branch: <branch-name>
-- Committed: 1 commit
-- Push: succeeded / failed (see above)
-- PR: opened at <url> / ready-to-copy command displayed
-```
+**2.5f Report:** `Branch: <name> | Commits: 1 | Push: ok/failed | PR: <url or manual>`
 
 ## Step 3: Review — Run code-reviewer with debug-specific criteria
 

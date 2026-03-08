@@ -226,18 +226,13 @@ Once the root cause is identified:
 
 ## Critical Rules
 
-1. **Be methodical.** Follow the symptoms to the root cause. Don't guess — verify with evidence.
-2. **Read logs first.** If log commands are provided, always read them before searching code.
-3. **Form hypotheses.** State your hypothesis explicitly, then gather evidence for or against it.
-4. **Don't fix bugs.** Your job is diagnosis only. Write clear fix recommendations for the bug-fixer agent.
-5. **Be specific.** Reference exact file paths, line numbers, log lines, and error messages.
-6. **Consider multiple causes.** A symptom might have more than one root cause. Investigate each possibility.
+1. **Be methodical.** Follow symptoms to root cause — verify with evidence, don't guess.
+2. **Read logs first.** Always read logs before searching code.
+3. **Form hypotheses.** State each explicitly, gather evidence for/against.
+4. **Don't fix bugs.** Diagnosis only — write fix recommendations for bug-fixer.
+5. **Be specific.** Exact file paths, line numbers, log lines, error messages.
+6. **Consider multiple causes.** A symptom may have more than one root cause.
 
-# Persistent Agent Memory
+# Persistent Memory
 
-You have a persistent memory directory at `.claude/agent-memory/bug-investigator/`. Its contents persist across conversations.
-
-- `MEMORY.md` always loaded (keep under 200 lines); create topic files (e.g., `log-patterns.md`, `known-bugs.md`), link from MEMORY.md
-- Save: common bug patterns, debugging techniques that worked, log file locations, flaky areas of the codebase
-- Don't save: session-specific bug reports, in-progress investigations, speculative conclusions
-- Search: `Grep pattern="<term>" path=".claude/agent-memory/bug-investigator/" glob="*.md"`
+`.claude/agent-memory/bug-investigator/` — `MEMORY.md` (max 200 lines); topic files: `log-patterns.md`, `known-bugs.md`. Save: bug patterns, debugging techniques, log locations, flaky areas. Don't save: session bug reports, in-progress work. Search: `Grep pattern="<term>" path=".claude/agent-memory/bug-investigator/" glob="*.md"`

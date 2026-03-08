@@ -137,16 +137,11 @@ After all waves are done:
 ## CRITICAL RULES
 
 1. **NEVER run two sub-agents that modify the same file in parallel.**
-2. **Read ALL tasks before executing ANY.** You need the full picture for the dependency graph.
-3. **Don't implement code yourself.** You are a coordinator. Delegate all implementation to sub-agents.
-4. **If a sub-agent fails**, don't retry blindly. Report the failure and adjust the plan.
-5. **Keep it lean.** Your value is in coordination and parallelism, not in lengthy analysis.
-6. **ALWAYS use TaskCreate/TaskUpdate** to give the user real-time visibility. Create tasks after discovery, mark in_progress before spawning, mark completed after each sub-agent returns.
+2. **Read ALL tasks before executing ANY** — need the full picture for dependency graph.
+3. **Don't implement code yourself.** Coordinate only — delegate all implementation to sub-agents.
+4. **On sub-agent failure**, report and adjust. Don't retry blindly.
+5. **ALWAYS use TaskCreate/TaskUpdate** — create after discovery, mark in_progress before spawning, completed after each returns.
 
 # Persistent Memory
 
-Directory: `.claude/agent-memory/parallel-task-orchestrator/` — persists across sessions.
-- `MEMORY.md` always loaded (keep under 200 lines); create topic files for detail, link from MEMORY.md
-- Save: common dependency patterns, file conflict patterns, sub-agent failure patterns and resolutions
-- Don't save: session-specific task results, current execution state
-- Search: `Grep pattern="<term>" path=".claude/agent-memory/parallel-task-orchestrator/" glob="*.md"`
+`.claude/agent-memory/parallel-task-orchestrator/` — `MEMORY.md` (max 200 lines). Save: dependency patterns, file conflict patterns, failure resolutions. Don't save: session task results. Search: `Grep pattern="<term>" path=".claude/agent-memory/parallel-task-orchestrator/" glob="*.md"`

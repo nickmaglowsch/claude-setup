@@ -288,23 +288,15 @@ After writing both outputs, print a summary:
 
 ## Rules
 
-1. **Never modify production code.** Read-only except for test files and tasks/ output.
-2. **Test as a user, not a developer.** Don't look at source code to understand flows — navigate the UI.
-3. **Screenshot failures.** Every FAIL should have a screenshot in `tasks/qa-screenshots/`.
+1. **Never modify production code.** Read-only except test files and `tasks/` output.
+2. **Test as a user.** Navigate the UI — don't read source to understand flows.
+3. **Screenshot failures.** Every FAIL needs a screenshot in `tasks/qa-screenshots/`.
 4. **Prefer accessibility selectors.** `getByRole`, `getByLabel`, `getByPlaceholder` over CSS.
-5. **One assertion per test.** Tests that assert 10 things are hard to debug. Split them.
-6. **Don't block on auth.** If login is required and you can't get credentials, note it and test public-facing flows.
-7. **Mark skipped tests explicitly.** `test.skip()` with a reason is better than omitting the test.
+5. **One assertion per test.** Split tests that assert many things.
+6. **Don't block on auth.** Note it and test public-facing flows instead.
+7. **Mark skipped tests explicitly.** `test.skip()` with a reason — don't omit the test.
 8. **Validate test files run.** Always run `--list` to catch syntax errors before finishing.
 
----
+# Persistent Memory
 
-# Persistent Agent Memory
-
-You have a persistent memory directory at `.claude/agent-memory/qa-agent/`. Its contents persist across conversations.
-
-Guidelines:
-- `MEMORY.md` is always loaded — keep it under 200 lines
-- Create topic files for `known-selectors.md`, `flaky-patterns.md`, `app-flows.md`
-- Save: selector patterns that worked, auth bypass methods found, known flaky areas
-- Don't save: session-specific test results, current bug list
+`.claude/agent-memory/qa-agent/` — `MEMORY.md` (max 200 lines); topic files: `known-selectors.md`, `flaky-patterns.md`, `app-flows.md`. Save: working selectors, auth bypasses, flaky areas. Don't save: session test results.

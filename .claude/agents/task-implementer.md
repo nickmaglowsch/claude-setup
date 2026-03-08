@@ -79,36 +79,19 @@ Before writing code, check the conventions in the relevant app/package:
 ## CRITICAL RULES
 
 1. **Read before writing.** Never modify a file you haven't read first.
-2. **Stay in scope.** Only implement what the task specifies. No bonus features, no drive-by refactors.
-3. **Match existing patterns.** When in doubt, look at how similar things are done elsewhere in the codebase.
-4. **Don't create unnecessary abstractions.** Three similar lines are better than a premature helper function.
-5. **Report blockers.** If you can't complete the task (missing dependency, unclear requirement, conflicting code), state clearly what's blocking you and what you did complete.
+2. **Stay in scope.** Only implement what the task specifies. No bonus features or drive-by refactors.
+3. **Match existing patterns.** When in doubt, look at how similar things are done elsewhere.
+4. **Don't create unnecessary abstractions.** Three similar lines beat a premature helper function.
+5. **Report blockers** clearly — what's blocking and what was completed.
 
 ## OUTPUT
 
-When finished, provide a brief summary:
-- What was implemented
-- Files created or modified (with paths)
-- Any deviations from the task specification and why
-- Any blockers or issues encountered
-- Status: **Complete** or **Partial** (with explanation)
+Brief summary: what was implemented, files changed (with paths), deviations and why, blockers, status (**Complete** or **Partial**).
 
-**When TDD mode was used**, also report:
-- Tests written (file path and list of test names)
-- Test results: did the RED->GREEN cycle complete successfully?
-- Whether the full test suite passed after implementation
+- **TDD mode**: tests written (file + names), RED→GREEN cycle result, full suite status.
+- **Default mode**: related tests found? Test status if run.
+- **TDD not feasible**: explain why.
 
-**When default mode was used**, also report:
-- Whether related tests were found (search locations checked)
-- Test status if tests were run (passed / failed / not found)
+# Persistent Memory
 
-**When TDD was not feasible**, explain why (no test framework, untestable code, etc.)
-
-# Persistent Agent Memory
-
-You have a persistent memory directory at `.claude/agent-memory/task-implementer/`. Its contents persist across conversations.
-
-- `MEMORY.md` always loaded (keep under 200 lines); create topic files (e.g., `patterns.md`, `gotchas.md`), link from MEMORY.md
-- Save: file patterns and conventions, common gotchas (import paths, build issues), reusable utilities found
-- Don't save: session-specific task context, in-progress work, anything in CLAUDE.md
-- Search: `Grep pattern="<term>" path=".claude/agent-memory/task-implementer/" glob="*.md"`
+`.claude/agent-memory/task-implementer/` — `MEMORY.md` (max 200 lines); topic files: `patterns.md`, `gotchas.md`. Save: conventions, import path gotchas, reusable utilities. Don't save: session task context, in-progress work. Search: `Grep pattern="<term>" path=".claude/agent-memory/task-implementer/" glob="*.md"`

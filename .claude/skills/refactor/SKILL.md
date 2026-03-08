@@ -16,43 +16,15 @@ $ARGUMENTS
 
 ## Step 0.1: Auto-commit opt-in
 
-Use `AskUserQuestion` to ask: "Enable auto-commit and PR for this run?"
-- Option A: "Yes — create a branch, commit when refactoring is complete, and open a PR"
-- Option B: "No — skip all git automation (default)"
-
-Store result as `AUTO_COMMIT` = true / false.
+Ask: "Enable auto-commit and PR?" (Yes / No) → `AUTO_COMMIT`.
 
 **If `AUTO_COMMIT=true`:**
+1. Run `git rev-parse --abbrev-ref HEAD`. If `main`/`master`: `BRANCH_ACTION=new`. Else ask: "Branch `<name>` exists — create new or commit here?" → `BRANCH_ACTION=new/current`.
+2. Ask: "Single squash commit or one commit per task?" → `COMMIT_MODE=squash/per-task`.
+3. Generate `refactor/<3-5-word-slug>` from `$ARGUMENTS` → `AUTO_COMMIT_BRANCH`.
+4. `git checkout -b <AUTO_COMMIT_BRANCH>`. On failure append `-2`, retry once.
 
-1. Check the current branch:
-   ```bash
-   git rev-parse --abbrev-ref HEAD
-   ```
-   - If the result is `main` or `master`: set `BRANCH_ACTION=new` (no question needed)
-   - If on any other branch: use `AskUserQuestion`:
-     - "A branch already exists (`<current-branch-name>`). What would you like to do?"
-     - Option A: "Create a new branch (recommended)"
-     - Option B: "Commit to the current branch (`<current-branch-name>`)"
-   - Store as `BRANCH_ACTION` = new / current
-
-2. Use `AskUserQuestion`:
-   - "How should changes be committed?"
-   - Option A: "Single squash commit — one commit summarizing the whole refactor"
-   - Option B: "One commit per task — each task gets its own commit message"
-   - Store as `COMMIT_MODE` = squash / per-task
-
-3. Derive branch name from `$ARGUMENTS` (the refactor target):
-   - Generate a kebab-case 3-5 word slug (e.g., `simplify-task-runner`)
-   - Branch name: `refactor/<slug>`
-   - Store as `AUTO_COMMIT_BRANCH`
-
-4. **Create and check out the branch now** (before any work begins):
-   ```bash
-   git checkout -b <AUTO_COMMIT_BRANCH>
-   ```
-   If the command fails (branch already exists), append `-2` to the name and retry once. Update `AUTO_COMMIT_BRANCH` with the final name used.
-
-**If `AUTO_COMMIT=false`:** set `BRANCH_ACTION=none`, `COMMIT_MODE=none`. Skip all follow-up questions.
+**If `AUTO_COMMIT=false`:** `BRANCH_ACTION=none`, `COMMIT_MODE=none`.
 
 ## Step 0: Clean up — Remove stale task files
 
@@ -168,102 +140,26 @@ Run a quick build/lint check to catch obvious breakage:
 This step is especially critical for refactoring — the primary success criterion is that all existing tests still pass.
 
 - Run the full test suite (e.g., `npm test`, `pnpm test`, `pytest`, `go test ./...`, `cargo test`)
-- If tests fail:
-  - Report the failures to the user
-  - Ask whether to fix the regressions, proceed anyway, or stop
+- If tests fail: report the failures and ask whether to fix, proceed anyway, or stop
 - If no test suite exists, note this prominently — behavior preservation cannot be verified automatically
 
 ## Step 2.5: Auto-commit and PR
 
-**Skip this entire step if `AUTO_COMMIT=false`.**
+**Skip if `AUTO_COMMIT=false`.**
 
-### 2.5a: Safety check
+**2.5a Safety:** Run `git rev-parse --abbrev-ref HEAD`. If `main`/`master`: abort ("Auto-commit aborted: on main/master. Commit manually.") → proceed to Step 3.
 
-Run:
-```bash
-git rev-parse --abbrev-ref HEAD
-```
+**2.5b Commit:**
+- `COMMIT_MODE=squash`: Read `tasks/refactor-plan.md` (or derive from task objectives). `git add -A && git commit -m "refactor: <$ARGUMENTS summary>" -m "- <improvement 1>..."` (72-char subject, ≤3 body bullets).
+- `COMMIT_MODE=per-task`: already committed in Step 2. Skip to push.
 
-If the result is `main` or `master`, abort this step with:
-```
-Auto-commit aborted: currently on main/master branch. Commit manually.
-```
-Do not run any git add/commit/push. Proceed to Step 3.
+**2.5d Push:** `git push -u origin <branch-name>`. On failure, show manual command and continue.
 
-### 2.5b: Stage and commit
+**2.5e PR:** Run `gh auth status 2>/dev/null && echo GH_OK || echo GH_UNAVAILABLE`.
+- `GH_OK`: Create PR body (1-2 sentence summary + "## Changes" task bullets + "## Behavior Preservation" noting test results). Run `gh pr create --title "refactor: <desc>" --body "<body>" --base main`. Display URL.
+- `GH_UNAVAILABLE`: Display ready-to-copy `gh pr create` command.
 
-Read `tasks/refactor-plan.md` (if it exists) to extract a summary of what was refactored. If the file does not exist, derive context from task file objectives.
-
-**If `COMMIT_MODE=squash`** — single commit:
-
-Generate a Conventional Commit message:
-- Format: `refactor(<optional-scope>): <short description>` (max 72 chars for subject line)
-- Short description derived from `$ARGUMENTS` (the refactor target)
-- Optional body: up to 3 bullet points summarizing improvements (from `tasks/refactor-plan.md` or task file objectives)
-
-Run:
-```bash
-git add -A
-git commit -m "refactor: <description>" -m "- <bullet 1>
-- <bullet 2>
-- <bullet 3>"
-```
-
-**If `COMMIT_MODE=per-task`** — tasks were already committed during Step 2 (one commit per task by the orchestrator). Skip this section; proceed to 2.5c (Push).
-
-### 2.5d: Push
-
-```bash
-git push -u origin <branch-name>
-```
-
-If push fails, display a warning with the manual push command but continue.
-
-### 2.5e: Open PR
-
-Check if `gh` is available and authenticated:
-```bash
-gh auth status 2>/dev/null && echo "GH_OK" || echo "GH_UNAVAILABLE"
-```
-
-**If `GH_OK`:**
-
-Generate PR body:
-- 1-2 sentence summary of what was refactored and why
-- "## Changes" section listing each task objective as a bullet
-- "## Behavior Preservation" section noting that tests passed (or flagging if they did not)
-
-Run:
-```bash
-gh pr create \
-  --title "refactor: <description>" \
-  --body "<pr-body>" \
-  --base main
-```
-
-If successful, display the PR URL.
-
-**If `GH_UNAVAILABLE`:**
-
-Display a ready-to-copy command block:
-```
-Run this to open the PR:
-
-  gh pr create \
-    --title "refactor: <description>" \
-    --base main \
-    --body '<pr-body>'
-```
-
-### 2.5f: Report status
-
-```
-## Auto-commit complete
-- Branch: <branch-name>
-- Committed: <commit count> commit(s)
-- Push: succeeded / failed (see above)
-- PR: opened at <url> / ready-to-copy command displayed
-```
+**2.5f Report:** `Branch: <name> | Commits: <N> | Push: ok/failed | PR: <url or manual>`
 
 ## Step 3: Review — Run code-reviewer
 

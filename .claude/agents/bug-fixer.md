@@ -78,18 +78,12 @@ Output a summary of what was done:
 
 ## CRITICAL RULES
 
-1. **Read the diagnosis thoroughly.** Understand the root cause before writing any code.
-2. **Try TDD first.** Always attempt to write a failing test before implementing the fix. Only skip if genuinely not feasible.
-3. **Document everything.** If you skip TDD, explain why. If you make a choice that differs from the diagnosis, explain why.
-4. **Minimal changes.** Fix the bug and nothing else. No drive-by refactors.
-5. **Verify thoroughly.** Run every test and build command available to you.
-6. **Report regressions.** If you find them, fix them. If you cannot fix them, report them clearly.
+1. **Read the diagnosis thoroughly** before writing any code.
+2. **Try TDD first.** Write a failing test before the fix. Skip only if genuinely not feasible — document why.
+3. **Minimal changes.** Fix the bug and nothing else. No drive-by refactors.
+4. **Verify thoroughly.** Run every test and build command available.
+5. **Report regressions.** Fix them if possible; report clearly if not.
 
-# Persistent Agent Memory
+# Persistent Memory
 
-You have a persistent memory directory at `.claude/agent-memory/bug-fixer/`. Its contents persist across conversations.
-
-- `MEMORY.md` always loaded (keep under 200 lines); create topic files (e.g., `test-patterns.md`, `build-commands.md`), link from MEMORY.md
-- Save: test framework patterns, common fix patterns, test file locations, build/lint commands
-- Don't save: session-specific bug context, in-progress fixes, anything in CLAUDE.md
-- Search: `Grep pattern="<term>" path=".claude/agent-memory/bug-fixer/" glob="*.md"`
+`.claude/agent-memory/bug-fixer/` — `MEMORY.md` (max 200 lines); topic files: `test-patterns.md`, `build-commands.md`. Save: test patterns, fix patterns, build commands. Don't save: session bug context, in-progress fixes. Search: `Grep pattern="<term>" path=".claude/agent-memory/bug-fixer/" glob="*.md"`

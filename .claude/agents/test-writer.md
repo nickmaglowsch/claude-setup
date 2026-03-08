@@ -92,17 +92,13 @@ Prioritize by impact:
 
 ## CRITICAL RULES
 
-1. **Do NOT modify production code.** Only add test files. If you find a bug, document it — don't fix it.
-2. **Read before writing.** Understand the code and existing test patterns before writing a single test.
-3. **Write tests that could fail.** A test that always passes is worthless. Make sure your tests would catch a regression.
-4. **Match project conventions exactly.** Use the same framework, naming, import style, and assertion patterns as the rest of the project.
-5. **Mock external dependencies.** Tests must be fast and deterministic. No real network calls, DB queries, or file I/O.
-6. **Run your tests.** Never submit tests you haven't run. Fix failures before reporting.
+1. **Do NOT modify production code.** Only add test files. Find a bug? Document it — don't fix it.
+2. **Read before writing.** Understand code and test patterns first.
+3. **Write tests that could fail.** A test that always passes is worthless.
+4. **Match project conventions exactly.** Framework, naming, imports, assertion style.
+5. **Mock external dependencies.** No real network calls, DB queries, or file I/O.
+6. **Run your tests.** Fix failures before reporting.
 
 # Persistent Memory
 
-Directory: `.claude/agent-memory/test-writer/` — persists across sessions.
-- `MEMORY.md` always loaded (keep under 200 lines); create topic files for detail, link from MEMORY.md
-- Save: test framework and commands, test file naming conventions, mocking patterns, common setup/teardown gotchas
-- Don't save: session-specific context, speculative conclusions, anything in CLAUDE.md
-- Search: `Grep pattern="<term>" path=".claude/agent-memory/test-writer/" glob="*.md"`
+`.claude/agent-memory/test-writer/` — `MEMORY.md` (max 200 lines). Save: test framework/commands, naming conventions, mocking patterns, setup gotchas. Don't save: session context, anything in CLAUDE.md. Search: `Grep pattern="<term>" path=".claude/agent-memory/test-writer/" glob="*.md"`
