@@ -14,6 +14,38 @@ The user's bug report:
 
 $ARGUMENTS
 
+## Step 0.1: Parse flags and auto-commit opt-in
+
+**Parse flags:** If `$ARGUMENTS` starts with `--fresh`, set `FRESH=true` and strip `--fresh` to get the clean bug report. Store the cleaned bug report as `BUG_DESCRIPTION`. Otherwise `FRESH=false` and `BUG_DESCRIPTION=$ARGUMENTS`.
+
+Use `AskUserQuestion` to ask: "Enable auto-commit and PR for this run?"
+- Option A: "Yes — create a branch, commit the fix when it's complete, and open a PR"
+- Option B: "No — skip all git automation (default)"
+
+Store result as `AUTO_COMMIT` = true / false.
+
+**If `AUTO_COMMIT=true`:**
+
+1. Check the current branch:
+   ```bash
+   git rev-parse --abbrev-ref HEAD
+   ```
+   - If the result is `main` or `master`: set `BRANCH_ACTION=new` (no question needed)
+   - If on any other branch: use `AskUserQuestion`:
+     - "A branch already exists (`<current-branch-name>`). What would you like to do?"
+     - Option A: "Create a new branch (recommended)"
+     - Option B: "Commit to the current branch (`<current-branch-name>`)"
+   - Store as `BRANCH_ACTION` = new / current
+
+   Note: there is no commit granularity question for debug-workflow — always a single commit.
+
+2. Derive branch name from `BUG_DESCRIPTION` (the clean bug description, after stripping `--fresh`):
+   - Generate a kebab-case 3-5 word slug (e.g., `login-500-auth-upgrade`)
+   - Branch name: `fix/<slug>`
+   - Store as `AUTO_COMMIT_BRANCH`
+
+**If `AUTO_COMMIT=false`:** set `BRANCH_ACTION=none`. Skip all follow-up questions.
+
 ## Step 0: Clean up — Remove stale debug artifacts
 
 Before starting, remove any leftover files from a previous debug run:
@@ -21,8 +53,6 @@ Before starting, remove any leftover files from a previous debug run:
 - This prevents stale diagnosis and questions files from interfering
 
 ## Step 0.5: App Recon — Discover how to interact with the app
-
-**Parse flags:** If `$ARGUMENTS` starts with `--fresh`, set `FRESH=true` and strip `--fresh` to get the clean bug report. Otherwise `FRESH=false`.
 
 Check whether to run app-scout:
 - Run via Bash: `find .claude/app-context.md -mmin -60 2>/dev/null`
@@ -42,7 +72,7 @@ Read `.claude/app-context.md` (from Step 0.5). If it exists, build the bug-inves
 ```
 MODE: DISCOVERY
 
-<full bug report from $ARGUMENTS>
+<full bug report from BUG_DESCRIPTION>
 
 ## App Context (from pre-recon)
 
@@ -123,6 +153,104 @@ Before reviewing, run a quick build/lint check to catch obvious breakage:
 - If the build fails, report the errors to the user and ask whether to proceed with the review or fix first
 - If no build system is detected, skip this step
 
+## Step 2.5: Auto-commit and PR
+
+**Skip this entire step if `AUTO_COMMIT=false`.**
+
+### 2.5a: Safety check
+
+Run:
+```bash
+git rev-parse --abbrev-ref HEAD
+```
+
+If the result is `main` or `master`, abort this step with:
+```
+Auto-commit aborted: currently on main/master branch. Commit manually.
+```
+Do not run any git add/commit/push. Proceed to Step 3.
+
+### 2.5b: Create branch (if BRANCH_ACTION=new)
+
+```bash
+git checkout -b <AUTO_COMMIT_BRANCH>
+```
+
+If the branch already exists (exit code non-zero), append `-2` to the name and retry once.
+
+### 2.5c: Stage and commit
+
+Read `tasks/bug-diagnosis.md` to extract:
+- The `## Bug Summary` paragraph (for the commit body)
+- The root cause line (one sentence, for context)
+
+Generate a Conventional Commit message:
+- Format: `fix(<optional-scope>): <short description>` (max 72 chars for subject line)
+- Short description derived from `BUG_DESCRIPTION`
+- Optional body: 1-2 bullet points from `## Bug Summary` or `## Root Cause` in `tasks/bug-diagnosis.md`
+
+Run:
+```bash
+git add -A
+git commit -m "fix: <description>" -m "- <root cause summary>
+- <fix approach>"
+```
+
+### 2.5d: Push
+
+```bash
+git push -u origin <branch-name>
+```
+
+If push fails, display a warning with the manual push command but continue.
+
+### 2.5e: Open PR
+
+Check if `gh` is available and authenticated:
+```bash
+gh auth status 2>/dev/null && echo "GH_OK" || echo "GH_UNAVAILABLE"
+```
+
+**If `GH_OK`:**
+
+Generate PR body:
+- 1-2 sentence summary of the bug and fix
+- "## Root Cause" section (from `tasks/bug-diagnosis.md`)
+- "## Changes" section listing affected files
+- "## Test Plan" section (from the test strategy in `tasks/bug-diagnosis.md`)
+
+Run:
+```bash
+gh pr create \
+  --title "fix: <description>" \
+  --body "<pr-body>" \
+  --base main
+```
+
+If successful, display the PR URL.
+
+**If `GH_UNAVAILABLE`:**
+
+Display a ready-to-copy command block:
+```
+Run this to open the PR:
+
+  gh pr create \
+    --title "fix: <description>" \
+    --base main \
+    --body '<pr-body>'
+```
+
+### 2.5f: Report status
+
+```
+## Auto-commit complete
+- Branch: <branch-name>
+- Committed: 1 commit
+- Push: succeeded / failed (see above)
+- PR: opened at <url> / ready-to-copy command displayed
+```
+
 ## Step 3: Review — Run code-reviewer with debug-specific criteria
 
 Launch the `code-reviewer` agent using the Task tool with:
@@ -175,6 +303,12 @@ Summarize the full debug pipeline run to the user:
 ### Review
 - [Compliance score from review]
 - [Critical issues if any]
+
+### Auto-Commit
+- [skipped — not enabled]
+  OR
+- Branch: <branch-name>
+- PR: <url or "manual command displayed">
 
 ### Next Steps
 - [What the user should do -- e.g., manual verification, deploy, monitor]

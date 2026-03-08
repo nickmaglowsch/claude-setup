@@ -1,6 +1,6 @@
 ---
 name: init-claude-setup
-description: "Initialize project-level Claude setup (gitignore entries, settings.local.json) without copying agent/skill files. Use this in projects where agents were installed globally via --global."
+description: "Initialize project-level Claude setup (gitignore entries, settings.local.json) without copying agent/skill files. Use this in projects where agents were installed globally (default setup.sh behavior)."
 argument-hint: ""
 ---
 

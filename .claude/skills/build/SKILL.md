@@ -18,6 +18,40 @@ $ARGUMENTS
 - If `$ARGUMENTS` starts with or contains `--brainstorm`, set `BRAINSTORM=true` and strip `--brainstorm` from the arguments to get the clean PRD content.
 - Otherwise, `BRAINSTORM=false` and the full arguments are the PRD content.
 
+## Step 0.1: Auto-commit opt-in
+
+Use `AskUserQuestion` to ask: "Enable auto-commit and PR for this run?"
+- Option A: "Yes — create a branch, commit when implementation is complete, and open a PR"
+- Option B: "No — skip all git automation (default)"
+
+Store result as `AUTO_COMMIT` = true / false.
+
+**If `AUTO_COMMIT=true`:**
+
+1. Check the current branch:
+   ```bash
+   git rev-parse --abbrev-ref HEAD
+   ```
+   - If the result is `main` or `master`: set `BRANCH_ACTION=new` (no question needed)
+   - If on any other branch: use `AskUserQuestion`:
+     - "A branch already exists (`<current-branch-name>`). What would you like to do?"
+     - Option A: "Create a new branch (recommended)"
+     - Option B: "Commit to the current branch (`<current-branch-name>`)"
+   - Store as `BRANCH_ACTION` = new / current
+
+2. Use `AskUserQuestion`:
+   - "How should changes be committed?"
+   - Option A: "Single squash commit — one commit summarizing the whole feature"
+   - Option B: "One commit per task — each task gets its own commit message"
+   - Store as `COMMIT_MODE` = squash / per-task
+
+3. Derive branch name from the clean PRD content in `$ARGUMENTS`:
+   - Generate a kebab-case 3-5 word slug summarizing the feature (e.g., `add-user-auth-oauth`)
+   - Branch name: `feat/<slug>`
+   - Store as `AUTO_COMMIT_BRANCH`
+
+**If `AUTO_COMMIT=false`:** set `BRANCH_ACTION=none`, `COMMIT_MODE=none`. Skip all follow-up questions.
+
 ## Step 0: Clean up — Remove stale task files
 
 Before starting, remove any leftover files from a previous build run:
@@ -131,6 +165,112 @@ After the build check, run the project's full test suite to catch regressions an
 - If no test infrastructure is detected, skip this step
 - This step runs regardless of whether TDD mode was used — it is part of the always-on test awareness
 
+## Step 2.5: Auto-commit and PR
+
+**Skip this entire step if `AUTO_COMMIT=false`.**
+
+### 2.5a: Safety check
+
+Run:
+```bash
+git rev-parse --abbrev-ref HEAD
+```
+
+If the result is `main` or `master`, abort this step with:
+```
+Auto-commit aborted: currently on main/master branch. Commit manually.
+```
+Do not run any git add/commit/push. Proceed to Step 3.
+
+### 2.5b: Create branch (if BRANCH_ACTION=new)
+
+```bash
+git checkout -b <AUTO_COMMIT_BRANCH>
+```
+
+If the branch already exists (exit code non-zero), append `-2` to the name and retry once.
+
+### 2.5c: Stage and commit
+
+**If `COMMIT_MODE=squash`** — single commit:
+
+Generate a Conventional Commit message:
+- Format: `feat(<optional-scope>): <short description>` (max 72 chars for subject line)
+- Short description derived from the PRD title / first sentence
+- Optional body: up to 3 bullet points summarizing what was implemented (derived from task file objectives in `tasks/`)
+
+Run:
+```bash
+git add -A
+git commit -m "feat: <description>" -m "- <bullet 1>
+- <bullet 2>
+- <bullet 3>"
+```
+
+**If `COMMIT_MODE=per-task`** — one commit per task:
+
+Read all `tasks/task-*.md` files. For each, extract the `## Objective` line.
+
+Run `git add -A` once, then:
+- First task: `git commit -m "feat: <task-1-objective>"`
+- Subsequent tasks: `git commit --allow-empty -m "feat: <task-N-objective>"`
+
+Note: only the first commit contains actual file changes. Subsequent commits are empty markers documenting each task in git history.
+
+### 2.5d: Push
+
+```bash
+git push -u origin <branch-name>
+```
+
+If push fails, display a warning with the manual push command but continue.
+
+### 2.5e: Open PR
+
+Check if `gh` is available and authenticated:
+```bash
+gh auth status 2>/dev/null && echo "GH_OK" || echo "GH_UNAVAILABLE"
+```
+
+**If `GH_OK`:**
+
+Generate PR body:
+- 1-2 sentence summary of what was built
+- "## Changes" section listing each task objective as a bullet
+- "## Review Notes" placeholder (review hasn't run yet)
+
+Run:
+```bash
+gh pr create \
+  --title "feat: <description>" \
+  --body "<pr-body>" \
+  --base main
+```
+
+If successful, display the PR URL.
+
+**If `GH_UNAVAILABLE`:**
+
+Display a ready-to-copy command block:
+```
+Run this to open the PR:
+
+  gh pr create \
+    --title "feat: <description>" \
+    --base main \
+    --body '<pr-body>'
+```
+
+### 2.5f: Report status
+
+```
+## Auto-commit complete
+- Branch: <branch-name>
+- Committed: <commit count> commit(s)
+- Push: succeeded / failed (see above)
+- PR: opened at <url> / ready-to-copy command displayed
+```
+
 ## Step 3: Review — Run code-reviewer
 
 Before launching the code-reviewer, check if TDD mode was used by reading any task file from `tasks/` and looking for a `## TDD Mode` section.
@@ -188,6 +328,12 @@ Summarize the full pipeline run to the user:
 ### Review
 - [compliance score]
 - [critical issues if any]
+
+### Auto-Commit
+- [skipped — not enabled]
+  OR
+- Branch: <branch-name>
+- PR: <url or "manual command displayed">
 
 ### Next Steps
 - [what the user should do — e.g., run tests, fix issues, deploy]
