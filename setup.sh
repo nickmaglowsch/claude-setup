@@ -365,6 +365,27 @@ setup_compat_layer() {
   echo ""
 }
 
+# --- Auto-update: install/refresh cron job ---
+_install_auto_update() {
+  local script="$HOME/.claude/auto-update.sh"
+  local cron_entry="*/5 * * * * bash \"$script\" >> \"$HOME/.claude/auto-update.log\" 2>&1"
+
+  cp "$SCRIPT_DIR/auto-update.sh" "$script"
+  chmod +x "$script"
+
+  if crontab -l 2>/dev/null | grep -qF "auto-update.sh"; then
+    echo "  Auto-update cron job already installed — script refreshed."
+  else
+    (crontab -l 2>/dev/null; echo "$cron_entry") | crontab -
+    echo "  Installed cron job: checks GitHub every 5 minutes."
+    # WSL: cron may need to be started manually
+    if grep -qi microsoft /proc/version 2>/dev/null; then
+      echo "  Note (WSL): run 'sudo service cron start' if cron is not already running."
+      echo "  To start cron automatically in WSL, add it to /etc/wsl.conf or your shell profile."
+    fi
+  fi
+}
+
 # --- Global install: copy agents + skills into ~/.claude/ ---
 perform_global_install() {
   TARGET_DIR="$HOME"
@@ -408,6 +429,35 @@ perform_global_install() {
   done
 
   echo ""
+
+  # --- Auto-update ---
+  local autoupdate_script="$HOME/.claude/auto-update.sh"
+  if [ -f "$SCRIPT_DIR/auto-update.sh" ]; then
+    if [ "$is_update" = true ]; then
+      # Refresh auto-update.sh silently if it was previously installed
+      if [ -f "$autoupdate_script" ]; then
+        echo "=== Refreshing: auto-update.sh ==="
+        echo ""
+        _install_auto_update
+        echo ""
+      fi
+    else
+      # Fresh install: ask
+      echo "=== Auto-updates ==="
+      echo ""
+      echo "  Checks GitHub every 5 minutes and silently applies updates when"
+      echo "  a new commit lands on main. Sends a system notification when done."
+      echo "  Works on macOS, Linux, and WSL. Uses cron — no extra tools needed."
+      echo ""
+      read -rp "  Enable auto-updates? [y/N] " enable_auto
+      echo ""
+      if [[ "$enable_auto" =~ ^[Yy]$ ]]; then
+        _install_auto_update
+        echo ""
+      fi
+    fi
+  fi
+
   if [ "$is_update" = true ]; then
     echo "=== Global update complete! ==="
   else
@@ -416,6 +466,10 @@ perform_global_install() {
   echo ""
   echo "  Agents and skills are now available globally across all your projects."
   echo "  Location: $global_dir"
+  if [ -f "$autoupdate_script" ]; then
+    echo "  Auto-updates: enabled (cron, every 5 min) — log: ~/.claude/auto-update.log"
+    echo "  To disable: crontab -e  →  remove the line containing auto-update.sh"
+  fi
   echo ""
 }
 
