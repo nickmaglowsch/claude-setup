@@ -433,16 +433,19 @@ perform_global_install() {
   # --- Auto-update ---
   local autoupdate_script="$HOME/.claude/auto-update.sh"
   if [ -f "$SCRIPT_DIR/auto-update.sh" ]; then
-    if [ "$is_update" = true ]; then
-      # Refresh auto-update.sh silently if it was previously installed
-      if [ -f "$autoupdate_script" ]; then
-        echo "=== Refreshing: auto-update.sh ==="
-        echo ""
-        _install_auto_update
-        echo ""
-      fi
+    local cron_installed=false
+    if crontab -l 2>/dev/null | grep -qF "auto-update.sh"; then
+      cron_installed=true
+    fi
+
+    if [ "$cron_installed" = true ]; then
+      # Already opted in — silently refresh the script
+      echo "=== Refreshing: auto-update.sh ==="
+      echo ""
+      _install_auto_update
+      echo ""
     else
-      # Fresh install: ask
+      # Not yet opted in — always ask (fresh install or existing install without cron)
       echo "=== Auto-updates ==="
       echo ""
       echo "  Checks GitHub every 5 minutes and silently applies updates when"
