@@ -21,32 +21,42 @@ Everything is ready out of the box — agents, skills, and settings are already 
 
 ### Option A: One-liner (recommended)
 
-Run from your project directory — no prior clone needed:
+By default the script installs agents and skills **globally** into `~/.claude/` — available across every project with no per-project setup needed:
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/nickmaglowsch/claude-setup/main/setup.sh)
+```
+
+Re-run the same command to update. It auto-detects whether `~/.claude/agents/` already exists and updates in place (no prompts) or installs fresh (with overwrite prompts).
+
+The template repo is auto-cloned to `/tmp/claude-setup` (or pulled if already there).
+
+#### Per-project install
+
+Use `--local` to install into a specific project directory instead:
 
 ```bash
 cd /path/to/your/project
-bash <(curl -fsSL https://raw.githubusercontent.com/nickmaglowsch/claude-setup/main/setup.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/nickmaglowsch/claude-setup/main/setup.sh) --local
 ```
 
 The script auto-detects whether this is a first-time setup or an update:
 - **New project** (no `.claude/agents/`): runs the interactive setup — copies agents, skills, settings, and optionally adds devcontainer + headless runner
 - **Existing setup** (`.claude/agents/` found): updates all agent and skill files to the latest version while preserving your `settings.local.json` and `agent-memory/`
 
-The template repo is auto-cloned to `/tmp/claude-setup` (or pulled if already there).
+#### Updating an existing local setup
 
-#### Updating an existing setup
-
-Same one-liner — the script auto-detects the existing setup and runs in update mode:
+Same one-liner with `--local` — the script auto-detects the existing setup and runs in update mode:
 
 ```bash
 cd /path/to/your/project
-bash <(curl -fsSL https://raw.githubusercontent.com/nickmaglowsch/claude-setup/main/setup.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/nickmaglowsch/claude-setup/main/setup.sh) --local
 ```
 
 To force update mode explicitly:
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/nickmaglowsch/claude-setup/main/setup.sh) --update
+bash <(curl -fsSL https://raw.githubusercontent.com/nickmaglowsch/claude-setup/main/setup.sh) --local --update
 ```
 
 Update mode pulls the latest template, overwrites all agent and skill files, and leaves your `settings.local.json` and `agent-memory/` untouched.
@@ -56,16 +66,6 @@ To add devcontainer support during an update (if you skipped it during initial s
 ```bash
 bash <(curl -fsSL https://raw.githubusercontent.com/nickmaglowsch/claude-setup/main/setup.sh) --update --add-devcontainer
 ```
-
-#### Global install (all projects at once)
-
-Install agents and skills into `~/.claude/` so they're available globally across every project — no per-project setup needed:
-
-```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/nickmaglowsch/claude-setup/main/setup.sh) --global
-```
-
-Re-run the same command to update. It auto-detects whether `~/.claude/agents/` already exists and updates in place (no prompts) or installs fresh (with overwrite prompts).
 
 #### Other coding agents (OpenCode, Gemini CLI)
 
