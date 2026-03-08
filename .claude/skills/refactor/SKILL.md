@@ -46,6 +46,12 @@ Store result as `AUTO_COMMIT` = true / false.
    - Branch name: `refactor/<slug>`
    - Store as `AUTO_COMMIT_BRANCH`
 
+4. **Create and check out the branch now** (before any work begins):
+   ```bash
+   git checkout -b <AUTO_COMMIT_BRANCH>
+   ```
+   If the command fails (branch already exists), append `-2` to the name and retry once. Update `AUTO_COMMIT_BRANCH` with the final name used.
+
 **If `AUTO_COMMIT=false`:** set `BRANCH_ACTION=none`, `COMMIT_MODE=none`. Skip all follow-up questions.
 
 ## Step 0: Clean up — Remove stale task files
@@ -128,6 +134,21 @@ Wait for it to complete. Confirm tests pass before proceeding — do not start r
 
 ## Step 2: Implement — Run parallel-task-orchestrator
 
+**If `COMMIT_MODE=per-task`:**
+
+Launch the `parallel-task-orchestrator` agent using the Task tool with:
+- `subagent_type: "parallel-task-orchestrator"`
+- Tell it to read and execute all tasks from `tasks/`
+- Include this additional instruction in the prompt:
+  > "Run tasks **sequentially** (one at a time, no parallel waves). After each task-implementer completes, run the following bash commands before starting the next task:
+  > ```bash
+  > git add -A
+  > git commit -m "refactor: <task-objective-from-task-file>"
+  > ```
+  > Use the task's `## Objective` line as the commit message description."
+
+**If `COMMIT_MODE=squash` or `AUTO_COMMIT=false`:**
+
 Launch the `parallel-task-orchestrator` agent using the Task tool with:
 - `subagent_type: "parallel-task-orchestrator"`
 - Tell it to read and execute all tasks from `tasks/`
@@ -169,15 +190,7 @@ Auto-commit aborted: currently on main/master branch. Commit manually.
 ```
 Do not run any git add/commit/push. Proceed to Step 3.
 
-### 2.5b: Create branch (if BRANCH_ACTION=new)
-
-```bash
-git checkout -b <AUTO_COMMIT_BRANCH>
-```
-
-If the branch already exists (exit code non-zero), append `-2` to the name and retry once.
-
-### 2.5c: Stage and commit
+### 2.5b: Stage and commit
 
 Read `tasks/refactor-plan.md` (if it exists) to extract a summary of what was refactored. If the file does not exist, derive context from task file objectives.
 
@@ -196,15 +209,7 @@ git commit -m "refactor: <description>" -m "- <bullet 1>
 - <bullet 3>"
 ```
 
-**If `COMMIT_MODE=per-task`** — one commit per task:
-
-Read all `tasks/task-*.md` files. For each, extract the `## Objective` line.
-
-Run `git add -A` once, then:
-- First task: `git commit -m "refactor: <task-1-objective>"`
-- Subsequent tasks: `git commit --allow-empty -m "refactor: <task-N-objective>"`
-
-Note: only the first commit contains actual file changes. Subsequent commits are empty markers documenting each task in git history.
+**If `COMMIT_MODE=per-task`** — tasks were already committed during Step 2 (one commit per task by the orchestrator). Skip this section; proceed to 2.5c (Push).
 
 ### 2.5d: Push
 

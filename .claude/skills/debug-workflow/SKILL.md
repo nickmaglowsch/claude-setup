@@ -44,6 +44,12 @@ Store result as `AUTO_COMMIT` = true / false.
    - Branch name: `fix/<slug>`
    - Store as `AUTO_COMMIT_BRANCH`
 
+3. **Create and check out the branch now** (before any work begins):
+   ```bash
+   git checkout -b <AUTO_COMMIT_BRANCH>
+   ```
+   If the command fails (branch already exists), append `-2` to the name and retry once. Update `AUTO_COMMIT_BRANCH` with the final name used.
+
 **If `AUTO_COMMIT=false`:** set `BRANCH_ACTION=none`. Skip all follow-up questions.
 
 ## Step 0: Clean up — Remove stale debug artifacts
@@ -170,13 +176,6 @@ Auto-commit aborted: currently on main/master branch. Commit manually.
 ```
 Do not run any git add/commit/push. Proceed to Step 3.
 
-### 2.5b: Create branch (if BRANCH_ACTION=new)
-
-```bash
-git checkout -b <AUTO_COMMIT_BRANCH>
-```
-
-If the branch already exists (exit code non-zero), append `-2` to the name and retry once.
 
 ### 2.5c: Stage and commit
 
