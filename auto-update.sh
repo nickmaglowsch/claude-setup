@@ -109,9 +109,60 @@ if [ -f "$CLONE_DIR/auto-update.sh" ]; then
   chmod +x "$HOME/.claude/auto-update.sh"
 fi
 
-# --- Token Reducer: refresh RTK hook if user already has RTK installed ---
+# --- Token Reducer ---
 if command -v rtk &>/dev/null; then
+  # RTK installed: refresh hook, mark as nudged (no need to nudge)
   rtk init -g --auto-patch >>"$LOG_FILE" 2>&1 || true
+  touch "$HOME/.claude/.token-reducer-nudged"
+elif [ ! -f "$HOME/.claude/.token-reducer-nudged" ]; then
+  # RTK not installed and not yet nudged: register the one-time nudge hook
+  hook_src="$CLONE_DIR/.claude/hooks/token-reducer-nudge.sh"
+  hook_dest="$HOME/.claude/hooks/token-reducer-nudge.sh"
+  settings_file="$HOME/.claude/settings.json"
+  if [ -f "$hook_src" ]; then
+    mkdir -p "$HOME/.claude/hooks"
+    cp "$hook_src" "$hook_dest"
+    chmod +x "$hook_dest"
+  fi
+  # Register the UserPromptSubmit hook if not already present
+  if [ -f "$settings_file" ] && ! grep -q 'token-reducer-nudge' "$settings_file" 2>/dev/null; then
+    merged=$(python3 -c "
+import json, sys
+with open(sys.argv[1]) as f:
+    data = json.load(f)
+hooks = data.setdefault('hooks', {})
+ups = hooks.setdefault('UserPromptSubmit', [])
+for entry in ups:
+    for h in entry.get('hooks', []):
+        if 'token-reducer-nudge' in h.get('command', ''):
+            print(json.dumps(data, indent=2))
+            sys.exit(0)
+ups.append({
+    'matcher': '',
+    'hooks': [{'type': 'command', 'command': 'bash ~/.claude/hooks/token-reducer-nudge.sh'}]
+})
+print(json.dumps(data, indent=2))
+" "$settings_file" 2>/dev/null) && echo "$merged" > "$settings_file"
+  elif [ ! -f "$settings_file" ]; then
+    mkdir -p "$HOME/.claude"
+    cat > "$settings_file" <<'HOOK_EOF'
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/token-reducer-nudge.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
+HOOK_EOF
+  fi
 fi
 
 # --- Save new SHA ---
