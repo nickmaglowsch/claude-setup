@@ -86,6 +86,36 @@ All agents are transpiled from the `.claude/agents/` source files — same syste
 
 The `AGENTS.md` / `GEMINI.md` symlinks point to `CLAUDE.md` so project-level instructions are shared across all agents automatically. Commit these files so teammates using other agents benefit too.
 
+#### Token Reducer Pack
+
+The installer includes an optional Token Reducer Pack that cuts token usage by 60-90% across all projects. It's offered during setup and can also be installed standalone:
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/nickmaglowsch/claude-setup/main/setup.sh) --token-reducer
+```
+
+Two complementary tools work together:
+
+**RTK (Rust Token Killer)** compresses CLI command output before it reaches the context window. Git logs, test output, directory listings — all the noisy runtime output gets compressed, averaging 70-90% token reduction on Bash tool calls.
+
+- Installed via Homebrew (macOS) or the official install script (Linux/WSL)
+- Hooks into Claude Code automatically via `rtk init -g`
+- Only intercepts Bash tool calls — built-in tools like Read, Grep, and Glob bypass it
+
+**Global file deny rules** prevent Claude from reading irrelevant files across all projects. Build artifacts, lock files, caches, and generated code for all major stacks (Node, Python, Rust, Go, Java, Ruby, PHP) are blocked:
+
+```
+node_modules, dist, build, .next, .nuxt, out, .output,
+*.lock, package-lock.json, yarn.lock, pnpm-lock.yaml, Cargo.lock, Gemfile.lock, poetry.lock, composer.lock,
+target, __pycache__, .venv, venv, .gradle, .m2, vendor,
+*.min.js, *.min.css, *.map, *.chunk.js,
+.git, .DS_Store, coverage, .nyc_output, logs, *.log
+```
+
+Rules are merged into `~/.claude/settings.json` — existing settings (MCP servers, etc.) are preserved.
+
+If you skip the Token Reducer Pack during setup, you'll get a one-time reminder next time you open Claude Code.
+
 ### Option B: Manual copy
 
 If you just want the core Claude Code setup:

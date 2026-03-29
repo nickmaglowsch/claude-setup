@@ -109,6 +109,11 @@ if [ -f "$CLONE_DIR/auto-update.sh" ]; then
   chmod +x "$HOME/.claude/auto-update.sh"
 fi
 
+# --- Token Reducer: refresh RTK hook if user already has RTK installed ---
+if command -v rtk &>/dev/null; then
+  rtk init -g --auto-patch >>"$LOG_FILE" 2>&1 || true
+fi
+
 # --- Save new SHA ---
 echo "$remote_sha" > "$SHA_FILE"
 
