@@ -20,17 +20,33 @@ When your prompt contains `MODE: DISCOVERY`, perform **only** Phase 1 below:
 0. **Absorb app context** — Check if the prompt contains `## App Context (from pre-recon)`.
    If it does:
    - Extract run commands, log commands, and test commands from it and treat as authoritative
+   - Extract `## Debug Surfaces` for available database CLIs, browser URLs, API endpoints, cache/queue tools, and Playwright availability
    - Do NOT re-run discovery for things already documented there
    - Use app-context log commands as primary sources in step 3 below
    - Use app-context test commands in step 6 below
    - Do NOT include app recon questions in `tasks/debug-questions.md` — focus questions on the bug
    - Note: verify running status yourself — the scout's status may be stale
+0.5. **Absorb debug strategy** — Check if the prompt contains `## Debug Strategy (auto-classified)`.
+   If it does:
+   - Read the `category`, `surfaces`, `browser_needed`, `database_needed`, `log_commands`, and `test_commands` fields
+   - Use the surfaces list as your **investigation starting order** — check surface 1 first, then 2, then 3
+   - If `browser_needed: true` AND Playwright CLI is available (per app-context Debug Surfaces), use the [Browser Debugging](#browser-debugging-playwright-cli) patterns during reproduction (step 6)
+   - If `database_needed: true` AND a database CLI is available (per app-context Debug Surfaces), use the [Database Inspection](#database-inspection) patterns during investigation
+   - You may deviate from the strategy if evidence leads elsewhere — it is a starting point, not a constraint
+   If no debug strategy is present, use your own judgment to determine investigation order (default: logs → code → reproduction).
 1. **Parse the bug report** — Extract the bug description, log commands/paths, test commands, and hints from the prompt
 2. **Resolve auth** — See the [Auth Discovery](#auth-discovery) section below. Do this before attempting any live reproduction.
 3. **Read logs** — If app context provided, use commands from `## How to Get Logs` directly; skip log source discovery. Otherwise use Bash to execute any log commands provided (e.g., `docker logs app-api`, `cat /var/log/app.log`), or Read to inspect log file paths
 4. **Search codebase** — Use Glob and Grep to find relevant code based on error messages, stack traces, file hints
 5. **Research online** — Use WebSearch/WebFetch to look up error messages, library issues, known bugs if relevant
-6. **Attempt reproduction** — If app context provided, use test commands from `## How to Run Tests` and check `## How to Start the App` for live endpoint availability. Otherwise run test commands via Bash, probe live endpoints with curl (using auth from step 2), run the specific code path that triggers the bug
+6. **Attempt reproduction** — Use the debug strategy to choose the approach:
+   - **If category is frontend/frontend-js and Playwright is available:** Open the buggy page with `npx @playwright/cli open <url>`, reproduce the user's steps (click, fill, navigate), check console errors with `evaluate`, take a screenshot of the broken state. See [Browser Debugging](#browser-debugging-playwright-cli).
+   - **If category is backend/auth/integration:** Probe live endpoints with curl (using auth from step 2), check HTTP status codes and response bodies, run the specific code path that triggers the bug
+   - **If category is data:** Query the database to check the state of relevant records, verify data integrity, check for null/missing/duplicate values matching reported symptoms. See [Database Inspection](#database-inspection).
+   - **If category is performance:** Time requests with `curl -w "%{time_total}"`, check database query plans with `EXPLAIN`, look for N+1 patterns in logs
+   - **If category is cache/worker:** Check queue state with cache/queue CLI, inspect cache keys, check worker logs for failures
+   - **General / no strategy:** Use app-context test commands from `## How to Run Tests`, probe with curl, run the specific code path
+   - Always also run relevant test commands if available (from debug strategy `test_commands` or app-context `## How to Run Tests`)
 7. **Write `tasks/debug-questions.md`** — Structured questions for the user (see format below). Include an auth question only if auth was NOT resolved in step 2. Avoid questions already answered by app-context.md (log commands, run commands, test commands).
 8. **STOP** — Do not proceed to diagnosis
 
@@ -72,6 +88,15 @@ When your prompt contains `MODE: DIAGNOSE` along with user answers:
 
 ## Evidence
 - [Log output, test results, code traces that confirm the root cause]
+
+## Browser Evidence (include only if browser debugging was performed)
+- [Console errors captured]
+- [Screenshot paths: tasks/debug-screenshots/*.png]
+- [DOM state observations]
+
+## Data Evidence (include only if database inspection was performed)
+- [Database query results showing the problematic state]
+- [Expected vs actual data values]
 
 ## Affected Files
 - `path/to/file` -- [how it's affected]
@@ -198,6 +223,113 @@ This file is gitignored and persists across debugging sessions. If the token exp
 
 ---
 
+## Browser Debugging (Playwright CLI)
+
+When the debug strategy indicates `browser_needed: true`, or when investigating frontend/UI bugs, use the Playwright CLI to inspect the running app in a real browser.
+
+### Playwright CLI reference
+
+All commands are run via Bash: `npx @playwright/cli <command>`
+
+| Action | Command | Use for |
+|--------|---------|---------|
+| Open URL | `npx @playwright/cli open <url>` | Navigate to the page where the bug occurs |
+| Snapshot (DOM) | `npx @playwright/cli snapshot` | Get a text representation of the page with element refs |
+| Screenshot | `npx @playwright/cli screenshot <path>` | Capture visual state for evidence |
+| Click | `npx @playwright/cli click <ref>` | Reproduce click-triggered bugs |
+| Fill input | `npx @playwright/cli fill <ref> <value>` | Fill forms to reach the buggy state |
+| Type text | `npx @playwright/cli type <text>` | Type into focused element |
+| Press key | `npx @playwright/cli press <key>` | Trigger keyboard-driven behavior |
+| Evaluate JS | `npx @playwright/cli evaluate <js>` | Run JS in browser context |
+| Wait for text | `npx @playwright/cli wait-for-text <text>` | Wait for async content |
+| Close | `npx @playwright/cli close` | Close the browser when done |
+
+### Common browser debugging patterns
+
+**Check for console errors:**
+```bash
+npx @playwright/cli open <url>
+npx @playwright/cli evaluate "JSON.stringify(window.__errors || [])"
+```
+
+**Capture unhandled errors after interaction:**
+```bash
+npx @playwright/cli evaluate "const e=[]; window.onerror = (msg) => e.push(msg); setTimeout(() => document.title = JSON.stringify(e), 3000)"
+```
+
+**Check for failed network requests:**
+```bash
+npx @playwright/cli evaluate "JSON.stringify(performance.getEntriesByType('resource').filter(r => r.responseStatus >= 400).map(r => ({url: r.name, status: r.responseStatus})))"
+```
+
+**Take evidence screenshot:**
+```bash
+npx @playwright/cli screenshot tasks/debug-screenshots/bug-state.png
+```
+
+**Check page content when blank/broken:**
+```bash
+npx @playwright/cli snapshot
+npx @playwright/cli evaluate "document.title"
+npx @playwright/cli evaluate "document.body.innerHTML.length"
+npx @playwright/cli evaluate "document.querySelectorAll('[data-error], .error, .alert-danger').length"
+```
+
+### Rules for browser debugging
+- Always `close` the browser when done investigating
+- Save screenshots to `tasks/debug-screenshots/` — reference them in the diagnosis
+- If Playwright CLI is not available (noted in app-context as "Not installed"), fall back to `curl` for URL checks and skip browser-based investigation
+- Do NOT install Playwright — if it is not available, note it as a limitation
+- Browser debugging supplements but does not replace log reading and code tracing
+
+---
+
+## Database Inspection
+
+When the debug strategy indicates `database_needed: true`, or when investigating data-related bugs, use the database CLI to inspect the live data state.
+
+### How to connect
+
+Use the connection details from `## Debug Surfaces > Database` in app-context.md. If not available, check `.env` / `.env.local` for `DATABASE_URL` or similar.
+
+### Common database debugging patterns
+
+**PostgreSQL:**
+```bash
+psql "$DATABASE_URL" -c "SELECT * FROM <table> ORDER BY created_at DESC LIMIT 10;"
+psql "$DATABASE_URL" -c "\d <table>"
+psql "$DATABASE_URL" -c "SELECT * FROM <table> WHERE <column> IS NULL LIMIT 10;"
+# Migration status (ORM-specific)
+npx prisma migrate status 2>/dev/null || npx drizzle-kit check 2>/dev/null
+```
+
+**SQLite:**
+```bash
+sqlite3 <path> "SELECT * FROM <table> ORDER BY rowid DESC LIMIT 10;"
+sqlite3 <path> ".schema <table>"
+```
+
+**MongoDB:**
+```bash
+mongosh <connection> --eval "db.<collection>.find().sort({_id:-1}).limit(10).toArray()"
+```
+
+**Redis:**
+```bash
+redis-cli -u "$REDIS_URL" KEYS "*<pattern>*"
+redis-cli -u "$REDIS_URL" GET "<key>"
+redis-cli -u "$REDIS_URL" TTL "<key>"
+```
+
+### Rules for database inspection
+- **Read-only queries only** — never INSERT, UPDATE, DELETE, or DROP
+- Always use `LIMIT` to avoid overwhelming output
+- Redact any PII or sensitive data in the diagnosis output
+- If the database CLI is not available, note it as a limitation and suggest the user check manually
+- Reference specific rows/records as evidence in the diagnosis
+
+---
+
 ### Phase 1: Investigation
 
 Before forming any hypothesis, you MUST gather evidence:
@@ -211,6 +343,8 @@ Before forming any hypothesis, you MUST gather evidence:
   - Trigger the specific code path (seed data if needed, set up the required state)
   - Try to isolate the minimal conditions that reliably reproduce the bug
   - Run the app locally if needed: look for `npm run dev`, `make run`, `docker-compose up`, etc.
+- **Browser inspection (frontend bugs).** If the bug involves UI, rendering, or client-side behavior, use the Playwright CLI to open the page, check for console errors, take screenshots, and inspect the DOM. See the [Browser Debugging](#browser-debugging-playwright-cli) section.
+- **Database inspection (data bugs).** If the bug involves wrong/missing data, query the database to verify the actual state against what is expected. Check for null values, missing records, constraint violations, or stale data. See the [Database Inspection](#database-inspection) section.
 - **Research externally.** If the error message references a library or external system, use WebSearch or WebFetch to check for known issues, changelogs, or documented behaviors.
 - **Form hypotheses.** State each hypothesis explicitly, then gather evidence for or against it. Work through them systematically until one is confirmed or eliminated.
 

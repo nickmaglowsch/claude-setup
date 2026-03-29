@@ -1,7 +1,7 @@
 ---
 name: debug-workflow
 description: "Debug pipeline: investigates a bug, diagnoses root cause, writes failing tests, implements fix via TDD, and reviews the result. Orchestrates bug-investigator -> bug-fixer -> code-reviewer."
-argument-hint: "[--fresh] [bug description] [Logs: 'command'] [Tests: 'command']"
+argument-hint: "[--fresh] <bug description in plain language>"
 ---
 
 # Debug Pipeline
@@ -44,16 +44,69 @@ Check whether to run app-scout:
 
 Wait for it to complete. If the agent fails or the file is not created, log a warning and proceed without it — this is a best-effort step.
 
+## Step 0.7: Bug Classification — Infer debug strategy from description
+
+Analyze `BUG_DESCRIPTION` and the `## Debug Surfaces` section from `.claude/app-context.md` (if available) to produce a `DEBUG_STRATEGY` — a structured plan of what to check and in what order.
+
+### Classification rules
+
+Scan `BUG_DESCRIPTION` for signal keywords and map them to surface categories:
+
+| Signal patterns | Category | Priority surfaces |
+|---|---|---|
+| blank screen, white page, not rendering, broken layout, CSS, UI, visual, flicker | **frontend** | Browser (Playwright open + screenshot + console errors), then server logs |
+| console error, JavaScript error, React error, hydration, client-side | **frontend-js** | Browser (Playwright evaluate for console errors), then source code search |
+| 500 error, server error, crash, stack trace, timeout, gateway error | **backend** | Server logs first, then API endpoint probing with curl |
+| wrong data, missing data, stale, not saving, duplicate, data integrity, migration | **data** | Database queries, then server logs, then API probing |
+| not loading, slow, hanging, spinner forever, performance, latency | **performance** | Server logs (timing), API probing (response time), database (slow queries) |
+| login, auth, session, token, 401, 403, permission, forbidden, unauthorized | **auth** | Auth discovery (built into bug-investigator), server logs, API probing |
+| webhook, integration, third-party, external API, callback, sync | **integration** | Server logs, API probing, then cache/queue if available |
+| queue, job, worker, background, cron, async, retry | **worker** | Worker/queue logs, cache/queue CLI, server logs |
+| cache, stale data, invalidation, redis, TTL | **cache** | Cache CLI (redis-cli), server logs |
+
+If multiple categories match, combine their surfaces (higher-priority category's surfaces come first). If no keywords match, default to **general**: server logs → API probing → browser check.
+
+### Build the DEBUG_STRATEGY
+
+Produce a structured block (internal — not shown to the user):
+
+```
+DEBUG_STRATEGY:
+  category: <matched category or "general">
+  surfaces:
+    1. <surface>: <specific command or action from Debug Surfaces>
+    2. <surface>: <specific command or action>
+    3. <surface>: <specific command or action>
+  browser_needed: true/false
+  database_needed: true/false
+  log_commands: <from app-context "Debug Surfaces > Logs > Primary", or "How to Get Logs">
+  test_commands: <from app-context "How to Run Tests">
+```
+
+**Rules:**
+- Only include surfaces that are actually available (detected by app-scout). If Playwright CLI is "Not installed", do not include browser surfaces — fall back to curl for URL checks.
+- Pull specific commands from the `## Debug Surfaces` section — do not invent commands.
+- Always include `log_commands` and `test_commands` if they were detected (they are useful regardless of category).
+- If `## Debug Surfaces` is not present (app-scout failed, old format, or no app-context), fall back to `## How to Get Logs` and `## How to Run Tests` from app-context.md. If neither exists, omit those fields.
+- **Backward compatibility:** If `BUG_DESCRIPTION` contains `Logs: '<command>'` or `Tests: '<command>'` patterns (old invocation style), extract and add them to `log_commands` / `test_commands` fields directly.
+
 ## Step 1: Investigate — Two-phase investigation with user Q&A
 
 ### Step 1a: Discovery — Explore codebase & surface questions
 
-Read `.claude/app-context.md` (from Step 0.5). If it exists, build the bug-investigator prompt as follows — otherwise use just the bug report:
+Read `.claude/app-context.md` (from Step 0.5). Build the bug-investigator prompt as follows:
 
 ```
 MODE: DISCOVERY
 
 <full bug report from BUG_DESCRIPTION>
+
+## Debug Strategy (auto-classified)
+
+<DEBUG_STRATEGY from Step 0.7>
+
+Follow this strategy as your investigation starting point. Check the recommended
+surfaces in order. You may deviate if evidence leads elsewhere, but start here.
 
 ## App Context (from pre-recon)
 
@@ -62,6 +115,8 @@ do not re-discover what is already documented here. Re-check running status your
 
 <full content of .claude/app-context.md>
 ```
+
+If `.claude/app-context.md` does not exist, omit the App Context section but still include the Debug Strategy (using generic fallbacks from Step 0.7).
 
 Launch the `bug-investigator` agent using the Task tool with:
 - `subagent_type: "bug-investigator"`
@@ -121,7 +176,7 @@ This step always runs. Do not skip it.
 Launch the `bug-fixer` agent using the Task tool with:
 - `subagent_type: "bug-fixer"`
 - Tell it to read `tasks/bug-diagnosis.md` for the diagnosis
-- Pass along any test commands and log commands from the original `$ARGUMENTS` so the fixer can use them
+- Pass along the test commands and log commands from `.claude/app-context.md` (from the `## How to Run Tests` and `## Debug Surfaces > Logs` sections) so the fixer can use them
 - Tell it to follow adaptive TDD: write a failing test first, then fix, then verify
 
 Wait for it to complete. Note any TDD skips or issues reported.
