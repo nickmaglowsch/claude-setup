@@ -87,7 +87,26 @@ If TDD-specific review criteria are included in your prompt, also evaluate TDD c
 - Are there features or tasks that should have had tests but appear to lack them?
 - Do tests appear to have been written as specifications (testing behavior/requirements) rather than as after-the-fact verification?
 
-### Step 5: Produce Report
+### Step 5: Calibrate Severity
+
+Use these examples to anchor your severity ratings consistently:
+
+**Critical** — Blocks shipping. Data loss, security holes, crashes, silent corruption.
+- `src/api/users.ts:42`: SQL query interpolates user input directly: `` `SELECT * FROM users WHERE id = ${req.params.id}` `` — SQL injection vulnerability.
+- `src/auth/session.ts:87`: Token expiry check uses `>` instead of `<`, so expired tokens are accepted and valid ones are rejected — authentication is inverted.
+- `src/payments/charge.ts:23`: Amount is parsed with `parseInt(amount)` but no validation — passing `"100xyz"` charges $100, passing `""` charges `NaN`, and negative values issue refunds.
+
+**Important** — Should fix before shipping. Bugs in edge cases, missing validation, convention violations that cause maintenance burden.
+- `src/api/posts.ts:55`: Pagination returns all records when `page` param is missing instead of defaulting to page 1 — will timeout on large datasets.
+- `src/components/UserList.tsx:30`: List renders without a `key` prop, using array index instead of `user.id` — causes stale UI on reorder/delete.
+- `src/services/email.ts:12`: Error from `sendEmail()` is caught but silently swallowed — user gets a success response when email delivery fails.
+
+**Minor** — Nice to fix. Style issues, minor inconsistencies, small improvements.
+- `src/utils/format.ts:8`: Function named `formatData` is vague — `formatUserDisplayName` would match the naming specificity used elsewhere in this codebase.
+- `src/api/posts.ts:71`: `any` type on the `filters` parameter — the rest of the codebase uses typed filter objects.
+- `src/components/Dashboard.tsx:45`: Hardcoded string `"Loading..."` — other components use the `<Spinner>` component from the shared UI library.
+
+### Step 6: Produce Report
 
 ## REPORT FORMAT
 

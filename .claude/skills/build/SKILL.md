@@ -116,7 +116,41 @@ This step always runs. Do not skip it.
    - Prompt: `MODE: GENERATE\n\nUser feedback on the task plan:\n<feedback>\n\nPlease regenerate the task files incorporating this feedback.`
    - Wait for it to complete, then **loop back to the top of Step 1d** to re-present the updated plan.
 
-## Step 2: Implement — Run parallel-task-orchestrator
+## Step 1e: Fast-path detection — Should we skip the orchestrator?
+
+Before launching the orchestrator, analyze the task files to determine if orchestration overhead is justified.
+
+**Read all `tasks/task-*.md` files and extract:**
+1. Total task count
+2. Per-task: files to modify (from `## Files to Modify` or `## Context Files` sections)
+3. Per-task: explicit dependencies (from `## Dependencies` or `Depends on:` lines)
+
+**Classify as `FAST_PATH=true` if ANY of these conditions are met:**
+- **2 or fewer tasks** (regardless of dependencies)
+- **All tasks are sequential**: every task depends on the previous one (linear chain), OR all tasks touch overlapping files (no parallelism possible)
+- **Most tasks are sequential**: only 1 task out of 3+ could run in parallel (orchestrator adds overhead for negligible parallelism)
+
+**Set `FAST_PATH=false` otherwise** (3+ tasks with real parallelism opportunities).
+
+## Step 2: Implement
+
+### Fast path (`FAST_PATH=true`) — Direct implementation
+
+Implement the tasks yourself, sequentially, in the current conversation context. For each task file in order:
+
+1. Read the task file fully (objective, requirements, acceptance criteria, context files)
+2. Read all referenced context files
+3. Implement the task following the requirements and acceptance criteria
+4. If the task has a `## TDD Mode` section, follow the RED → GREEN → REFACTOR cycle
+5. **If `COMMIT_MODE=per-task`:** after completing each task, run:
+   ```bash
+   git add -A
+   git commit -m "feat: <task-objective-from-task-file>"
+   ```
+
+This avoids orchestrator overhead and gives you continuous context across tasks — each task benefits from seeing the work done in previous tasks without reading files cold.
+
+### Full path (`FAST_PATH=false`) — Run parallel-task-orchestrator
 
 **If `COMMIT_MODE=per-task`:**
 
