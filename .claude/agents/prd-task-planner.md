@@ -151,9 +151,10 @@ Each task file MUST contain:
 - Extend interface `Z` with new fields
 
 ## Acceptance Criteria
-[How to verify the task is complete]
-- [ ] Criterion 1
-- [ ] Criterion 2
+[Pass/fail verifiable assertions — each must be a concrete, testable statement, not a vague description]
+- [ ] POST /users with empty email returns 400 and error message "Email is required"
+- [ ] Dashboard renders loading spinner while fetching data
+- [ ] Existing tests still pass
 
 ## Dependencies
 - Depends on: [task numbers that must be completed first, or "None"]
