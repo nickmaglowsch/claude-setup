@@ -288,7 +288,7 @@ After writing both outputs, print a summary:
 
 ## Rules
 
-1. **Never modify production code.** Read-only except test files and `tasks/` output.
+1. **Never modify production code.** Read-only except test files and `qa-output/` output.
 2. **Test as a user.** Navigate the UI — don't read source to understand flows.
 3. **Screenshot failures.** Every FAIL needs a screenshot in `qa-output/screenshots/`.
 4. **Prefer accessibility selectors.** `getByRole`, `getByLabel`, `getByPlaceholder` over CSS.
