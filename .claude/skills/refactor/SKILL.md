@@ -163,9 +163,12 @@ This step is especially critical for refactoring — the primary success criteri
 
 ## Step 3: Review — Run code-reviewer
 
+Check if `tasks/implementation-notes.md` and `tasks/execution-metrics.md` exist (produced by the orchestrator).
+
 Launch the `code-reviewer` agent using the Task tool with:
 - `subagent_type: "code-reviewer"`
 - Tell it to review all changes against `tasks/refactor-plan.md`
+- **If `tasks/implementation-notes.md` exists**, tell it to read this file for implementer decision context
 - Tell it to write the review report to `tasks/refactor-review-report.md`
 - Include these refactor-specific review criteria in the prompt:
   - Is behavior preserved? Are there any logic changes that shouldn't be there?
@@ -179,6 +182,8 @@ Wait for it to complete.
 ## Step 4: Report
 
 Summarize the full refactoring run to the user:
+
+Check if `tasks/execution-metrics.md` exists (produced by the orchestrator). Use it to populate the metrics section.
 
 ```
 ## Refactor Complete
@@ -195,6 +200,10 @@ Summarize the full refactoring run to the user:
 
 ### Tests
 - [all passed / N regressions / no test suite]
+
+### Execution Metrics
+- Tasks: [completed/total] | Waves: [N] | Retries: [N]
+- Implementation notes: [see tasks/implementation-notes.md]
 
 ### Review
 - [compliance score]

@@ -47,11 +47,19 @@ Before writing code, check the conventions in the relevant app/package:
 - Run the tests using the specified test command via Bash
 - Confirm they fail for the right reasons (not import errors or syntax errors — those must be fixed first)
 - If tests unexpectedly pass, note this — the requirement may already be met or the test needs adjustment
+- **If tests fail for wrong reasons** (import errors, missing modules, syntax errors): fix the test setup, not the test logic. Re-run. Max 3 fix-and-retry cycles before escalating as a blocker.
 
 **If TDD is not feasible**, document why and fall back to Step 4 (Standard Mode). Valid reasons:
-- No test framework configured in the project
-- The code is infrastructure/configuration that cannot be unit tested
-- The effort to set up tests would be disproportionate to the task
+- No test framework configured in the project **and** installing one is outside task scope
+- The code is infrastructure/configuration (e.g., CI config, Docker, env vars) that has no testable interface
+- Do NOT use "effort is disproportionate" as a reason if the project already has a working test framework — if the framework exists, write the test
+
+### Step 4a.1 (TDD Mode): Test Adequacy Check
+After writing tests but BEFORE implementing production code, verify test quality:
+1. **Assertion check**: Re-read each test — does every test contain at least one meaningful assertion against the code under test? Reject trivial assertions (`expect(true).toBe(true)`, `expect(1).toBe(1)`, assertions that don't reference the function/module being tested)
+2. **Behavior coverage**: Compare tests against the acceptance criteria in the task file — is each criterion exercised by at least one test?
+3. **Failure specificity**: Each test should fail for a distinct reason. If two tests would fail with the same error, consolidate or differentiate them.
+4. If any check fails, fix the tests and re-run the RED step before proceeding.
 
 ### Step 4b (TDD Mode): Implement (GREEN)
 - Implement the minimum code needed to make all tests pass
@@ -60,7 +68,14 @@ Before writing code, check the conventions in the relevant app/package:
 - Run the tests again to confirm they pass
 - If they don't pass, iterate: adjust the implementation, re-run tests
 
-### Step 4c (TDD Mode): Verify (No Regressions)
+### Step 4c (TDD Mode): Refactor
+- Re-read the implementation code you just wrote
+- Look for: duplication introduced, overly complex conditionals, naming that could be clearer, patterns that diverge from the rest of the codebase
+- If improvements are possible: refactor while keeping tests green (run tests after each change)
+- If the code is already clean and matches conventions: skip this step and note "No refactoring needed" in output
+- Do NOT add features or change behavior — only improve structure
+
+### Step 4d (TDD Mode): Verify (No Regressions)
 - Run the full test suite if a test command is available (beyond just the new tests)
 - Run build/lint commands if available
 - If regressions are found, adjust the implementation and re-run
@@ -88,9 +103,19 @@ Before writing code, check the conventions in the relevant app/package:
 
 Brief summary: what was implemented, files changed (with paths), deviations and why, blockers, status (**Complete** or **Partial**).
 
-- **TDD mode**: tests written (file + names), RED→GREEN cycle result, full suite status.
+- **TDD mode**: tests written (file + names), RED→GREEN→REFACTOR cycle result, test adequacy check result, full suite status.
 - **Default mode**: related tests found? Test status if run.
-- **TDD not feasible**: explain why.
+- **TDD not feasible**: explain why (must be specific — "effort disproportionate" is not valid when test framework exists).
+
+### Implementation Notes
+
+Always include an `## Implementation Notes` section at the end of your output with:
+- **Decisions**: Non-obvious architectural or design choices you made and WHY (e.g., "Used polling instead of websockets because the existing API layer has no WS support")
+- **Deviations**: Anything you did differently from the task spec and the reason
+- **Trade-offs**: Alternatives you considered and rejected, with reasoning
+- **Risks**: Anything the reviewer should pay extra attention to
+
+Keep it concise — only include entries that a reviewer couldn't infer from reading the diff alone. If all choices were straightforward, write "No non-obvious decisions." Do NOT skip this section.
 
 # Persistent Memory
 
