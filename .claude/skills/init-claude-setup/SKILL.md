@@ -27,6 +27,8 @@ Check whether `.claude/agents/` exists in the current working directory.
 .claude-worktrees/
 .DS_Store
 tasks/
+qa-output/
+debug-output/
 ```
 
 3. Do not duplicate any entry that already exists in the file (even if it appears outside a `# .claude` section).

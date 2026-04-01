@@ -902,6 +902,8 @@ MCP_EOF
     ".claude-worktrees/"
     ".DS_Store"
     "tasks/"
+    "qa-output/"
+    "debug-output/"
   )
 
   GITIGNORE_FILE="$TARGET_DIR/.gitignore"
@@ -1044,6 +1046,8 @@ GITIGNORE_ENTRIES=(
   ".claude-worktrees/"
   ".DS_Store"
   "tasks/"
+  "qa-output/"
+  "debug-output/"
 )
 
 GITIGNORE_FILE="$TARGET_DIR/.gitignore"

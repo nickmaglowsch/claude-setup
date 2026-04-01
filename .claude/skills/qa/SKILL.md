@@ -17,8 +17,7 @@ $ARGUMENTS
 ## Step 0: Clean up — Remove stale QA artifacts
 
 Remove leftover files from a previous QA run:
-- Use Bash to run `rm -rf tasks/qa-report.md tasks/qa-screenshots/`
-- Do NOT remove `tasks/` entirely — other pipelines may use it
+- Use Bash to run `rm -rf qa-output/` to remove all stale QA artifacts from a previous run
 
 ## Step 0.5: App Recon — Discover how to interact with the app
 
@@ -56,7 +55,7 @@ Wait for it to complete.
 
 ## Step 2: Report
 
-Read `tasks/qa-report.md` and summarize to the user:
+Read `qa-output/qa-report.md` and summarize to the user:
 
 ```
 ## QA Complete
@@ -69,12 +68,12 @@ Read `tasks/qa-report.md` and summarize to the user:
 - [list from report, or "None found"]
 
 **Outputs:**
-- Full report: tasks/qa-report.md
+- Full report: qa-output/qa-report.md
 - E2E tests: <list files written>
 - Run tests: npx playwright test
 ```
 
-If `tasks/qa-report.md` does not exist, report that the QA agent failed to complete and show any error output.
+If `qa-output/qa-report.md` does not exist, report that the QA agent failed to complete and show any error output.
 
 ## Rules
 
