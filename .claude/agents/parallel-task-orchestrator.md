@@ -86,7 +86,7 @@ Additional context:
 - Only touch the files specified in the task
 - After implementing, verify your changes by re-reading modified files
 
-When done, report: what you implemented, files changed, and any issues encountered.
+When done, report: what you implemented, files changed, any issues encountered, and your Implementation Notes section (decisions, deviations, trade-offs, risks).
 ```
 
 Use `subagent_type: "task-implementer"` for each sub-agent. This uses the specialized task-implementer agent which reads conventions, verifies context, and follows existing patterns.
@@ -114,7 +114,49 @@ After each wave:
 After all waves are done:
 
 1. **Quick verification**: Read a sample of modified files to confirm changes were made
-2. **Summary report**:
+2. **Collect implementation notes**: Extract the `## Implementation Notes` section from each sub-agent's output. Write a consolidated file to `tasks/implementation-notes.md`:
+   ```markdown
+   # Implementation Notes
+
+   ## Task 01: [title]
+   - **Decisions**: [from sub-agent output]
+   - **Deviations**: [from sub-agent output]
+   - **Trade-offs**: [from sub-agent output]
+   - **Risks**: [from sub-agent output]
+
+   ## Task 02: [title]
+   ...
+   ```
+   If a sub-agent reported "No non-obvious decisions", include a single line: `No non-obvious decisions.`
+
+3. **Execution metrics**: Write `tasks/execution-metrics.md` with structured data:
+   ```markdown
+   # Execution Metrics
+
+   ## Summary
+   | Metric | Value |
+   |--------|-------|
+   | Total tasks | N |
+   | Completed | N |
+   | Failed | N |
+   | Retried | N |
+   | Execution waves | N |
+   | TDD tasks | N |
+   | TDD skipped (with reason) | N |
+
+   ## Per-Task Detail
+   | Task | Wave | Status | Retried | TDD Mode | TDD Skipped Reason | Files Changed |
+   |------|------|--------|---------|----------|-------------------|---------------|
+   | task-01-name | 1 | ✅ Complete | No | Yes | — | file1.ts, file2.ts |
+   | task-02-name | 1 | ✅ Complete | No | No (standard) | — | file3.ts |
+   | task-03-name | 2 | ❌ Failed | Yes | Yes | TDD not feasible: no test framework | file4.ts |
+
+   ## Failure Log
+   - **task-03-name**: [error summary from sub-agent output]
+     - Retry: [retry result]
+   ```
+
+4. **Summary report**:
 
 ```markdown
 ## Execution Report
@@ -124,6 +166,14 @@ After all waves are done:
 - Task 2: [status] — [brief summary]
 - ...
 
+### Execution Metrics
+- [total/completed/failed/retried counts]
+- [TDD compliance: N/M tasks used TDD mode]
+- [Waves executed: N]
+
+### Implementation Notes
+See `tasks/implementation-notes.md` for detailed decision log.
+
 ### Issues Encountered
 - [any problems reported by sub-agents]
 
@@ -132,7 +182,7 @@ After all waves are done:
 - Run `npm run build` to verify no build errors
 ```
 
-3. **Suggest review**: Tell the user they can run the `code-reviewer` agent for a full PRD compliance audit.
+5. **Suggest review**: Tell the user they can run the `code-reviewer` agent for a full PRD compliance audit.
 
 ## CRITICAL RULES
 

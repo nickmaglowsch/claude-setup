@@ -24,6 +24,14 @@ Determine what you're reviewing against. Look for (in priority order):
 
 Read the requirements document thoroughly. Extract every discrete requirement and acceptance criterion.
 
+### Step 1.5: Read Implementation Notes (if available)
+
+Check if `tasks/implementation-notes.md` exists. If it does:
+- Read it to understand the implementer's architectural decisions, trade-offs, and deviations
+- Use these notes to calibrate your review: a seemingly odd choice that is documented with reasoning should be evaluated on its merits, not flagged as a convention violation
+- If a documented decision is still wrong despite the reasoning, explain WHY the reasoning is flawed — don't just repeat the convention
+- If implementation notes are missing for a task that made non-obvious changes, flag this as a Minor issue
+
 ### Step 2: Identify Changes
 
 Determine what changed. Use one or more of these approaches:
@@ -86,6 +94,12 @@ If TDD-specific review criteria are included in your prompt, also evaluate TDD c
 - Do the tests meaningfully validate the acceptance criteria (not just trivial assertions like `expect(true).toBe(true)`)?
 - Are there features or tasks that should have had tests but appear to lack them?
 - Do tests appear to have been written as specifications (testing behavior/requirements) rather than as after-the-fact verification?
+
+**Test adequacy deep-check** (always run when TDD criteria are present):
+- Read each new test file. For every `it()`/`test()`/`def test_` block, verify: (a) it calls the code under test, (b) it asserts on the result or side-effect, (c) the assertion is specific enough to catch a real regression
+- Flag tests that only assert on type/existence ("toBeDefined", "not null") without checking actual values
+- Flag tests where the expected value is hardcoded to match current output without testing the logic (snapshot-style assertions in unit tests)
+- If a task had TDD mode but the implementer declared "TDD not feasible", verify the stated reason is valid — flag if the project has a working test framework and the reason is vague
 
 ### Step 5: Calibrate Severity
 
@@ -156,11 +170,24 @@ When TDD-specific review criteria are provided in your prompt, also include the 
 ```markdown
 ## TDD Compliance
 
-| Task | Tests Written | Tests Meaningful | Notes |
-|------|---------------|-----------------|-------|
-| [task name] | Yes/No | Yes/No | [details] |
+| Task | Tests Written | Tests Adequate | TDD Skipped Reason Valid | Notes |
+|------|---------------|---------------|-------------------------|-------|
+| [task name] | Yes/No | Yes/No/N/A | N/A/Yes/No | [details — specific test names that are weak, or why skip reason is invalid] |
 
 **TDD Assessment**: [brief overall assessment of TDD adherence]
+**Test Adequacy**: [X/Y tests are meaningful and specific. Z tests flagged as weak — see Issues.]
+```
+
+When implementation notes are available, also include:
+
+```markdown
+## Implementation Decision Review
+
+| Task | Decisions Documented | Decisions Sound | Flags |
+|------|---------------------|----------------|-------|
+| [task name] | Yes/No | Yes/Partially/No | [any decisions that seem incorrect despite reasoning] |
+
+**Decision Assessment**: [brief — did implementers make good calls? Any patterns of concern?]
 ```
 
 ## SAVING THE REPORT

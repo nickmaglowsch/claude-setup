@@ -141,8 +141,9 @@ Implement the tasks yourself, sequentially, in the current conversation context.
 1. Read the task file fully (objective, requirements, acceptance criteria, context files)
 2. Read all referenced context files
 3. Implement the task following the requirements and acceptance criteria
-4. If the task has a `## TDD Mode` section, follow the RED → GREEN → REFACTOR cycle
-5. **If `COMMIT_MODE=per-task`:** after completing each task, run:
+4. If the task has a `## TDD Mode` section, follow the RED → GREEN → REFACTOR → VERIFY cycle (including test adequacy check)
+5. After each task, collect the Implementation Notes section from your work. After all tasks are done, write `tasks/implementation-notes.md` consolidating all notes.
+6. **If `COMMIT_MODE=per-task`:** after completing each task, run:
    ```bash
    git add -A
    git commit -m "feat: <task-objective-from-task-file>"
@@ -209,17 +210,20 @@ After the build check, run the project's full test suite to catch regressions an
 
 ## Step 3: Review — Run code-reviewer
 
-Before launching the code-reviewer, check if TDD mode was used by reading any task file from `tasks/` and looking for a `## TDD Mode` section.
+Before launching the code-reviewer, check if TDD mode was used by reading any task file from `tasks/` and looking for a `## TDD Mode` section. Also check if `tasks/implementation-notes.md` and `tasks/execution-metrics.md` exist.
 
 Launch the `code-reviewer` agent using the Task tool with:
 - `subagent_type: "code-reviewer"`
 - Tell it to review all changes against `tasks/updated-prd.md`
 - Tell it to write the review report to `tasks/review-report.md`
+- **If `tasks/implementation-notes.md` exists**, tell it to read this file for implementer decision context
 - **If TDD mode was used**, include these additional review criteria in the prompt:
   - Were tests written for each task that had TDD mode enabled?
   - Do the tests meaningfully cover the acceptance criteria from the task files?
   - Are there tasks with TDD mode that appear to be missing tests?
   - Do tests follow project conventions?
+  - Run the test adequacy deep-check (verify each test calls the code under test, has specific assertions, and would catch real regressions)
+  - If any implementer declared "TDD not feasible", verify the reason is valid
 - **If TDD mode was not used**, still tell the reviewer to check general test coverage as part of the standard review
 
 Wait for it to complete.
@@ -242,6 +246,8 @@ Do not loop — the auto-fix runs at most once. If critical issues persist after
 
 ## Step 4: Report
 
+Check if `tasks/execution-metrics.md` exists (produced by the orchestrator in full-path mode). If not (fast-path mode), generate equivalent metrics from your own execution.
+
 Summarize the full pipeline run to the user:
 
 ```
@@ -261,9 +267,15 @@ Summarize the full pipeline run to the user:
 - [test suite status: all passed / X failed / not detected]
 - [if TDD: TDD compliance summary]
 
+### Execution Metrics
+- Tasks: [completed/total] | Waves: [N] | Retries: [N]
+- TDD: [N/M tasks used TDD] | TDD skipped: [N (reasons)]
+- Implementation notes: [see tasks/implementation-notes.md or "inline above"]
+
 ### Review
 - [compliance score]
 - [critical issues if any]
+- [if implementation notes reviewed: decision assessment summary]
 
 ### Auto-Commit
 - [skipped — not enabled]

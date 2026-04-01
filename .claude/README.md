@@ -95,8 +95,10 @@ During the planning Q&A step (Step 1b), the planner will ask: "Do you want TDD m
 #### What changes with TDD enabled
 
 1. **Task files include test specifications**: Each task gets a `## TDD Mode` section with specific tests to write, expected behaviors, and the test framework/command to use
-2. **Implementer follows RED->GREEN->verify**: The `task-implementer` writes failing tests first, then implements code to make them pass, then checks for regressions
-3. **Code review includes TDD compliance**: The `code-reviewer` verifies that tests were written, are meaningful, and cover the acceptance criteria
+2. **Implementer follows RED->GREEN->REFACTOR->VERIFY**: The `task-implementer` writes failing tests first, validates test adequacy (no trivial assertions), implements code to make them pass, refactors for clarity, then checks for regressions
+3. **Test adequacy check**: Before implementing, the implementer verifies each test has meaningful assertions, covers acceptance criteria, and fails for distinct reasons
+4. **Code review includes TDD compliance**: The `code-reviewer` does a deep-check on every test (calls code under test, has specific assertions, catches real regressions) and validates TDD skip reasons
+5. **Stricter TDD escape hatch**: "Effort is disproportionate" is not a valid skip reason when the project has a working test framework
 
 #### Always-on test awareness (even without TDD)
 
@@ -155,6 +157,26 @@ Task: bug-fixer — "Fix the bug. Diagnosis: tasks/bug-diagnosis.md. Tests: npm 
 # Just review a bug fix
 Task: code-reviewer — "Review changes against tasks/bug-diagnosis.md"
 ```
+
+## Sprint Contracts (Implementation Notes)
+
+When agents implement code, they produce structured **Implementation Notes** documenting non-obvious decisions, deviations from specs, trade-offs, and risks. This creates a "sprint contract" between implementers and reviewers.
+
+- **Implementers** (task-implementer, bug-fixer): output an `## Implementation Notes` section with every task
+- **Orchestrator**: consolidates all notes into `tasks/implementation-notes.md`
+- **Reviewer**: reads the notes to understand intent before reviewing — flags incorrect reasoning rather than blindly enforcing conventions
+
+This closes the gap where a reviewer might flag a deliberate architectural choice as an issue because they lack context about why it was made.
+
+## Execution Metrics
+
+Every pipeline run produces structured execution metrics in `tasks/execution-metrics.md`:
+
+- **Task-level**: status, wave, retry count, TDD mode used, TDD skip reasons, files changed
+- **Pipeline-level**: total/completed/failed tasks, wave count, TDD compliance rate
+- **Failure log**: error summaries and retry outcomes
+
+Metrics are included in the final pipeline report so you can see at a glance how the build went.
 
 ## Agent Memory
 

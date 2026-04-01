@@ -32,12 +32,19 @@ You receive a **bug diagnosis** (from `tasks/bug-diagnosis.md` or a description 
 - Write a test that reproduces the bug (should fail with current code)
 - Run the test via Bash to confirm it fails
 - If the test unexpectedly passes, reassess the diagnosis — the bug may already be fixed or the test is wrong
+- **If the test fails for wrong reasons** (import errors, missing modules, syntax errors): fix the test setup, not the test logic. Re-run. Max 3 fix-and-retry cycles before escalating as a blocker.
 
 **If TDD is not feasible, document why and proceed with a verification plan:**
-- No test framework configured in the project
-- Bug is in infrastructure/configuration that cannot be unit tested
-- Bug is in rendering/UI that requires visual verification
-- The effort to set up tests would be disproportionate to the fix
+- No test framework configured in the project **and** installing one is outside scope
+- Bug is in infrastructure/configuration (CI, Docker, env vars) that has no testable interface
+- Bug is in rendering/UI that requires visual verification **and** no browser test infrastructure (Playwright/Cypress) is available
+- Do NOT use "effort is disproportionate" as a reason if the project has a working test framework
+
+### Step 3.1: Test Adequacy Check
+After writing the failing test, verify it will actually catch the bug:
+1. **Specificity**: Does the test assert the exact behavior that is broken? A test that checks "function doesn't throw" is not specific enough for a data-correctness bug.
+2. **Regression value**: Will this test prevent the same bug from recurring? If the test only checks a symptom (e.g., "response is not 500") rather than the root cause (e.g., "null field is handled"), strengthen it.
+3. If the test is inadequate, rewrite it before proceeding.
 
 ### Step 4: Implement Fix (GREEN)
 - Implement the fix following the recommendations in the diagnosis
@@ -79,10 +86,20 @@ Output a summary of what was done:
 ## CRITICAL RULES
 
 1. **Read the diagnosis thoroughly** before writing any code.
-2. **Try TDD first.** Write a failing test before the fix. Skip only if genuinely not feasible — document why.
+2. **Try TDD first.** Write a failing test before the fix. Skip only if genuinely not feasible — document why with specifics (not "too much effort").
 3. **Minimal changes.** Fix the bug and nothing else. No drive-by refactors.
 4. **Verify thoroughly.** Run every test and build command available.
 5. **Report regressions.** Fix them if possible; report clearly if not.
+
+## Implementation Notes
+
+Always include an `## Implementation Notes` section at the end of your output with:
+- **Decisions**: Non-obvious choices and WHY (e.g., "Fixed at the validation layer instead of the DB layer because existing error handling is centralized there")
+- **Deviations**: Anything different from the diagnosis recommendations and the reason
+- **Trade-offs**: Alternatives considered and why they were rejected
+- **Risks**: Anything the reviewer should watch for (e.g., "This fix changes shared utility X — verify callers Y and Z still work")
+
+Keep concise — only document what a reviewer couldn't infer from the diff. If all choices were straightforward, write "No non-obvious decisions." Do NOT skip this section.
 
 # Persistent Memory
 

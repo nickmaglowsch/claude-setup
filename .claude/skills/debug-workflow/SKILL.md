@@ -173,13 +173,28 @@ This step always runs. Do not skip it.
 
 ## Step 2: Fix — Run bug-fixer with adaptive TDD
 
+Read `.claude/app-context.md` and extract the test infrastructure details to pass to the bug-fixer:
+- **Test command**: from `## How to Run Tests`
+- **Test framework**: from `## Tech Stack` or `## Debug Surfaces`
+- **Test file conventions**: from `## Tech Stack` (e.g., `*.test.ts`, `*.spec.js`, `__tests__/`)
+- **Test directory**: infer from detected patterns
+
 Launch the `bug-fixer` agent using the Task tool with:
 - `subagent_type: "bug-fixer"`
 - Tell it to read `tasks/bug-diagnosis.md` for the diagnosis
 - Pass along the test commands and log commands from `.claude/app-context.md` (from the `## How to Run Tests` and `## Debug Surfaces > Logs` sections) so the fixer can use them
-- Tell it to follow adaptive TDD: write a failing test first, then fix, then verify
+- **Pass the test infrastructure details** so the fixer doesn't have to rediscover them:
+  ```
+  ## Test Infrastructure (from pre-recon)
+  - Test framework: [framework]
+  - Test command: [command]
+  - Test file conventions: [pattern]
+  - Test directory: [path]
+  ```
+- Tell it to follow adaptive TDD: write a failing test first (with test adequacy check), then fix, then verify
+- Tell it to include Implementation Notes in its output
 
-Wait for it to complete. Note any TDD skips or issues reported.
+Wait for it to complete. Note any TDD skips or issues reported. Save the bug-fixer's Implementation Notes output for passing to the reviewer.
 
 ## Step 2b: Build check — Verify the project compiles
 
@@ -207,15 +222,19 @@ Before reviewing, run a quick build/lint check to catch obvious breakage:
 
 ## Step 3: Review — Run code-reviewer with debug-specific criteria
 
+Write the bug-fixer's Implementation Notes to `tasks/implementation-notes.md` so the reviewer can read them.
+
 Launch the `code-reviewer` agent using the Task tool with:
 - `subagent_type: "code-reviewer"`
 - Tell it to review all changes against `tasks/bug-diagnosis.md`
+- Tell it to read `tasks/implementation-notes.md` for the fixer's decision context
 - Tell it to write the review report to `tasks/debug-review-report.md`
 - **Include these additional debug-specific review criteria in the prompt:**
   - Was the root cause identified in the diagnosis actually addressed by the fix?
   - Are there any regressions introduced by the fix?
-  - Was a test written for the bug? If not, is the reason documented and valid?
+  - Was a test written for the bug? If not, is the reason documented and valid? (Verify: if test framework exists, "effort disproportionate" is not a valid reason)
   - Are the changes minimal and focused on the bug fix (no unrelated changes)?
+  - Run the test adequacy deep-check on any new tests
 
 Wait for it to complete.
 
@@ -248,15 +267,22 @@ Summarize the full debug pipeline run to the user:
 ### Fix
 - [What was changed]
 - [Tests added or why not]
+- [Implementation decisions: key notes from bug-fixer]
 
 ### Verification
 - [Test results]
 - [Build results]
 - [Regression status]
 
+### Debug Metrics
+- TDD: [used / skipped (reason)]
+- Test adequacy: [adequate / flagged issues]
+- Files changed: [count and list]
+
 ### Review
 - [Compliance score from review]
 - [Critical issues if any]
+- [Decision assessment from implementation notes review]
 
 ### Auto-Commit
 - [skipped — not enabled]
