@@ -91,7 +91,7 @@ When your prompt contains `MODE: DIAGNOSE` along with user answers:
 
 ## Browser Evidence (include only if browser debugging was performed)
 - [Console errors captured]
-- [Screenshot paths: tasks/debug-screenshots/*.png]
+- [Screenshot paths: debug-output/screenshots/*.png]
 - [DOM state observations]
 
 ## Data Evidence (include only if database inspection was performed)
@@ -264,7 +264,7 @@ npx @playwright/cli evaluate "JSON.stringify(performance.getEntriesByType('resou
 
 **Take evidence screenshot:**
 ```bash
-npx @playwright/cli screenshot tasks/debug-screenshots/bug-state.png
+npx @playwright/cli screenshot debug-output/screenshots/bug-state.png
 ```
 
 **Check page content when blank/broken:**
@@ -277,7 +277,7 @@ npx @playwright/cli evaluate "document.querySelectorAll('[data-error], .error, .
 
 ### Rules for browser debugging
 - Always `close` the browser when done investigating
-- Save screenshots to `tasks/debug-screenshots/` — reference them in the diagnosis
+- Save screenshots to `debug-output/screenshots/` — reference them in the diagnosis
 - If Playwright CLI is not available (noted in app-context as "Not installed"), fall back to `curl` for URL checks and skip browser-based investigation
 - Do NOT install Playwright — if it is not available, note it as a limitation
 - Browser debugging supplements but does not replace log reading and code tracing
