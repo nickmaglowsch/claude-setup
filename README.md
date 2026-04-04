@@ -326,6 +326,8 @@ It checks for settings in this order: `~/.claude/settings.json`, `.claude/settin
 - The Agent Teams API is experimental and may change in future Claude Code versions
 - `COMMIT_MODE=per-task` is not supported in Agent Teams mode — commits fall back to squash style
 - May result in higher token usage than the default sub-agent approach
+- `TaskCreate`/`TaskUpdate` progress tracking may conflict with the Agent Teams native task list — the system falls back to native-only tracking if duplicates are detected
+- Only one team can be active per session — if team creation fails, the pipeline automatically falls back to Default mode
 - If Agent Teams is unavailable in your Claude Code version, use Default mode
 
 ## Dev Container (Optional)

@@ -192,6 +192,8 @@ Wait for it to complete. Note any issues reported.
 
 **If `ORCHESTRATION_MODE=agent-teams`** (Beta):
 
+> **Before starting**: Verify no Agent Teams team is already active in this session. If team creation fails, inform the user and fall back to the default `parallel-task-orchestrator` approach automatically. See `agent-teams-orchestrator.md` → Known Limitations for details.
+
 First, enable the required env var by finding the user's settings file (check `~/.claude/settings.json`, then `.claude/settings.json`, then `.claude/settings.local.json`) and adding `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` to the `env` object, preserving all existing settings. If no settings file exists, create `.claude/settings.local.json` with the env var.
 
 Do NOT spawn a sub-agent. Instead, execute Agent Teams orchestration directly in this session:

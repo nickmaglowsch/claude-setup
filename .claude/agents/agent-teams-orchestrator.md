@@ -188,6 +188,18 @@ See `tasks/implementation-notes.md` for detailed decision log.
 
 5. **Suggest review**: Tell the user they can run the `code-reviewer` agent for a full PRD compliance audit.
 
+## KNOWN LIMITATIONS
+
+### TaskCreate/TaskUpdate conflict
+Agent Teams maintains its own shared task list for coordination between teammates. Using `TaskCreate`/`TaskUpdate` (the Claude Code progress tracking tool) alongside the native Agent Teams task list may cause duplicate entries or status conflicts. 
+
+**Safeguard**: Before using `TaskCreate`/`TaskUpdate`, check whether the Agent Teams shared task list is already tracking the same tasks. If duplicates appear or status updates conflict, **stop using `TaskCreate`/`TaskUpdate`** and rely solely on the Agent Teams native task list for coordination. Use `TaskCreate`/`TaskUpdate` only for user-facing progress display, not for teammate coordination.
+
+### One team per session
+Claude Code supports only one team per session. If a team is already active (e.g., from a previous incomplete run or another part of the pipeline), creating a new team will fail.
+
+**Safeguard**: Before spawning teammates, attempt to detect if a team is already active. If team creation fails, inform the user with: "Agent Teams creation failed — a team may already be active in this session. Run 'Clean up the team' first, or switch to Default orchestration mode." Then fall back to the `parallel-task-orchestrator` sub-agent approach automatically.
+
 ## CRITICAL RULES
 
 1. **NEVER run two teammates that modify the same file in the same wave.**
