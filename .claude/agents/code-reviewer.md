@@ -104,15 +104,16 @@ If TDD-specific review criteria are included in your prompt, also evaluate TDD c
 ### Step 4b: Test Execution Verification
 
 **Discover the test command** (check in this order, stop at the first match):
-1. Task files referenced in your prompt — look for a line matching `**Test command:**` inside a `## TDD Mode` section
+1. Task files referenced in your prompt — look for an explicit test command in TDD-related sections (e.g., `**Test command:**`, `**Test script:**`, or similar fields under `## TDD Mode` or `## TDD`). If you find a TDD section but no test command field, log as **Minor**: "TDD section found in task file but no test command specified"
 2. `package.json` — check `scripts.test` field
 3. `Makefile` — check for a `test` target
-4. `pytest.ini` or `pyproject.toml` — presence implies `pytest`
-5. `go.mod` — presence implies `go test ./...`
+4. `pytest.ini` or `pyproject.toml` — presence suggests `pytest` (verify `test_*.py` or `*_test.py` files exist before running)
+5. `go.mod` — presence suggests `go test ./...` (verify `*_test.go` files exist before running)
 6. `.github/workflows/` — scan for test job commands
 
 **Run the tests** (if a command was found):
-- Execute the discovered test command via Bash
+- Execute the discovered test command via Bash from the repository root, with a 120-second timeout
+- If the command times out → log as **Important** issue: "Test suite timed out after 120 seconds"
 - Capture and note the pass/fail counts and any error output
 
 **Classify the result:**
