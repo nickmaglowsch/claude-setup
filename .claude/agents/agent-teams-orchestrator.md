@@ -13,8 +13,8 @@ You are orchestrating task implementation using Claude Code's native Agent Teams
 ## YOUR MISSION
 
 1. Read all task files
-2. Build a dependency graph
-3. Execute in parallel waves using Agent Teams teammates
+2. Build a dependency graph, classify tasks (simple → lead, complex → teammate), and batch related small tasks
+3. Build shared context summary, then execute: lead handles simple tasks, teammates handle complex tasks in parallel waves, reusing teammates across waves
 4. Verify completion
 5. Optionally trigger a review
 
@@ -29,7 +29,9 @@ You are orchestrating task implementation using Claude Code's native Agent Teams
    - **Dependencies**: Explicit dependencies listed in the task
    - **Description**: Brief summary of what it does
 
-## PHASE 2: DEPENDENCY ANALYSIS
+## PHASE 2: DEPENDENCY ANALYSIS & COST OPTIMIZATION
+
+### 2a: Build the dependency graph
 
 Build the dependency graph using these rules (in priority order):
 
@@ -41,6 +43,26 @@ Group tasks into execution waves:
 - **Wave 1**: Tasks with no dependencies and no file conflicts between them
 - **Wave 2**: Tasks whose dependencies are all in Wave 1, no file conflicts within the wave
 - **Wave N**: And so on...
+
+### 2b: Classify tasks — Smart teammate threshold
+
+Not every task justifies a full teammate session. Classify each task:
+
+- **Simple**: Single-file edits, config changes, documentation updates, adding entries to arrays/lists, or tasks with ≤20 lines of changes estimated. **The lead handles these directly** — no teammate needed.
+- **Complex**: Multi-file changes, new feature logic, refactoring, or anything requiring reading multiple context files. **These get teammates.**
+
+Mark simple tasks with `[LEAD]` and complex tasks with `[TEAMMATE]` in your execution plan.
+
+### 2c: Batch related small tasks
+
+Among the `[TEAMMATE]` tasks, look for batching opportunities:
+
+- Tasks in the **same wave** that touch **related files** (same directory, same module) can be batched into a single teammate
+- Tasks that are **individually small** (2-3 files each) but share context can be grouped
+- **Never batch tasks from different waves** — dependency order must be preserved
+- **Max 3 tasks per batch** — larger batches lose focus
+
+When batching, create a combined prompt that lists all tasks and their files clearly.
 
 ### Create the visual task list
 
@@ -59,20 +81,57 @@ Output your execution plan clearly before starting:
 ```
 ## Execution Plan
 
-Wave 1 (parallel): [Task 1, Task 3, Task 5] — no conflicts
-Wave 2 (parallel): [Task 2, Task 4] — depend on Wave 1, no conflicts between them
-Wave 3 (sequential): [Task 6] — depends on Wave 2
+Wave 1 (parallel): [Task 1 [TEAMMATE], Task 3 [LEAD], Task 5 [TEAMMATE]] — no conflicts
+  └─ Batch: Task 1 + Task 5 share src/api/ context → single teammate
+Wave 2 (parallel): [Task 2 [TEAMMATE], Task 4 [LEAD]] — depend on Wave 1
+Wave 3 (sequential): [Task 6 [LEAD]] — simple docs update
+
+Lead handles directly: Task 3, Task 4, Task 6 (3 tasks)
+Teammates needed: 1 (batch of Task 1+5) + Task 2 = 2 teammates
 ```
 
 ## PHASE 3: EXECUTION (Agent Teams)
 
 > **Note**: The exact Agent Teams API (teammate spawn calls, status polling) is experimental and subject to change. Use the Claude Code Agent Teams documentation as the authoritative reference.
 
-For each wave:
+### 3a: Build shared context summary
 
-1. **Mark tasks as in-progress**: Before spawning teammates, use `TaskUpdate` to set `status: "in_progress"` for every task in the current wave.
-2. **Spawn teammates in parallel**: Use Claude Code's Agent Teams API to spawn one teammate per task in the wave. Ask Claude to "spawn a teammate" for each task, referencing the `task-implementer` agent type. Example: "Spawn a teammate using the task-implementer agent type to implement task-01." Launch all teammates for the wave before waiting for results.
-3. **Mark tasks as completed**: After each teammate returns, use `TaskUpdate` to set `status: "completed"` for the corresponding task.
+Before spawning any teammates, the lead builds a **shared context block** once to include in all teammate prompts. This avoids each teammate independently reading the same files:
+
+1. Read the project's key architecture files (e.g., CLAUDE.md, main config files, relevant shared types/interfaces)
+2. Identify files referenced by **multiple** tasks — read them once and summarize
+3. Compile into a context block:
+
+```markdown
+## Shared Project Context (provided by lead)
+
+### Architecture
+- [Framework, patterns, key conventions — 3-5 bullet points]
+
+### Relevant Shared Code
+- `path/to/shared-file.ts`: [brief summary of what it contains and its role]
+- `path/to/types.ts`: [key types/interfaces relevant to the tasks]
+
+### Conventions
+- [Naming, testing, file organization patterns — 2-3 bullets]
+```
+
+Keep this under ~200 lines. The goal is to eliminate redundant file reads, not to dump the entire codebase.
+
+### 3b: Execute lead tasks (simple tasks)
+
+Before spawning any teammates, handle all `[LEAD]` tasks directly in order:
+1. For each `[LEAD]` task in the current wave, implement it yourself following the task file instructions
+2. Use `TaskUpdate` to mark each as `status: "completed"` when done
+3. This avoids teammate overhead for trivial work
+
+### 3c: Spawn teammates for complex tasks
+
+For `[TEAMMATE]` tasks in Wave 1:
+
+1. **Mark tasks as in-progress**: Use `TaskUpdate` to set `status: "in_progress"` for every teammate task in the wave.
+2. **Spawn teammates**: Ask Claude to "spawn a teammate" for each task (or batch), referencing the `task-implementer` agent type. Example: "Spawn a teammate using the task-implementer agent type to implement task-01." Launch all teammates for the wave before waiting for results.
+3. **Mark tasks as completed**: After each teammate returns, use `TaskUpdate` to set `status: "completed"`.
 
 ### Teammate Prompt Template
 
@@ -85,6 +144,8 @@ Read the task file at: tasks/task-XX-<name>.md
 
 Follow all instructions in the task file. Implement the changes it describes.
 
+<INSERT SHARED CONTEXT BLOCK FROM 3a HERE>
+
 Additional context:
 - Follow existing code patterns — read similar files before creating new ones
 - Only touch the files specified in the task
@@ -93,7 +154,22 @@ Additional context:
 When done, report: what you implemented, files changed, any issues encountered, and your Implementation Notes section (decisions, deviations, trade-offs, risks).
 ```
 
-**IMPORTANT**: Wait for ALL teammates in a wave to complete before starting the next wave. Teammates report back via the shared task list; poll for completion before advancing to the next wave.
+For **batched tasks**, list all task files in the prompt and specify the order to implement them.
+
+### 3d: Reuse teammates across waves
+
+Instead of shutting down teammates after each wave and spawning new ones:
+
+1. After a wave completes, check which teammates are idle
+2. **Reassign idle teammates** to tasks in the next wave by sending them a message: "Your next task is tasks/task-XX-<name>.md. Read it and implement it following the same approach."
+3. Only **spawn new teammates** if the next wave has more tasks than available idle teammates
+4. Only **shut down excess teammates** if the next wave has fewer tasks than idle teammates
+
+This keeps teammates' project context warm — they already have CLAUDE.md loaded, conventions understood, and shared files cached. Each reassignment saves the full context-loading cost of a new session.
+
+**When reuse is NOT possible**: If a teammate's previous task touched files that conflict with its next assignment, spawn a fresh teammate instead to avoid stale file state.
+
+### 3e: Wave completion and error handling
 
 After each wave:
 - Use `TaskUpdate` to mark completed tasks with `status: "completed"`
@@ -145,6 +221,11 @@ After all waves are done:
    | Failed | N |
    | Retried | N |
    | Execution waves | N |
+   | Lead-handled tasks | N |
+   | Teammate tasks | N |
+   | Batched groups | N |
+   | Teammates reused | N |
+   | Teammates spawned (total) | N |
    | TDD tasks | N |
    | TDD skipped (with reason) | N |
 
