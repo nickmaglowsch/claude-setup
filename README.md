@@ -303,6 +303,31 @@ Task: code-reviewer — "Review changes against tasks/bug-diagnosis.md"
 
 Each agent has persistent memory in `.claude/agent-memory/<agent-name>/`. Agents record codebase patterns, conventions, and insights they discover. This builds institutional knowledge across sessions — e.g., the planner remembers your project structure so future planning is faster.
 
+## Agent Teams Mode (Beta)
+
+`/build` and `/refactor` support a second orchestration mode powered by Claude Code's native Agent Teams feature.
+
+**Default (Recommended):** Uses `parallel-task-orchestrator` — a proven sub-agent approach with wave-based parallel execution. Best choice for most users.
+
+**Agent Teams (Beta):** The skill session acts as lead and spawns teammates directly via Claude Code's native teammate API, coordinating via a shared task list. No sub-agent nesting required.
+
+### How to use it
+
+After task planning completes in `/build` or `/refactor`, you'll be asked to choose an orchestration mode. Select "Agent Teams (Beta)" — the skill automatically enables the required env var in your settings file:
+
+```
+CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
+```
+
+It checks for settings in this order: `~/.claude/settings.json`, `.claude/settings.json`, `.claude/settings.local.json`. If none exist, it creates `.claude/settings.local.json`. Existing settings are preserved.
+
+### Caveats
+
+- The Agent Teams API is experimental and may change in future Claude Code versions
+- `COMMIT_MODE=per-task` is not supported in Agent Teams mode — commits fall back to squash style
+- Higher token usage than the default sub-agent approach
+- If Agent Teams is unavailable in your Claude Code version, use Default mode
+
 ## Dev Container (Optional)
 
 Run Claude Code in an isolated Docker container — interactively via VS Code / Zed or headlessly via CLI. Supports running N containers on N branches simultaneously with no port collisions.
