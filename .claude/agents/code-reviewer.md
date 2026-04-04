@@ -101,6 +101,32 @@ If TDD-specific review criteria are included in your prompt, also evaluate TDD c
 - Flag tests where the expected value is hardcoded to match current output without testing the logic (snapshot-style assertions in unit tests)
 - If a task had TDD mode but the implementer declared "TDD not feasible", verify the stated reason is valid — flag if the project has a working test framework and the reason is vague
 
+### Step 4b: Test Execution Verification
+
+**Discover the test command** (check in this order, stop at the first match):
+1. Task files referenced in your prompt — look for an explicit test command in TDD-related sections (e.g., `**Test command:**`, `**Test script:**`, or similar fields under `## TDD Mode` or `## TDD`). If you find a TDD section but no test command field, log as **Minor**: "TDD section found in task file but no test command specified"
+2. `package.json` — check `scripts.test` field
+3. `Makefile` — check for a `test` target
+4. `pytest.ini` or `pyproject.toml` — presence suggests `pytest` (verify `test_*.py` or `*_test.py` files exist before running)
+5. `go.mod` — presence suggests `go test ./...` (verify `*_test.go` files exist before running)
+6. `.github/workflows/` — scan for test job commands
+
+**Run the tests** (if a command was found):
+- Execute the discovered test command via Bash with the `timeout: 120000` parameter, from the working directory provided in your prompt or detected via `git rev-parse --show-toplevel`
+- If the command times out → log as **Important** issue: "Test suite timed out after 120 seconds"
+- Capture and note the pass/fail counts and any error output
+
+**Classify the result:**
+- Tests fail → log as **Critical** issue: include the failing test names and error output in the Issues section
+- Tests pass → note pass count in the Test Execution report section
+- No test command found AND TDD mode was used for this build → log as **Important** issue: "No test infrastructure detected but TDD mode was specified — expected tests to be runnable"
+- No test command found AND TDD mode was NOT used → log as **Minor** issue: "No test infrastructure detected — test execution skipped"
+
+**TDD spot-check (lightweight — no file edits):**
+- If TDD mode was used: check `tasks/implementation-notes.md` for evidence the implementer ran tests (look for test output snippets, pass counts, or explicit statements like "ran tests", "all tests pass")
+- If no such evidence exists → log as **Important** issue: "TDD mode was specified but no test run evidence found in implementation-notes.md"
+- Do NOT comment out code, revert files, or otherwise modify the implementation to verify test failure behavior — the spot-check is documentation evidence only
+
 ### Step 5: Calibrate Severity
 
 Use these examples to anchor your severity ratings consistently:
@@ -160,6 +186,16 @@ Use these examples to anchor your severity ratings consistently:
 | [feature/module] | Yes/No/Partial | [what's covered, what's missing] |
 
 **Test Coverage Assessment**: [brief overall assessment]
+
+## Test Execution
+
+| Check | Result | Details |
+|-------|--------|---------|
+| Test command discovered | Yes ([command]) / No | [how it was found — task file, package.json, etc.] |
+| Test suite run | Passed (X/Y) / Failed (X/Y) / Skipped | [error summary if failed, or reason if skipped] |
+| TDD evidence in implementation notes | Yes / No / N/A | [what evidence was found, or why N/A] |
+
+**Test Execution Assessment**: [brief — did tests run, did they pass, any concerns?]
 
 ## Recommendations
 - [actionable next steps, ordered by priority]
