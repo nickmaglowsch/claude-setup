@@ -1,92 +1,65 @@
 # Task: Refactor parallel-task-orchestrator to use Claude Agent Teams
 
 ## Status
-Deferred — pending Agent Teams feature stability (currently experimental)
+**Implemented** — see [nickmaglowsch/claude-setup#21](https://github.com/nickmaglowsch/claude-setup/pull/21), 2026-04-03
 
-## Background
+## What was implemented
 
-Claude Code's native **Agent Teams** feature (`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`) provides
-built-in primitives that the `parallel-task-orchestrator` currently reimplements manually:
+Instead of replacing the `parallel-task-orchestrator`, we took a **dual-mode approach**: users choose between the existing sub-agent orchestrator (default, recommended) and a new Agent Teams mode (beta) at the start of `/build` or `/refactor`.
 
-| What we do today | What Agent Teams provides natively |
-|---|---|
-| Spawn parallel subagents via multiple `Agent` tool calls | Teammates spawned and coordinated by the team lead |
-| Coordinate via `tasks/*.md` files | Shared task list + direct inter-agent messaging |
-| Blind parallel execution (no visibility) | Split panes or in-process view per teammate |
-| Manual wave tracking + TaskCreate/TaskUpdate | Shared task list with native status |
+### Architecture decisions
 
-The orchestrator is essentially a hand-rolled version of what Agent Teams does at the platform level.
-Migrating would reduce complexity and add real-time visibility into parallel implementation.
+| Original proposal | What we did instead | Why |
+|---|---|---|
+| Rewrite Phase 3 of `parallel-task-orchestrator` | Created a separate `agent-teams-orchestrator.md` reference guide | Clean separation — existing orchestrator untouched, no risk to current users |
+| Orchestrator spawns teammates as a sub-agent | SKILL.md executes Agent Teams at top level | Agent Teams may only work from top-level sessions — nesting risk |
+| Pre-bake env var in `settings.json` template | Set env var dynamically at runtime when user selects Agent Teams | User preference, not a global setting — only touches settings when needed |
+| Always use Agent Teams | User chooses per-run via prompt (Step 0.2) | Beta feature — default remains the proven sub-agent approach |
 
-## What changes
+### Files added/modified
 
-### `.claude/agents/parallel-task-orchestrator.md`
+- **`.claude/agents/agent-teams-orchestrator.md`** (NEW) — reference guide with 4-phase protocol, cost optimizations, known limitations
+- **`.claude/skills/build/SKILL.md`** — Step 0.2 mode selection + branched Step 2
+- **`.claude/skills/refactor/SKILL.md`** — same Step 0.2 + branched Step 2
+- **`setup.sh`** — `agent-teams-orchestrator.md` added to `CLAUDE_FILES`
+- **`README.md`** — "Agent Teams Mode (Beta)" documentation section
 
-**Phase 3: Execution** is the main target. Today it does:
-```
-For each wave:
-  - Spawn N Agent tool calls in a single message
-  - Wait for all to return
-  - Mark completed via TaskUpdate
-```
+## Open questions — resolved
 
-With Agent Teams it would:
-```
-For each wave:
-  - Create teammates via the Agent Teams API
-  - Assign each teammate its task file
-  - Teammates share the task list — status updates happen natively
-  - Wait for all teammates to signal done via shared task list / messaging
-```
+| # | Question | Resolution |
+|---|----------|------------|
+| 1 | Does Agent Teams work from a sub-agent? | Avoided entirely — Agent Teams runs at skill level (top-level session), not inside a sub-agent |
+| 2 | TaskCreate/TaskUpdate conflict with Agent Teams task list? | Documented as known limitation with safeguard: fall back to native-only tracking if duplicates detected |
+| 3 | Wave logic in Agent Teams? | Kept wave logic — lead computes dependency waves and manages execution order. Teammates self-claim within waves |
 
-**Phases 1, 2, and 4 are unchanged** — dependency graph analysis and the execution report stay the same.
-The orchestrator's role as coordinator (not implementer) stays the same.
+## Risks — addressed
 
-### `settings.json` (project-level or global)
+| Risk | How addressed |
+|------|--------------|
+| Experimental flag | Env var set dynamically at runtime, only when user opts in |
+| No nested teams | Teammates use `task-implementer` subagent type, not teams — no nesting |
+| One team per session | Pre-flight check before spawning; automatic fallback to default orchestrator if team creation fails |
+| Token cost | 4 cost optimizations: smart threshold (lead handles simple tasks), task batching, shared context pre-loading, teammate reuse across waves |
 
-Enable the feature:
-```json
-{
-  "env": {
-    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
-  }
-}
-```
+## Cost optimizations
 
-This would be added to `.claude/settings.json` in the setup repo and copied to target projects via `setup.sh`.
+The Agent Teams orchestrator includes built-in cost efficiency measures:
 
-## Benefits
+1. **Smart threshold**: Tasks classified as simple (single-file, config, docs) are handled by the lead directly — no teammate session overhead
+2. **Task batching**: Related small tasks in the same wave grouped into a single teammate (max 3 per batch)
+3. **Shared context**: Lead pre-reads common files once and includes a summary in teammate prompts, eliminating N redundant reads
+4. **Teammate reuse**: Idle teammates reassigned to next-wave tasks instead of being replaced, keeping project context warm
 
-- **Visibility**: Users see all parallel tasks executing in split panes instead of a black box
-- **Native coordination**: Teammates can message each other if they hit a conflict (e.g., unexpected file overlap)
-- **Less code**: Remove manual wave-loop logic and rely on platform primitives
-- **Consistency with ecosystem**: Aligns with how the broader Claude Code ecosystem (e.g., overstory) does parallel work
+## Remaining work
 
-## Risks / blockers
-
-- **Experimental flag**: Feature is still opt-in and unstable. No session resumption for in-process teammates. Task status can lag.
-- **No nested teams**: Teammates cannot spawn their own teams. Currently the orchestrator spawns `task-implementer` subagents — those subagents cannot themselves spawn teammates. This is fine as long as tasks stay atomic.
-- **One team per session**: If a pipeline skill (e.g., `/build`) already uses Agent Teams elsewhere, the orchestrator can't create a second team. Need to verify this isn't a problem in practice.
-- **Token cost**: Each teammate has its own context window. For large task sets this could be significantly more expensive than the current approach.
-
-## Open questions
-
-1. Does the Agent Teams API work the same when the orchestrator is itself a subagent (spawned by `/build`)? Or does Agent Teams only work at the top-level session?
-2. Can we keep the `TaskCreate`/`TaskUpdate` progress tracking on top of native Agent Teams, or does it conflict?
-3. What happens to the dependency wave logic — does Agent Teams have any concept of task ordering, or do we still manage waves manually and just use teammates within each wave?
-
-## Suggested approach when ready
-
-1. Enable `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` and manually test a small parallel run
-2. Answer the open questions above through experimentation
-3. Rewrite Phase 3 of the orchestrator to use teammates instead of `Agent` tool calls
-4. Keep Phases 1, 2, and 4 unchanged
-5. Test via `/build` with a multi-task PRD — verify the full pipeline still works end-to-end
-6. Add `settings.json` to `CLAUDE_FILES` in `setup.sh` if it doesn't already exist
+- **Real-world testing**: The implementation is based on Agent Teams documentation — needs end-to-end testing with actual Agent Teams sessions once the feature stabilizes
+- **Model selection per teammate**: Agent Teams supports specifying models per teammate. Using Sonnet for implementation tasks could further reduce costs (~5x cheaper than Opus). Not yet implemented.
+- **Metrics validation**: The execution metrics now track cost optimization data (lead-handled tasks, batches, reuses) but need real runs to verify accuracy
 
 ## Related
 
 - [Claude Code Agent Teams docs](https://code.claude.com/docs/en/agent-teams)
-- `.claude/agents/parallel-task-orchestrator.md` — current implementation
-- `.claude/skills/build/SKILL.md` — main consumer of the orchestrator
-- `docs/tasks/` — other deferred tasks
+- `.claude/agents/agent-teams-orchestrator.md` — Agent Teams orchestration protocol
+- `.claude/agents/parallel-task-orchestrator.md` — default sub-agent orchestrator (unchanged)
+- `.claude/skills/build/SKILL.md` — main consumer, Step 0.2 + branched Step 2
+- `.claude/skills/refactor/SKILL.md` — same pattern

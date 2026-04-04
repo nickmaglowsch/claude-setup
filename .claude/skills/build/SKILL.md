@@ -30,6 +30,18 @@ Ask: "Enable auto-commit and PR?" (Yes / No) → `AUTO_COMMIT`.
 
 **If `AUTO_COMMIT=false`:** `BRANCH_ACTION=none`, `COMMIT_MODE=none`.
 
+## Step 0.2: Orchestration Mode Selection
+
+Ask the user which orchestration mode to use for implementation:
+
+Use `AskUserQuestion` with:
+- Question: "How should tasks be implemented?"
+- Options:
+  - **Default (Recommended)**: Use `parallel-task-orchestrator` — proven sub-agent approach with wave-based parallel execution
+  - **Agent Teams (Beta)**: Use Claude Code's native Agent Teams feature — separate sessions coordinating via shared task list
+
+Store the result as `ORCHESTRATION_MODE` (`parallel` or `agent-teams`).
+
 ## Step 0: Clean up — Remove stale task files
 
 Before starting, remove any leftover files from a previous build run:
@@ -136,6 +148,8 @@ Before launching the orchestrator, analyze the task files to determine if orches
 
 ### Fast path (`FAST_PATH=true`) — Direct implementation
 
+> **Note**: If `ORCHESTRATION_MODE=agent-teams` was selected, inform the user: "Fast-path detected (≤2 tasks or all sequential). Using direct implementation instead of Agent Teams — orchestration overhead is not justified for simple tasks." The env var setup from Step 0.2 is skipped in fast-path mode.
+
 Implement the tasks yourself, sequentially, in the current conversation context. For each task file in order:
 
 1. Read the task file fully (objective, requirements, acceptance criteria, context files)
@@ -151,7 +165,9 @@ Implement the tasks yourself, sequentially, in the current conversation context.
 
 This avoids orchestrator overhead and gives you continuous context across tasks — each task benefits from seeing the work done in previous tasks without reading files cold.
 
-### Full path (`FAST_PATH=false`) — Run parallel-task-orchestrator
+### Full path (`FAST_PATH=false`) — Run orchestrator
+
+**If `ORCHESTRATION_MODE=parallel`** (default):
 
 **If `COMMIT_MODE=per-task`:**
 
@@ -173,6 +189,21 @@ Launch the `parallel-task-orchestrator` agent using the Task tool with:
 - Tell it to read and execute all tasks from `tasks/`
 
 Wait for it to complete. Note any issues reported.
+
+**If `ORCHESTRATION_MODE=agent-teams`** (Beta):
+
+> **Before starting**: Verify no Agent Teams team is already active in this session. If team creation fails, inform the user and fall back to the default `parallel-task-orchestrator` approach automatically. See `agent-teams-orchestrator.md` → Known Limitations for details.
+
+First, enable the required env var by finding the user's settings file (check `.claude/settings.local.json`, then `.claude/settings.json`, then `~/.claude/settings.json`) and adding `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` to the `env` object, preserving all existing settings. If no settings file exists, create `.claude/settings.local.json` with the env var.
+
+Do NOT spawn a sub-agent. Instead, execute Agent Teams orchestration directly in this session:
+1. Read `.claude/agents/agent-teams-orchestrator.md` (check `~/.claude/agents/` for global installs, `.claude/agents/` for local)
+2. Follow those instructions directly in this session to orchestrate tasks using Agent Teams teammates
+3. Produce the same outputs: `tasks/implementation-notes.md` and `tasks/execution-metrics.md`
+
+Note: Per-task commits are not supported in Agent Teams mode (teammates run in parallel). If `COMMIT_MODE=per-task` was selected, fall back to squash-style commit after all tasks complete. Auto-commit/branch handling (if `AUTO_COMMIT=true`) applies identically to both modes.
+
+After Agent Teams execution completes (whether successful or not), **clean up the env var**: read the settings file that was modified above, remove `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` from the `env` object, and write it back. If the `env` object is now empty, remove it entirely. This prevents the beta env var from persisting across future sessions.
 
 ## Step 2b: Build check — Verify the project compiles
 

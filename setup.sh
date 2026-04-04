@@ -156,6 +156,7 @@ fi
 # --- Core template files (agents, skills, settings) ---
 CLAUDE_FILES=(
   ".claude/README.md"
+  ".claude/agents/agent-teams-orchestrator.md"
   ".claude/agents/app-scout.md"
   ".claude/agents/bug-fixer.md"
   ".claude/agents/bug-investigator.md"
