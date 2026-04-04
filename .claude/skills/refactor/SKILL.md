@@ -26,6 +26,18 @@ Ask: "Enable auto-commit and PR?" (Yes / No) → `AUTO_COMMIT`.
 
 **If `AUTO_COMMIT=false`:** `BRANCH_ACTION=none`, `COMMIT_MODE=none`.
 
+## Step 0.2: Orchestration Mode Selection
+
+Ask the user which orchestration mode to use for implementation:
+
+Use `AskUserQuestion` with:
+- Question: "How should tasks be implemented?"
+- Options:
+  - **Default (Recommended)**: Use `parallel-task-orchestrator` — proven sub-agent approach with wave-based parallel execution
+  - **Agent Teams (Beta)**: Use Claude Code's native Agent Teams feature — separate sessions coordinating via shared task list
+
+Store the result as `ORCHESTRATION_MODE` (`parallel` or `agent-teams`).
+
 ## Step 0: Clean up — Remove stale task files
 
 Before starting, remove any leftover files from a previous run:
@@ -104,7 +116,9 @@ Launch the `test-writer` agent using the Task tool with:
 
 Wait for it to complete. Confirm tests pass before proceeding — do not start refactoring if tests are failing.
 
-## Step 2: Implement — Run parallel-task-orchestrator
+## Step 2: Implement — Run orchestrator
+
+**If `ORCHESTRATION_MODE=parallel`** (default):
 
 **If `COMMIT_MODE=per-task`:**
 
@@ -126,6 +140,17 @@ Launch the `parallel-task-orchestrator` agent using the Task tool with:
 - Tell it to read and execute all tasks from `tasks/`
 
 Wait for it to complete. Note any issues reported.
+
+**If `ORCHESTRATION_MODE=agent-teams`** (Beta):
+
+First, enable the required env var by finding the user's settings file (check `~/.claude/settings.json`, then `.claude/settings.json`, then `.claude/settings.local.json`) and adding `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` to the `env` object, preserving all existing settings. If no settings file exists, create `.claude/settings.local.json` with the env var.
+
+Do NOT spawn a sub-agent. Instead, execute Agent Teams orchestration directly in this session:
+1. Read `.claude/agents/agent-teams-orchestrator.md` (check `~/.claude/agents/` for global installs, `.claude/agents/` for local)
+2. Follow those instructions directly in this session to orchestrate tasks using Agent Teams teammates
+3. Produce the same outputs: `tasks/implementation-notes.md` and `tasks/execution-metrics.md`
+
+Note: Per-task commits are not supported in Agent Teams mode (teammates run in parallel). If `COMMIT_MODE=per-task` was selected, fall back to squash-style commit after all tasks complete. Auto-commit/branch handling (if `AUTO_COMMIT=true`) applies identically to both modes.
 
 ## Step 2b: Build check — Verify the project compiles
 
