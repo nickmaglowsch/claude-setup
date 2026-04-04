@@ -112,7 +112,7 @@ If TDD-specific review criteria are included in your prompt, also evaluate TDD c
 6. `.github/workflows/` — scan for test job commands
 
 **Run the tests** (if a command was found):
-- Execute the discovered test command via Bash from the repository root, with a 120-second timeout
+- Execute the discovered test command via Bash with the `timeout: 120000` parameter, from the working directory provided in your prompt or detected via `git rev-parse --show-toplevel`
 - If the command times out → log as **Important** issue: "Test suite timed out after 120 seconds"
 - Capture and note the pass/fail counts and any error output
 
