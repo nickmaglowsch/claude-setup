@@ -315,8 +315,8 @@ Each agent has persistent memory in `.claude/agent-memory/<agent-name>/`. Agents
 
 After task planning completes in `/build` or `/refactor`, you'll be asked to choose an orchestration mode. Select "Agent Teams (Beta)" — the skill automatically enables the required env var in your settings file:
 
-```
-CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
+```json
+{ "env": { "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1" } }
 ```
 
 It checks for settings in this order: `~/.claude/settings.json`, `.claude/settings.json`, `.claude/settings.local.json`. If none exist, it creates `.claude/settings.local.json`. Existing settings are preserved.
@@ -325,7 +325,7 @@ It checks for settings in this order: `~/.claude/settings.json`, `.claude/settin
 
 - The Agent Teams API is experimental and may change in future Claude Code versions
 - `COMMIT_MODE=per-task` is not supported in Agent Teams mode — commits fall back to squash style
-- Higher token usage than the default sub-agent approach
+- May result in higher token usage than the default sub-agent approach
 - If Agent Teams is unavailable in your Claude Code version, use Default mode
 
 ## Dev Container (Optional)

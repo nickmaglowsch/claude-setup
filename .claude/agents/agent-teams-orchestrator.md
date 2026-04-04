@@ -1,7 +1,6 @@
 ---
 name: agent-teams-orchestrator
 description: "Reference guide for Agent Teams orchestration mode. Defines how the /build and /refactor skills use Claude Code's native Agent Teams feature to implement tasks. NOT spawned as a sub-agent — the SKILL session executes these instructions directly."
-model: sonnet
 color: purple
 ---
 
@@ -72,7 +71,7 @@ Wave 3 (sequential): [Task 6] — depends on Wave 2
 For each wave:
 
 1. **Mark tasks as in-progress**: Before spawning teammates, use `TaskUpdate` to set `status: "in_progress"` for every task in the current wave.
-2. **Spawn teammates in parallel**: Use Claude Code's Agent Teams API to spawn one teammate per task in the wave — all in a single operation. Do NOT launch them one at a time sequentially.
+2. **Spawn teammates in parallel**: Use Claude Code's Agent Teams API to spawn one teammate per task in the wave. Ask Claude to "spawn a teammate" for each task, referencing the `task-implementer` agent type. Example: "Spawn a teammate using the task-implementer agent type to implement task-01." Launch all teammates for the wave before waiting for results.
 3. **Mark tasks as completed**: After each teammate returns, use `TaskUpdate` to set `status: "completed"` for the corresponding task.
 
 ### Teammate Prompt Template

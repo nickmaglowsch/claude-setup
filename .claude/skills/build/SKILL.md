@@ -116,20 +116,6 @@ This step always runs. Do not skip it.
    - Prompt: `MODE: GENERATE\n\nUser feedback on the task plan:\n<feedback>\n\nPlease regenerate the task files incorporating this feedback.`
    - Wait for it to complete, then **loop back to the top of Step 1d** to re-present the updated plan.
 
-## Step 1.5: Orchestration Mode Selection
-
-Ask the user which orchestration mode to use for implementation:
-
-Use `AskUserQuestion` with:
-- Question: "How should tasks be implemented?"
-- Options:
-  - **Default (Recommended)**: Use `parallel-task-orchestrator` — proven sub-agent approach with wave-based parallel execution
-  - **Agent Teams (Beta)**: Use Claude Code's native Agent Teams feature — separate sessions coordinating via shared task list
-
-Store the result as `ORCHESTRATION_MODE` (`parallel` or `agent-teams`).
-
-**If `ORCHESTRATION_MODE=agent-teams`**: Enable the required env var by finding the user's settings file (check `~/.claude/settings.json`, then `.claude/settings.json`, then `.claude/settings.local.json`) and adding `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` to the `env` object, preserving all existing settings. If no settings file exists, create `.claude/settings.local.json` with the env var.
-
 ## Step 1e: Fast-path detection — Should we skip the orchestrator?
 
 Before launching the orchestrator, analyze the task files to determine if orchestration overhead is justified.
@@ -145,6 +131,22 @@ Before launching the orchestrator, analyze the task files to determine if orches
 - **Most tasks are sequential**: only 1 task out of 3+ could run in parallel (orchestrator adds overhead for negligible parallelism)
 
 **Set `FAST_PATH=false` otherwise** (3+ tasks with real parallelism opportunities).
+
+## Step 1f: Orchestration Mode Selection
+
+**Skip this step if `FAST_PATH=true`** — fast-path tasks are implemented directly in the current session regardless of orchestration mode.
+
+Ask the user which orchestration mode to use for implementation:
+
+Use `AskUserQuestion` with:
+- Question: "How should tasks be implemented?"
+- Options:
+  - **Default (Recommended)**: Use `parallel-task-orchestrator` — proven sub-agent approach with wave-based parallel execution
+  - **Agent Teams (Beta)**: Use Claude Code's native Agent Teams feature — separate sessions coordinating via shared task list
+
+Store the result as `ORCHESTRATION_MODE` (`parallel` or `agent-teams`).
+
+**If `ORCHESTRATION_MODE=agent-teams`**: Enable the required env var by finding the user's settings file (check `~/.claude/settings.json`, then `.claude/settings.json`, then `.claude/settings.local.json`) and adding `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` to the `env` object, preserving all existing settings. If no settings file exists, create `.claude/settings.local.json` with the env var.
 
 ## Step 2: Implement
 
