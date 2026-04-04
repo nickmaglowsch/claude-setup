@@ -1,7 +1,7 @@
 # Task: Refactor parallel-task-orchestrator to use Claude Agent Teams
 
 ## Status
-**Implemented** — merged in [nickmaglowsch/claude-setup#21](https://github.com/nickmaglowsch/claude-setup/pull/21), 2026-04-03
+**Implemented** — see [nickmaglowsch/claude-setup#21](https://github.com/nickmaglowsch/claude-setup/pull/21), 2026-04-03
 
 ## What was implemented
 

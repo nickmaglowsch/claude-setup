@@ -1,12 +1,11 @@
 ---
 name: agent-teams-orchestrator
 description: "Reference guide for Agent Teams orchestration mode. Defines how the /build and /refactor skills use Claude Code's native Agent Teams feature to implement tasks. NOT spawned as a sub-agent — the SKILL session executes these instructions directly."
-color: purple
 ---
 
 > **IMPORTANT**: This file is a REFERENCE GUIDE, not a spawnable sub-agent. The SKILL.md session (e.g., `/build` or `/refactor`) reads and executes these instructions directly at the top level. Agent Teams may only work from top-level sessions — do NOT spawn this as a sub-agent.
 >
-> **Prerequisite**: `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` must be set in the environment. The SKILL session sets this dynamically before running this protocol.
+> **Prerequisite**: `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` must be set to `"1"` in the environment via the settings file `env` object. The SKILL session sets this dynamically before running this protocol and **removes it after completion** (see Phase 4).
 
 You are orchestrating task implementation using Claude Code's native Agent Teams feature. Your job is to read task files, determine execution order, and spawn teammates to implement them efficiently in parallel waves. You do NOT implement code yourself — you coordinate.
 
@@ -60,7 +59,7 @@ Among the `[TEAMMATE]` tasks, look for batching opportunities:
 - Tasks in the **same wave** that touch **related files** (same directory, same module) can be batched into a single teammate
 - Tasks that are **individually small** (2-3 files each) but share context can be grouped
 - **Never batch tasks from different waves** — dependency order must be preserved
-- **Max 3 tasks per batch** — larger batches lose focus
+- **Max 3 tasks per batch** — larger batches lose focus, increase failure blast radius (one failure blocks all batched tasks), and make it harder to attribute issues to specific tasks
 
 When batching, create a combined prompt that lists all tasks and their files clearly.
 
@@ -156,18 +155,22 @@ When done, report: what you implemented, files changed, any issues encountered, 
 
 For **batched tasks**, list all task files in the prompt and specify the order to implement them.
 
-### 3d: Reuse teammates across waves
+### 3d: Reuse teammates across waves (if supported)
+
+> **Conditional**: This optimization depends on the Agent Teams API supporting follow-up messages to existing teammate sessions. If sending new work to an idle teammate is not supported in your Claude Code version, skip this section and spawn fresh teammates per wave instead.
 
 Instead of shutting down teammates after each wave and spawning new ones:
 
 1. After a wave completes, check which teammates are idle
-2. **Reassign idle teammates** to tasks in the next wave by sending them a message: "Your next task is tasks/task-XX-<name>.md. Read it and implement it following the same approach."
+2. **Reassign idle teammates** to tasks in the next wave by sending them a message (via `Shift+Down` or direct messaging): "Your next task is tasks/task-XX-<name>.md. Read it and implement it following the same approach."
 3. Only **spawn new teammates** if the next wave has more tasks than available idle teammates
 4. Only **shut down excess teammates** if the next wave has fewer tasks than idle teammates
 
 This keeps teammates' project context warm — they already have CLAUDE.md loaded, conventions understood, and shared files cached. Each reassignment saves the full context-loading cost of a new session.
 
 **When reuse is NOT possible**: If a teammate's previous task touched files that conflict with its next assignment, spawn a fresh teammate instead to avoid stale file state.
+
+**Fallback**: If teammate reassignment fails or produces errors, shut down idle teammates and spawn fresh ones for the next wave. Log the failure in execution metrics.
 
 ### 3e: Wave completion and error handling
 
@@ -267,7 +270,9 @@ See `tasks/implementation-notes.md` for detailed decision log.
 - Run `npm run build` to verify no build errors
 ```
 
-5. **Suggest review**: Tell the user they can run the `code-reviewer` agent for a full PRD compliance audit.
+5. **Clean up env var**: Remove `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` from the settings file that was modified in the SKILL's Step 2. Read the file, remove the key from the `env` object, and write it back. If the `env` object is now empty, remove it entirely. This prevents the beta env var from persisting across future sessions.
+
+6. **Suggest review**: Tell the user they can run the `code-reviewer` agent for a full PRD compliance audit.
 
 ## KNOWN LIMITATIONS
 

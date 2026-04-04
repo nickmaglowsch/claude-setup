@@ -1,0 +1,1 @@
+- [Agent Teams Feature](agent-teams-feature.md) — Architecture decisions for Agent Teams orchestration mode added to /build and /refactor pipelines

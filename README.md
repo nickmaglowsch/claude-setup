@@ -319,7 +319,7 @@ After task planning completes in `/build` or `/refactor`, you'll be asked to cho
 { "env": { "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1" } }
 ```
 
-It checks for settings in this order: `~/.claude/settings.json`, `.claude/settings.json`, `.claude/settings.local.json`. If none exist, it creates `.claude/settings.local.json`. Existing settings are preserved.
+It checks for settings in this order: `.claude/settings.local.json`, `.claude/settings.json`, `~/.claude/settings.json` (local first to avoid modifying global settings). If none exist, it creates `.claude/settings.local.json`. Existing settings are preserved. The env var is automatically removed after the run completes.
 
 ### Caveats
 

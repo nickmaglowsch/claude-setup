@@ -194,7 +194,7 @@ Wait for it to complete. Note any issues reported.
 
 > **Before starting**: Verify no Agent Teams team is already active in this session. If team creation fails, inform the user and fall back to the default `parallel-task-orchestrator` approach automatically. See `agent-teams-orchestrator.md` → Known Limitations for details.
 
-First, enable the required env var by finding the user's settings file (check `~/.claude/settings.json`, then `.claude/settings.json`, then `.claude/settings.local.json`) and adding `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` to the `env` object, preserving all existing settings. If no settings file exists, create `.claude/settings.local.json` with the env var.
+First, enable the required env var by finding the user's settings file (check `.claude/settings.local.json`, then `.claude/settings.json`, then `~/.claude/settings.json`) and adding `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` to the `env` object, preserving all existing settings. If no settings file exists, create `.claude/settings.local.json` with the env var.
 
 Do NOT spawn a sub-agent. Instead, execute Agent Teams orchestration directly in this session:
 1. Read `.claude/agents/agent-teams-orchestrator.md` (check `~/.claude/agents/` for global installs, `.claude/agents/` for local)
@@ -202,6 +202,8 @@ Do NOT spawn a sub-agent. Instead, execute Agent Teams orchestration directly in
 3. Produce the same outputs: `tasks/implementation-notes.md` and `tasks/execution-metrics.md`
 
 Note: Per-task commits are not supported in Agent Teams mode (teammates run in parallel). If `COMMIT_MODE=per-task` was selected, fall back to squash-style commit after all tasks complete. Auto-commit/branch handling (if `AUTO_COMMIT=true`) applies identically to both modes.
+
+After Agent Teams execution completes (whether successful or not), **clean up the env var**: read the settings file that was modified above, remove `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` from the `env` object, and write it back. If the `env` object is now empty, remove it entirely. This prevents the beta env var from persisting across future sessions.
 
 ## Step 2b: Build check — Verify the project compiles
 
