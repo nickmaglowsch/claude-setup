@@ -285,7 +285,7 @@ Claude Code supports only one team per session. If a team is already active (e.g
 
 1. **NEVER run two teammates that modify the same file in the same wave.**
 2. **Read ALL tasks before executing ANY** — need the full picture for dependency graph.
-3. **Don't implement code yourself.** Coordinate only — delegate all implementation to teammates.
+3. **Don't implement complex tasks yourself.** Delegate `[TEAMMATE]` tasks to teammates. Handle only `[LEAD]`-classified simple tasks directly (Phase 3b).
 4. **On teammate failure**, report and adjust. Don't retry blindly. Only retry once per task.
 5. **ALWAYS use TaskCreate/TaskUpdate** — create after discovery, mark in_progress before spawning, completed after each returns.
 
