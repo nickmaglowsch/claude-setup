@@ -30,6 +30,18 @@ Ask: "Enable auto-commit and PR?" (Yes / No) → `AUTO_COMMIT`.
 
 **If `AUTO_COMMIT=false`:** `BRANCH_ACTION=none`, `COMMIT_MODE=none`.
 
+## Step 0.2: Orchestration Mode Selection
+
+Ask the user which orchestration mode to use for implementation:
+
+Use `AskUserQuestion` with:
+- Question: "How should tasks be implemented?"
+- Options:
+  - **Default (Recommended)**: Use `parallel-task-orchestrator` — proven sub-agent approach with wave-based parallel execution
+  - **Agent Teams (Beta)**: Use Claude Code's native Agent Teams feature — separate sessions coordinating via shared task list
+
+Store the result as `ORCHESTRATION_MODE` (`parallel` or `agent-teams`).
+
 ## Step 0: Clean up — Remove stale task files
 
 Before starting, remove any leftover files from a previous build run:
@@ -132,25 +144,11 @@ Before launching the orchestrator, analyze the task files to determine if orches
 
 **Set `FAST_PATH=false` otherwise** (3+ tasks with real parallelism opportunities).
 
-## Step 1f: Orchestration Mode Selection
-
-**Skip this step if `FAST_PATH=true`** — fast-path tasks are implemented directly in the current session regardless of orchestration mode.
-
-Ask the user which orchestration mode to use for implementation:
-
-Use `AskUserQuestion` with:
-- Question: "How should tasks be implemented?"
-- Options:
-  - **Default (Recommended)**: Use `parallel-task-orchestrator` — proven sub-agent approach with wave-based parallel execution
-  - **Agent Teams (Beta)**: Use Claude Code's native Agent Teams feature — separate sessions coordinating via shared task list
-
-Store the result as `ORCHESTRATION_MODE` (`parallel` or `agent-teams`).
-
-**If `ORCHESTRATION_MODE=agent-teams`**: Enable the required env var by finding the user's settings file (check `~/.claude/settings.json`, then `.claude/settings.json`, then `.claude/settings.local.json`) and adding `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` to the `env` object, preserving all existing settings. If no settings file exists, create `.claude/settings.local.json` with the env var.
-
 ## Step 2: Implement
 
 ### Fast path (`FAST_PATH=true`) — Direct implementation
+
+> **Note**: If `ORCHESTRATION_MODE=agent-teams` was selected, inform the user: "Fast-path detected (≤2 tasks or all sequential). Using direct implementation instead of Agent Teams — orchestration overhead is not justified for simple tasks." The env var setup from Step 0.2 is skipped in fast-path mode.
 
 Implement the tasks yourself, sequentially, in the current conversation context. For each task file in order:
 
@@ -193,6 +191,8 @@ Launch the `parallel-task-orchestrator` agent using the Task tool with:
 Wait for it to complete. Note any issues reported.
 
 **If `ORCHESTRATION_MODE=agent-teams`** (Beta):
+
+First, enable the required env var by finding the user's settings file (check `~/.claude/settings.json`, then `.claude/settings.json`, then `.claude/settings.local.json`) and adding `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` to the `env` object, preserving all existing settings. If no settings file exists, create `.claude/settings.local.json` with the env var.
 
 Do NOT spawn a sub-agent. Instead, execute Agent Teams orchestration directly in this session:
 1. Read `.claude/agents/agent-teams-orchestrator.md` (check `~/.claude/agents/` for global installs, `.claude/agents/` for local)
