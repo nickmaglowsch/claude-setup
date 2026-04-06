@@ -55,13 +55,13 @@ Store the result as `ORCHESTRATION_MODE` (`parallel` or `agent-teams`).
 
 Then ask: "Save this as your default orchestration mode?" (Yes / No).
 
-If Yes: run this command, substituting `<ORCHESTRATION_MODE>` with the actual value (`parallel` or `agent-teams`):
+If Yes: run this command, replacing `<ORCHESTRATION_MODE>` with the actual value (`parallel` or `agent-teams`):
 ```bash
-python3 -c "
+MODE=<ORCHESTRATION_MODE> python3 -c "
 import json, os
 path = os.path.expanduser('~/.claude/user-preferences.json')
 prefs = json.load(open(path)) if os.path.exists(path) else {}
-prefs['orchestrationMode'] = '<ORCHESTRATION_MODE>'
+prefs['orchestrationMode'] = os.environ['MODE']
 json.dump(prefs, open(path, 'w'), indent=2)
 "
 ```
