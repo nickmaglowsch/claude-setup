@@ -23,16 +23,31 @@ $ARGUMENTS
 Ask: "Enable auto-commit and PR?" (Yes / No) → `AUTO_COMMIT`.
 
 **If `AUTO_COMMIT=true`:**
-1. Run `git rev-parse --abbrev-ref HEAD`. If `main`/`master`: `BRANCH_ACTION=new`. Else ask: "Branch `<name>` exists — create new or commit here?" → `BRANCH_ACTION=new/current`.
+1. Run `git rev-parse --abbrev-ref HEAD` to get `CURRENT_BRANCH`. If `CURRENT_BRANCH` is `main` or `master`: `BRANCH_ACTION=new`. Else ask: "Branch `<name>` exists — create new or commit here?" → `BRANCH_ACTION=new/current`.
 2. Ask: "Single squash commit or one commit per task?" → `COMMIT_MODE=squash/per-task`.
 3. Generate `feat/<3-5-word-slug>` from PRD content → `AUTO_COMMIT_BRANCH`.
-4. `git checkout -b <AUTO_COMMIT_BRANCH>`. On failure append `-2`, retry once.
+4. **If `BRANCH_ACTION=new`:**
+   - Run `git fetch origin` to get latest remote state.
+   - Detect default branch: run `git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||'`. If empty or error, default to `main`. Store as `DEFAULT_BRANCH`.
+   - Ask: "Which branch should `<AUTO_COMMIT_BRANCH>` be based on?"
+     - Option 1: `<DEFAULT_BRANCH>` (remote default)
+     - Option 2: `<CURRENT_BRANCH>` (current branch)
+     - Option 3: Other (enter branch name)
+   - Store chosen base as `BASE_BRANCH`.
+   - Run `git checkout -b <AUTO_COMMIT_BRANCH> <BASE_BRANCH>`. On failure append `-2`, retry once.
 
 **If `AUTO_COMMIT=false`:** `BRANCH_ACTION=none`, `COMMIT_MODE=none`.
 
 ## Step 0.2: Orchestration Mode Selection
 
-Ask the user which orchestration mode to use for implementation:
+Check for a saved orchestration mode preference:
+- Run: `cat ~/.claude/user-preferences.json 2>/dev/null`
+- If the file exists and contains an `"orchestrationMode"` key:
+  - Log: "Using saved orchestration mode: `<value>`"
+  - Set `ORCHESTRATION_MODE` to the saved value (`parallel` or `agent-teams`)
+  - Skip the rest of this step and proceed to Step 0.
+
+If no saved preference, ask the user which orchestration mode to use:
 
 Use `AskUserQuestion` with:
 - Question: "How should tasks be implemented?"
@@ -41,6 +56,19 @@ Use `AskUserQuestion` with:
   - **Agent Teams (Beta)**: Use Claude Code's native Agent Teams feature — separate sessions coordinating via shared task list
 
 Store the result as `ORCHESTRATION_MODE` (`parallel` or `agent-teams`).
+
+Then ask: "Save this as your default orchestration mode?" (Yes / No).
+
+If Yes: run this command, replacing `<ORCHESTRATION_MODE>` with the actual value (`parallel` or `agent-teams`):
+```bash
+MODE=<ORCHESTRATION_MODE> python3 -c "
+import json, os
+path = os.path.expanduser('~/.claude/user-preferences.json')
+prefs = json.load(open(path)) if os.path.exists(path) else {}
+prefs['orchestrationMode'] = os.environ['MODE']
+json.dump(prefs, open(path, 'w'), indent=2)
+"
+```
 
 ## Step 0: Clean up — Remove stale task files
 
