@@ -29,6 +29,7 @@ Check whether `.claude/agents/` exists in the current working directory.
 tasks/
 qa-output/
 debug-output/
+.playwright-cli/
 ```
 
 3. Do not duplicate any entry that already exists in the file (even if it appears outside a `# .claude` section).

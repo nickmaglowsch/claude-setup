@@ -233,7 +233,7 @@ All commands are run via Bash: `playwright-cli <command>`
 | Action | Command | Use for |
 |--------|---------|---------|
 | Open URL | `playwright-cli open <url>` | Navigate to the page where the bug occurs |
-| Snapshot (DOM) | `playwright-cli snapshot` then Read `.playwright-cli/` | Get element refs (writes to disk — Read file after running) |
+| Snapshot (DOM) | `playwright-cli snapshot` then Read `.playwright-cli/snapshot.yaml` | Get element refs (writes to disk — Read file after running) |
 | Screenshot | `playwright-cli screenshot <path>` | Capture visual state for evidence |
 | Click | `playwright-cli click <ref>` | Reproduce click-triggered bugs |
 | Fill input | `playwright-cli fill <ref> <value>` | Fill forms to reach the buggy state |
@@ -269,7 +269,7 @@ playwright-cli screenshot debug-output/screenshots/bug-state.png
 **Check page content when blank/broken:**
 ```bash
 playwright-cli snapshot
-# Then Read the snapshot file from .playwright-cli/ to inspect element structure
+# Then Read .playwright-cli/snapshot.yaml to inspect element structure
 playwright-cli evaluate "document.title"
 playwright-cli evaluate "document.body.innerHTML.length"
 playwright-cli evaluate "document.querySelectorAll('[data-error], .error, .alert-danger').length"
