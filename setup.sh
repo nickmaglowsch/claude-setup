@@ -83,6 +83,10 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     --interval|-i)
+      if [ -z "${2:-}" ]; then
+        echo "Error: --interval requires a value (e.g. 5m, 1h, 1d)" >&2
+        exit 1
+      fi
       AUTO_UPDATE_INTERVAL="$2"
       shift 2
       ;;
@@ -415,10 +419,11 @@ _interval_to_cron() {
       fi
       ;;
     d)
+      # cron "*/N" for days-of-month resets at month boundaries, so only "1d" is reliable
       if [ "$num" -eq 1 ]; then
         echo "0 0 * * *"
       else
-        echo "0 0 */$num * *"
+        echo ""
       fi
       ;;
     *)
@@ -435,9 +440,13 @@ _interval_label() {
   unit=$(echo "$unit" | tr '[:upper:]' '[:lower:]')
 
   case "$unit" in
-    m) echo "every ${num} minute(s)" ;;
-    h) echo "every ${num} hour(s)" ;;
-    d) echo "every ${num} day(s)" ;;
+    m)
+      if [ "$num" -eq 1 ]; then echo "every minute"
+      else echo "every ${num} minutes"; fi ;;
+    h)
+      if [ "$num" -eq 1 ]; then echo "every hour"
+      else echo "every ${num} hours"; fi ;;
+    d) echo "daily" ;;
     *) echo "$interval" ;;
   esac
 }
@@ -855,12 +864,14 @@ perform_global_install() {
       echo ""
       if [[ "$enable_auto" =~ ^[Yy]$ ]]; then
         echo "  How often should it check? (examples: 5m, 30m, 1h, 6h, 1d)"
-        read -rp "  Interval [5m]: " user_interval
-        if [ -n "$user_interval" ]; then
-          AUTO_UPDATE_INTERVAL="$user_interval"
-        else
-          AUTO_UPDATE_INTERVAL="5m"
-        fi
+        while true; do
+          read -rp "  Interval [5m]: " user_interval
+          AUTO_UPDATE_INTERVAL="${user_interval:-5m}"
+          if [ -n "$(_interval_to_cron "$AUTO_UPDATE_INTERVAL")" ]; then
+            break
+          fi
+          echo "  Invalid interval. Examples: 5m, 30m, 1h, 6h, 1d"
+        done
         _install_auto_update
         echo ""
       fi
