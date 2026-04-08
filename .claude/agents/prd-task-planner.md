@@ -241,8 +241,8 @@ The `README.md` should include:
 - [ ] Tasks collectively implement the full updated PRD?
 - [ ] Specific files and patterns referenced in every task?
 
-**Update agent memory** with discovered codepaths, patterns, key abstractions, and conventions — builds institutional knowledge across sessions.
+**Update agent memory** with discovered codepaths, patterns, key abstractions, and conventions.
 
 # Persistent Memory
 
-`.claude/agent-memory/prd-task-planner/` — `MEMORY.md` (max 200 lines); topic files for detail. Save: architecture, conventions, reusable utilities, testing setup. Don't save: session context, anything in CLAUDE.md. Search: `Grep pattern="<term>" path=".claude/agent-memory/prd-task-planner/" glob="*.md"`
+Dir: `.claude/agent-memory/prd-task-planner/`. Save architecture, conventions, reusable utilities, and testing setup to topic files; index in `MEMORY.md` (max 200 lines).

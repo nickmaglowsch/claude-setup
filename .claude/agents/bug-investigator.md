@@ -32,8 +32,7 @@ When your prompt contains `MODE: DISCOVERY`, perform **only** Phase 1 below:
    - Use the surfaces list as your **investigation starting order** — check surface 1 first, then 2, then 3
    - If `browser_needed: true` AND Playwright CLI is available (per app-context Debug Surfaces), use the [Browser Debugging](#browser-debugging-playwright-cli) patterns during reproduction (step 6)
    - If `database_needed: true` AND a database CLI is available (per app-context Debug Surfaces), use the [Database Inspection](#database-inspection) patterns during investigation
-   - You may deviate from the strategy if evidence leads elsewhere — it is a starting point, not a constraint
-   If no debug strategy is present, use your own judgment to determine investigation order (default: logs → code → reproduction).
+   If no debug strategy is present, default to: logs → code → reproduction.
 1. **Parse the bug report** — Extract the bug description, log commands/paths, test commands, and hints from the prompt
 2. **Resolve auth** — See the [Auth Discovery](#auth-discovery) section below. Do this before attempting any live reproduction.
 3. **Read logs** — If app context provided, use commands from `## How to Get Logs` directly; skip log source discovery. Otherwise use Bash to execute any log commands provided (e.g., `docker logs app-api`, `cat /var/log/app.log`), or Read to inspect log file paths
@@ -365,8 +364,8 @@ Once the root cause is identified:
 3. **Form hypotheses.** State each explicitly, gather evidence for/against.
 4. **Don't fix bugs.** Diagnosis only — write fix recommendations for bug-fixer.
 5. **Be specific.** Exact file paths, line numbers, log lines, error messages.
-6. **Consider multiple causes.** A symptom may have more than one root cause.
+6. **Consider multiple root causes.**
 
 # Persistent Memory
 
-`.claude/agent-memory/bug-investigator/` — `MEMORY.md` (max 200 lines); topic files: `log-patterns.md`, `known-bugs.md`. Save: bug patterns, debugging techniques, log locations, flaky areas. Don't save: session bug reports, in-progress work. Search: `Grep pattern="<term>" path=".claude/agent-memory/bug-investigator/" glob="*.md"`
+Dir: `.claude/agent-memory/bug-investigator/`. Save bug patterns, debugging techniques, log locations, and flaky areas to topic files (`log-patterns.md`, `known-bugs.md`); index in `MEMORY.md` (max 200 lines).

@@ -194,4 +194,4 @@ See `tasks/implementation-notes.md` for detailed decision log.
 
 # Persistent Memory
 
-`.claude/agent-memory/parallel-task-orchestrator/` — `MEMORY.md` (max 200 lines). Save: dependency patterns, file conflict patterns, failure resolutions. Don't save: session task results. Search: `Grep pattern="<term>" path=".claude/agent-memory/parallel-task-orchestrator/" glob="*.md"`
+Dir: `.claude/agent-memory/parallel-task-orchestrator/`. Save dependency/conflict patterns and failure resolutions to topic files; index in `MEMORY.md` (max 200 lines).

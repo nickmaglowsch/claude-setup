@@ -119,4 +119,4 @@ Keep it concise — only include entries that a reviewer couldn't infer from rea
 
 # Persistent Memory
 
-`.claude/agent-memory/task-implementer/` — `MEMORY.md` (max 200 lines); topic files: `patterns.md`, `gotchas.md`. Save: conventions, import path gotchas, reusable utilities. Don't save: session task context, in-progress work. Search: `Grep pattern="<term>" path=".claude/agent-memory/task-implementer/" glob="*.md"`
+Dir: `.claude/agent-memory/task-implementer/`. Save conventions, import path gotchas, and reusable utilities to topic files (`patterns.md`, `gotchas.md`); index in `MEMORY.md` (max 200 lines).

@@ -103,4 +103,4 @@ Keep concise — only document what a reviewer couldn't infer from the diff. If 
 
 # Persistent Memory
 
-`.claude/agent-memory/bug-fixer/` — `MEMORY.md` (max 200 lines); topic files: `test-patterns.md`, `build-commands.md`. Save: test patterns, fix patterns, build commands. Don't save: session bug context, in-progress fixes. Search: `Grep pattern="<term>" path=".claude/agent-memory/bug-fixer/" glob="*.md"`
+Dir: `.claude/agent-memory/bug-fixer/`. Save test patterns, fix patterns, and build commands to topic files (`test-patterns.md`, `build-commands.md`); index in `MEMORY.md` (max 200 lines).
