@@ -135,6 +135,14 @@ During setup you choose which tiers to enable:
 
 If you skip the Token Reducer Pack during setup, you'll get a one-time reminder next time you open Claude Code.
 
+**Upgrading existing installs**: If you already have Tier 1+2 (deny rules + RTK) and want to add Tier 3 (context-mode), re-run the token reducer installer and choose option 3:
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/nickmaglowsch/claude-setup/main/setup.sh) --token-reducer
+```
+
+If auto-updates are enabled, you'll also get a one-time nudge about Tier 3 the next time you open Claude Code.
+
 ### Option B: Manual copy
 
 If you just want the core Claude Code setup:

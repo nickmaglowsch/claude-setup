@@ -168,10 +168,41 @@ HOOK_EOF
   fi
 fi
 
-# Tier 3: context-mode — no refresh needed (npx always fetches latest via @latest tag)
-# Just log if it's configured so operator knows it's active
+# Tier 3: context-mode
 if [ -f "$HOME/.claude/settings.json" ] && grep -q '"context-mode"' "$HOME/.claude/settings.json" 2>/dev/null; then
+  # Already configured — just log, npx @latest is self-updating
   _log "[INFO] context-mode MCP server configured (npx @latest — self-updating)"
+  touch "$HOME/.claude/.context-mode-nudged"
+elif [ ! -f "$HOME/.claude/.context-mode-nudged" ]; then
+  # Has RTK or deny rules but no context-mode — register nudge hook for Tier 3
+  hook_src="$CLONE_DIR/.claude/hooks/token-reducer-nudge.sh"
+  hook_dest="$HOME/.claude/hooks/token-reducer-nudge.sh"
+  if [ -f "$hook_src" ]; then
+    mkdir -p "$HOME/.claude/hooks"
+    cp "$hook_src" "$hook_dest"
+    chmod +x "$hook_dest"
+  fi
+  # Ensure the hook is registered in settings.json (may already be there)
+  settings_file="$HOME/.claude/settings.json"
+  if [ -f "$settings_file" ] && ! grep -q 'token-reducer-nudge' "$settings_file" 2>/dev/null; then
+    merged=$(python3 -c "
+import json, sys
+with open(sys.argv[1]) as f:
+    data = json.load(f)
+hooks = data.setdefault('hooks', {})
+ups = hooks.setdefault('UserPromptSubmit', [])
+for entry in ups:
+    for h in entry.get('hooks', []):
+        if 'token-reducer-nudge' in h.get('command', ''):
+            print(json.dumps(data, indent=2))
+            sys.exit(0)
+ups.append({
+    'matcher': '',
+    'hooks': [{'type': 'command', 'command': 'bash ~/.claude/hooks/token-reducer-nudge.sh'}]
+})
+print(json.dumps(data, indent=2))
+" "$settings_file" 2>/dev/null) && echo "$merged" > "$settings_file"
+  fi
 fi
 
 # --- Save new SHA ---
