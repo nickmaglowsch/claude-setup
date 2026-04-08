@@ -112,6 +112,7 @@ if [ -f "$CLONE_DIR/auto-update.sh" ]; then
 fi
 
 # --- Token Reducer ---
+# Tier 2: RTK
 if command -v rtk &>/dev/null; then
   # RTK installed: refresh hook, mark as nudged (no need to nudge)
   rtk init -g --auto-patch >>"$LOG_FILE" 2>&1 || true
@@ -165,6 +166,12 @@ print(json.dumps(data, indent=2))
 }
 HOOK_EOF
   fi
+fi
+
+# Tier 3: context-mode — no refresh needed (npx always fetches latest via @latest tag)
+# Just log if it's configured so operator knows it's active
+if [ -f "$HOME/.claude/settings.json" ] && grep -q '"context-mode"' "$HOME/.claude/settings.json" 2>/dev/null; then
+  _log "[INFO] context-mode MCP server configured (npx @latest — self-updating)"
 fi
 
 # --- Save new SHA ---

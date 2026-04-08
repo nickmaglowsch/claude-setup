@@ -17,7 +17,10 @@ fi
 touch "$MARKER"
 
 echo "Tip: The Token Reducer Pack can cut your token usage by 60-90%."
-echo "It installs RTK (compresses Bash output) and global deny rules (blocks build artifacts, lock files, caches)."
+echo "Three tiers available:"
+echo "  Tier 1 — Deny rules: blocks build artifacts, lock files, caches (zero overhead)"
+echo "  Tier 2 — RTK: compresses Bash tool output (70-90% savings)"
+echo "  Tier 3 — context-mode: sandbox execution + FTS5 knowledge base (98% on large outputs)"
 echo ""
 echo "Install it with:"
 echo "  bash <(curl -fsSL https://raw.githubusercontent.com/nickmaglowsch/claude-setup/main/setup.sh) --token-reducer"
