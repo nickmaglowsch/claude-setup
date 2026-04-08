@@ -219,6 +219,51 @@ Before launching the orchestrator, analyze the task files to determine if orches
 
 **Set `FAST_PATH=false` otherwise** (3+ tasks with real parallelism opportunities).
 
+## Step 1f: Plan review — Validate task plan soundness
+
+**Skip this step if `FAST_PATH=true`.** For ≤2 tasks or all-sequential plans, orchestration overhead is not justified and plan review is skipped.
+
+### 1f.1: Launch plan review
+
+Launch the `code-reviewer` agent using the Task tool with:
+- `subagent_type: "code-reviewer"`
+- Tell it to evaluate all task files in `tasks/` and `tasks/updated-prd.md` using plan-review criteria
+- Tell it to write the plan review report to `tasks/plan-review-report.md`
+- Include these plan-review criteria in the prompt:
+  > Apply the plan-review checks defined in your `### Plan Review Criteria` section: (1) Dependency soundness, (2) PRD coverage gaps, (3) Task file conflicts, (4) Task sizing, (5) TDD spec consistency. Read all `tasks/task-*.md` files and `tasks/updated-prd.md`. Write the plan review report to `tasks/plan-review-report.md`.
+
+Wait for it to complete.
+
+### 1f.2: Present plan review results
+
+1. Read `tasks/plan-review-report.md`. Extract the `### Plan Issues Found` section (Critical / Important / Minor items).
+
+2. Present the plan issues summary to the user as a formatted list. If no issues were found in any category, note "No plan issues found."
+
+3. Use `AskUserQuestion` with a single question: "How would you like to proceed?"
+   - **"Proceed anyway"** — continue to Step 2 (even if issues were found)
+   - **"Regenerate with feedback"** — user provides feedback via the "Other" field; the planner will regenerate task files incorporating the plan review findings and user feedback
+   - **"Edit files manually"** — user edits task files in `tasks/` directly, then re-runs plan review
+
+### 1f.3: Handle user choice
+
+**If "Proceed anyway"**: Log "Plan review issues noted. Proceeding to implementation." Continue to Step 2.
+
+**If "Regenerate with feedback"**:
+1. Collect the user's feedback from their response
+2. Resume the **same** `prd-task-planner` agent (agent ID from Step 1a) with:
+   - `resume: "<agent-id-from-step-1a>"`
+   - Prompt: `MODE: GENERATE\n\nPlan review found issues requiring changes. User feedback:\n<feedback>\n\nPlan review report summary:\n<contents of Plan Issues Found section from tasks/plan-review-report.md>\n\nPlease regenerate the task files addressing these issues.`
+3. Wait for regeneration to complete
+4. **Loop back to the top of Step 1f.1** — re-run the plan review on the new task files
+
+**If "Edit files manually"**:
+1. Display: "Edit the files in `tasks/` directly. When done, reply to continue."
+2. Wait for user confirmation
+3. **Loop back to the top of Step 1f.1** — re-run the plan review against the edited files
+
+There is no hard retry cap — the loop continues until the user chooses "Proceed anyway."
+
 ## Step 2: Implement
 
 ### Fast path (`FAST_PATH=true`) — Direct implementation
