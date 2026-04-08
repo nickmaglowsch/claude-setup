@@ -676,15 +676,17 @@ _install_context_mode() {
     return 0
   fi
 
-  # Check for npx
-  if ! command -v npx &>/dev/null; then
+  # Check for npx — resolve full path so MCP startup works even if
+  # Node is managed by mise/nvm/fnm and not on the default PATH.
+  local npx_path
+  npx_path=$(command -v npx 2>/dev/null) || {
     echo "  npx not found — install Node.js 18+ to use context-mode."
     echo "  Then add manually: https://github.com/mksglu/context-mode#installation"
     return 1
-  fi
+  }
 
   # MCP server config to merge
-  local mcp_config='{"command":"npx","args":["-y","context-mode@latest"]}'
+  local mcp_config="{\"command\":\"$npx_path\",\"args\":[\"-y\",\"context-mode@latest\"]}"
 
   if [ ! -f "$settings_file" ]; then
     # Create settings.json with context-mode MCP server
