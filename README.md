@@ -94,15 +94,11 @@ The installer includes an optional Token Reducer Pack that cuts token usage by 6
 bash <(curl -fsSL https://raw.githubusercontent.com/nickmaglowsch/claude-setup/main/setup.sh) --token-reducer
 ```
 
-Two complementary tools work together:
+Three tiers — each builds on the previous:
 
-**RTK (Rust Token Killer)** compresses CLI command output before it reaches the context window. Git logs, test output, directory listings — all the noisy runtime output gets compressed, averaging 70-90% token reduction on Bash tool calls.
+**Tier 1 — Global file deny rules** (always-on, zero overhead)
 
-- Installed via Homebrew (macOS) or the official install script (Linux/WSL)
-- Hooks into Claude Code automatically via `rtk init -g`
-- Only intercepts Bash tool calls — built-in tools like Read, Grep, and Glob bypass it
-
-**Global file deny rules** prevent Claude from reading irrelevant files across all projects. Build artifacts, lock files, caches, and generated code for all major stacks (Node, Python, Rust, Go, Java, Ruby, PHP) are blocked:
+Prevents Claude from reading irrelevant files across all projects. Build artifacts, lock files, caches, and generated code for all major stacks (Node, Python, Rust, Go, Java, Ruby, PHP) are blocked:
 
 ```
 node_modules, dist, build, .next, .nuxt, out, .output,
@@ -114,7 +110,38 @@ target, __pycache__, .venv, venv, .gradle, .m2, vendor,
 
 Rules are merged into `~/.claude/settings.json` — existing settings (MCP servers, etc.) are preserved.
 
+**Tier 2 — RTK (Rust Token Killer)** (recommended)
+
+Compresses CLI command output before it reaches the context window. Git logs, test output, directory listings — all the noisy runtime output gets compressed, averaging 70-90% token reduction on Bash tool calls.
+
+- Installed via Homebrew (macOS) or the official install script (Linux/WSL)
+- Hooks into Claude Code automatically via `rtk init -g`
+- Only intercepts Bash tool calls — built-in tools like Read, Grep, and Glob bypass it
+
+**Tier 3 — [context-mode](https://github.com/mksglu/context-mode) MCP server** (power users)
+
+An MCP server that optimizes context window usage through sandbox execution, an FTS5 knowledge base, and session continuity. Best for long/complex sessions where compaction is the bottleneck.
+
+- **Sandbox execution**: runs code in isolated subprocesses — only stdout enters context (98% reduction on raw data like logs, API responses, browser snapshots)
+- **FTS5 knowledge base**: chunks docs into SQLite, retrieves only relevant sections via BM25 search
+- **Session continuity**: tracks file edits, git ops, tasks, and errors; rebuilds a priority-tiered 2KB snapshot on compaction instead of dumping full history
+- Configured as an MCP server in `~/.claude/settings.json` — runs via `npx context-mode@latest`
+- License: Elastic License v2 (source-available, not OSI open-source)
+
+During setup you choose which tiers to enable:
+- **Option 1** (default): Tier 1 + 2 — deny rules + RTK
+- **Option 2**: Tier 1 only — deny rules
+- **Option 3**: All tiers — deny rules + RTK + context-mode
+
 If you skip the Token Reducer Pack during setup, you'll get a one-time reminder next time you open Claude Code.
+
+**Upgrading existing installs**: If you already have Tier 1+2 (deny rules + RTK) and want to add Tier 3 (context-mode), re-run the token reducer installer and choose option 3:
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/nickmaglowsch/claude-setup/main/setup.sh) --token-reducer
+```
+
+If auto-updates are enabled, you'll also get a one-time nudge about Tier 3 the next time you open Claude Code.
 
 ### Option B: Manual copy
 
