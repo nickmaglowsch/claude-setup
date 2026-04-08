@@ -62,7 +62,7 @@ Print a clear summary of what was done:
 - Run `claude login` if you haven't already
 - Edit `.claude/settings.local.json` to configure per-project tool permissions
 - Agents and skills are available globally via your ~/.claude/ install
-- The /qa skill uses `npx @playwright/cli` for browser automation — no extra config needed
+- The /qa skill uses `playwright-cli` for browser automation — run `playwright-cli install` to set it up
 ```
 
 ## Rules

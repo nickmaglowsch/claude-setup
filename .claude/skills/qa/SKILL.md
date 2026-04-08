@@ -70,7 +70,7 @@ Read `qa-output/qa-report.md` and summarize to the user:
 **Outputs:**
 - Full report: qa-output/qa-report.md
 - E2E tests: <list files written>
-- Run tests: npx playwright test
+- Run tests: playwright test
 ```
 
 If `qa-output/qa-report.md` does not exist, report that the QA agent failed to complete and show any error output.

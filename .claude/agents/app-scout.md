@@ -94,7 +94,7 @@ Discover all available interfaces for observing system behavior at debug time. C
 - Determine CLI access: run `which redis-cli`, `which rabbitmqctl` (wrap with `timeout 5`)
 
 **Browser automation (Playwright):**
-- Check if Playwright CLI is available: `npx @playwright/cli --version 2>/dev/null`
+- Check if Playwright CLI is available: `playwright-cli --version 2>/dev/null`
 - If not, check if `@playwright/test` is in dependencies (installed but CLI may work)
 - Record as `Available` (with version) or `Not installed`
 
