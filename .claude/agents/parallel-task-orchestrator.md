@@ -27,6 +27,7 @@ You are a task orchestrator. Your job is to read task files, determine execution
    - **Files to create or modify**: Which files this task touches
    - **Dependencies**: Explicit dependencies listed in the task
    - **Description**: Brief summary of what it does
+6. **Check for commit mode**: If the launch prompt contains `COMMIT_MODE=per-wave`, set `COMMIT_MODE=per-wave`. Otherwise `COMMIT_MODE=none`. Note this for use in Phase 3.
 
 ## PHASE 2: DEPENDENCY ANALYSIS
 
@@ -110,6 +111,18 @@ After each wave:
   2. If the retry succeeds: use `TaskUpdate` to mark the task `status: "completed"`
   3. If the retry also fails: leave the task `status: "in_progress"`, note the failure, and assess whether dependent tasks can still proceed
 - Only retry once per task — do not retry the retry
+- **Per-wave commit** (only if `COMMIT_MODE=per-wave`): After all retries resolve for this wave, run:
+  ```bash
+  git add -A
+  git diff --staged --quiet || git commit -m "refactor: Wave N — <task objectives, 72-char subject>" -m "- Task XX: <objective>" -m "- Task YY: <objective>"
+  ```
+  Where:
+  - `N` is the wave number (1, 2, 3...)
+  - Subject line is `refactor: Wave N — ` followed by comma-joined task objectives, truncated to 72 chars at the last comma boundary before the limit, appending `...` if truncated
+  - Each `-m` after the first adds one body bullet per task in the wave using the task's `## Objective` text
+  - If the wave had failed tasks that were not recovered, note them in the commit body: `- Task XX: FAILED — <brief reason>`
+  - Skip the commit if there are no staged changes (`git diff --staged --quiet` returns 0 after `git add -A`)
+  - The commit subject prefix defaults to `refactor:` but can be overridden via the launch prompt (e.g., `Use commit subject prefix 'feat:'`)
 
 ## PHASE 4: COMPLETION
 

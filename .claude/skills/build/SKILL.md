@@ -24,7 +24,11 @@ Ask: "Enable auto-commit and PR?" (Yes / No) → `AUTO_COMMIT`.
 
 **If `AUTO_COMMIT=true`:**
 1. Run `git rev-parse --abbrev-ref HEAD` to get `CURRENT_BRANCH`. If `CURRENT_BRANCH` is `main` or `master`: `BRANCH_ACTION=new`. Else ask: "Branch `<name>` exists — create new or commit here?" → `BRANCH_ACTION=new/current`.
-2. Ask: "Single squash commit or one commit per task?" → `COMMIT_MODE=squash/per-task`.
+2. Ask: "How should changes be committed?"
+   - **Squash** — single commit at the end summarizing all changes
+   - **Per-wave** — one commit per parallel execution wave (e.g., Wave 1: 3 tasks → 1 commit)
+   - **Per-task at end** — full parallel run, then one atomic commit per task in order
+   → `COMMIT_MODE=squash/per-wave/per-task-at-end`
 3. Generate `feat/<3-5-word-slug>` from PRD content → `AUTO_COMMIT_BRANCH`.
 4. **If `BRANCH_ACTION=new`:**
    - Run `git fetch origin` to get latest remote state.
@@ -185,11 +189,12 @@ Implement the tasks yourself, sequentially, in the current conversation context.
 3. Implement the task following the requirements and acceptance criteria
 4. If the task has a `## TDD Mode` section, follow the RED → GREEN → REFACTOR → VERIFY cycle (including test adequacy check)
 5. After each task, collect the Implementation Notes section from your work. After all tasks are done, write `tasks/implementation-notes.md` consolidating all notes.
-6. **If `COMMIT_MODE=per-task`:** after completing each task, run:
+6. **If `COMMIT_MODE=per-wave`:** after completing each task, check if the current "wave" (group of sequential tasks with no parallelism in fast-path) warrants a commit. In fast-path mode, commit after each task:
    ```bash
    git add -A
-   git commit -m "feat: <task-objective-from-task-file>"
+   git diff --staged --quiet || git commit -m "feat: <task-objective-from-task-file>"
    ```
+   **If `COMMIT_MODE=per-task-at-end`:** skip — commits are created in Step 2.5b after all tasks complete.
 
 This avoids orchestrator overhead and gives you continuous context across tasks — each task benefits from seeing the work done in previous tasks without reading files cold.
 
@@ -197,24 +202,11 @@ This avoids orchestrator overhead and gives you continuous context across tasks 
 
 **If `ORCHESTRATION_MODE=parallel`** (default):
 
-**If `COMMIT_MODE=per-task`:**
-
 Launch the `parallel-task-orchestrator` agent using the Task tool with:
 - `subagent_type: "parallel-task-orchestrator"`
 - Tell it to read and execute all tasks from `tasks/`
-- Include this additional instruction in the prompt:
-  > "Run tasks **sequentially** (one at a time, no parallel waves). After each task-implementer completes, run the following bash commands before starting the next task:
-  > ```bash
-  > git add -A
-  > git commit -m "feat: <task-objective-from-task-file>"
-  > ```
-  > Use the task's `## Objective` line as the commit message description."
-
-**If `COMMIT_MODE=squash` or `AUTO_COMMIT=false`:**
-
-Launch the `parallel-task-orchestrator` agent using the Task tool with:
-- `subagent_type: "parallel-task-orchestrator"`
-- Tell it to read and execute all tasks from `tasks/`
+- **If `COMMIT_MODE=per-wave`**: Include `COMMIT_MODE=per-wave` in the launch prompt so the orchestrator commits after each wave. Also include: `Use commit subject prefix 'feat:' instead of 'refactor:' for per-wave commits.`
+- **If `COMMIT_MODE=squash`, `per-task-at-end`, or `AUTO_COMMIT=false`**: Launch normally with no additional commit instructions.
 
 Wait for it to complete. Note any issues reported.
 
@@ -229,7 +221,7 @@ Do NOT spawn a sub-agent. Instead, execute Agent Teams orchestration directly in
 2. Follow those instructions directly in this session to orchestrate tasks using Agent Teams teammates
 3. Produce the same outputs: `tasks/implementation-notes.md` and `tasks/execution-metrics.md`
 
-Note: Per-task commits are not supported in Agent Teams mode (teammates run in parallel). If `COMMIT_MODE=per-task` was selected, fall back to squash-style commit after all tasks complete. Auto-commit/branch handling (if `AUTO_COMMIT=true`) applies identically to both modes.
+Note: Per-wave commits in Agent Teams mode are handled by the agent-teams-orchestrator when `COMMIT_MODE=per-wave` is passed in the session context. Per-task-at-end commits are handled by the skill layer in Step 2.5b (runs after Agent Teams execution completes). Auto-commit/branch handling (if `AUTO_COMMIT=true`) applies identically to both modes.
 
 After Agent Teams execution completes (whether successful or not), **clean up the env var**: read the settings file that was modified above, remove `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` from the `env` object, and write it back. If the `env` object is now empty, remove it entirely. This prevents the beta env var from persisting across future sessions.
 
@@ -256,8 +248,39 @@ After the build check, run the project's full test suite to catch regressions an
 **2.5a Safety:** Run `git rev-parse --abbrev-ref HEAD`. If `main`/`master`: abort ("Auto-commit aborted: on main/master. Commit manually.") → proceed to Step 3.
 
 **2.5b Commit:**
-- `COMMIT_MODE=squash`: `git add -A && git commit -m "feat: <PRD summary>" -m "- <task objective>..."` (72-char subject, ≤3 body bullets from task objectives).
-- `COMMIT_MODE=per-task`: already committed in Step 2. Skip to push.
+
+- **`COMMIT_MODE=squash`**: Read all `tasks/task-*.md` files. Extract the `## Objective` line from each. Run:
+  ```bash
+  git add -A
+  git commit -m "feat: <PRD summary>" -m "$(cat <<'EOF'
+  - <objective from task-01>
+  - <objective from task-02>
+  - <objective from task-03>
+  ... (one bullet per task, no cap)
+  EOF
+  )"
+  ```
+  Subject line: 72-char max. Body: one bullet per task objective, all listed (no bullet cap).
+
+- **`COMMIT_MODE=per-wave`**: Commits were made by the orchestrator (or fast-path) during execution. Run `git add -A` to catch any unstaged changes left after the final wave, then commit any remainder:
+  ```bash
+  git add -A
+  git diff --staged --quiet || git commit -m "feat: post-run cleanup"
+  ```
+  If nothing is staged after `git add -A`, skip the final commit.
+
+- **`COMMIT_MODE=per-task-at-end`**: Full parallel run is complete. Now create one commit per task in task-file order:
+  1. Run `git add -A` to stage all changes.
+  2. Read each `tasks/task-NN-*.md` file in numerical order.
+  3. For each task, extract its `## Objective` line and the list of files it touched (from the `## Target Files` section).
+  4. Use `git restore --staged .` to unstage everything, then selectively stage only the files for this task using `git add <file1> <file2> ...`, then commit:
+     ```bash
+     git restore --staged .
+     git add <files for this task>
+     git commit -m "feat: <task objective>"
+     ```
+  5. Repeat for each task in order.
+  6. After all per-task commits, run `git add -A && git diff --staged --quiet || git commit -m "feat: miscellaneous changes"` to catch any files not covered by the task-file manifests.
 
 **2.5d Push:** `git push -u origin <branch-name>`. On failure, show manual command and continue.
 
