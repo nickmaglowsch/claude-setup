@@ -667,11 +667,11 @@ print(json.dumps(data, indent=2))
 }
 
 _install_context_mode() {
-  local settings_file="$HOME/.claude/settings.json"
-  mkdir -p "$HOME/.claude"
+  local claude_json="$HOME/.claude.json"
 
-  # Check if already configured
-  if [ -f "$settings_file" ] && grep -q '"context-mode"' "$settings_file" 2>/dev/null; then
+  # Check if already configured (claude mcp add writes to ~/.claude.json)
+  if { [ -f "$claude_json" ] && grep -q '"context-mode"' "$claude_json" 2>/dev/null; } || \
+     { [ -f "$HOME/.claude/settings.json" ] && grep -q '"context-mode"' "$HOME/.claude/settings.json" 2>/dev/null; }; then
     echo "  context-mode MCP server already configured — skipping."
     return 0
   fi
@@ -685,28 +685,34 @@ _install_context_mode() {
     return 1
   }
 
-  # MCP server config to merge
-  local mcp_config="{\"command\":\"$npx_path\",\"args\":[\"-y\",\"context-mode@latest\"]}"
+  # Prefer `claude mcp add` (writes to the correct config location)
+  if command -v claude &>/dev/null; then
+    claude mcp add -s user context-mode -- "$npx_path" -y context-mode@latest 2>/dev/null && {
+      echo "  Added context-mode MCP server via 'claude mcp add'."
+      return 0
+    }
+  fi
 
-  if [ ! -f "$settings_file" ]; then
-    # Create settings.json with context-mode MCP server
+  # Fallback: merge into ~/.claude.json directly
+  local mcp_config="{\"type\":\"stdio\",\"command\":\"$npx_path\",\"args\":[\"-y\",\"context-mode@latest\"],\"env\":{}}"
+
+  if [ ! -f "$claude_json" ]; then
     python3 -c "
 import json, sys
 config = json.loads(sys.argv[1])
 data = {'mcpServers': {'context-mode': config}}
 print(json.dumps(data, indent=2))
-" "$mcp_config" > "$settings_file" 2>/dev/null && {
-      echo "  Created ~/.claude/settings.json with context-mode MCP server."
+" "$mcp_config" > "$claude_json" 2>/dev/null && {
+      echo "  Created ~/.claude.json with context-mode MCP server."
       return 0
     }
     if command -v jq &>/dev/null; then
-      echo "$mcp_config" | jq '{mcpServers: {"context-mode": .}}' > "$settings_file" 2>/dev/null && {
-        echo "  Created ~/.claude/settings.json with context-mode MCP server."
+      echo "$mcp_config" | jq '{mcpServers: {"context-mode": .}}' > "$claude_json" 2>/dev/null && {
+        echo "  Created ~/.claude.json with context-mode MCP server."
         return 0
       }
     fi
   else
-    # Merge into existing settings.json
     local merged
     merged=$(python3 -c "
 import json, sys
@@ -716,24 +722,24 @@ with open(sys.argv[2]) as f:
 mcp = data.setdefault('mcpServers', {})
 mcp['context-mode'] = config
 print(json.dumps(data, indent=2))
-" "$mcp_config" "$settings_file" 2>/dev/null) && {
-      echo "$merged" > "$settings_file"
-      echo "  Added context-mode MCP server to ~/.claude/settings.json."
+" "$mcp_config" "$claude_json" 2>/dev/null) && {
+      echo "$merged" > "$claude_json"
+      echo "  Added context-mode MCP server to ~/.claude.json."
       return 0
     }
     if command -v jq &>/dev/null; then
       merged=$(jq --argjson config "$mcp_config" '
         .mcpServers //= {} |
         .mcpServers["context-mode"] = $config
-      ' "$settings_file" 2>/dev/null) && {
-        echo "$merged" > "$settings_file"
-        echo "  Added context-mode MCP server to ~/.claude/settings.json."
+      ' "$claude_json" 2>/dev/null) && {
+        echo "$merged" > "$claude_json"
+        echo "  Added context-mode MCP server to ~/.claude.json."
         return 0
       }
     fi
   fi
 
-  echo "  Warning: Could not configure context-mode (python3 and jq unavailable)."
+  echo "  Warning: Could not configure context-mode (claude CLI, python3, and jq unavailable)."
   echo "  Add manually: https://github.com/mksglu/context-mode#installation"
   return 1
 }
@@ -999,7 +1005,8 @@ perform_global_install() {
   if command -v rtk &>/dev/null; then
     tr_parts+=("RTK")
   fi
-  if [ -f "$HOME/.claude/settings.json" ] && grep -q '"context-mode"' "$HOME/.claude/settings.json" 2>/dev/null; then
+  if { [ -f "$HOME/.claude.json" ] && grep -q '"context-mode"' "$HOME/.claude.json" 2>/dev/null; } || \
+     { [ -f "$HOME/.claude/settings.json" ] && grep -q '"context-mode"' "$HOME/.claude/settings.json" 2>/dev/null; }; then
     tr_parts+=("context-mode")
   fi
   if [ ${#tr_parts[@]} -gt 0 ]; then
@@ -1123,7 +1130,8 @@ if [ "$UPDATE_MODE" = true ]; then
     rtk init -g --auto-patch 2>&1 | sed 's/^/    /' || true
   fi
   # Refresh context-mode config if already present
-  if [ -f "$HOME/.claude/settings.json" ] && grep -q '"context-mode"' "$HOME/.claude/settings.json" 2>/dev/null; then
+  if { [ -f "$HOME/.claude.json" ] && grep -q '"context-mode"' "$HOME/.claude.json" 2>/dev/null; } || \
+     { [ -f "$HOME/.claude/settings.json" ] && grep -q '"context-mode"' "$HOME/.claude/settings.json" 2>/dev/null; }; then
     echo "  context-mode MCP server already configured — skipping."
   fi
   echo ""
@@ -1355,7 +1363,8 @@ fi
 if command -v rtk &>/dev/null; then
   tr_parts+=("RTK")
 fi
-if [ -f "$HOME/.claude/settings.json" ] && grep -q '"context-mode"' "$HOME/.claude/settings.json" 2>/dev/null; then
+if { [ -f "$HOME/.claude.json" ] && grep -q '"context-mode"' "$HOME/.claude.json" 2>/dev/null; } || \
+   { [ -f "$HOME/.claude/settings.json" ] && grep -q '"context-mode"' "$HOME/.claude/settings.json" 2>/dev/null; }; then
   tr_parts+=("context-mode")
 fi
 if [ ${#tr_parts[@]} -gt 0 ]; then

@@ -5,13 +5,15 @@
 MARKER="$HOME/.claude/.token-reducer-nudged"
 TIER3_MARKER="$HOME/.claude/.context-mode-nudged"
 SETTINGS="$HOME/.claude/settings.json"
+CLAUDE_JSON="$HOME/.claude.json"
 
 has_deny_rules() {
   [ -f "$SETTINGS" ] && grep -q 'Read(\*\*/node_modules/\*\*)' "$SETTINGS" 2>/dev/null
 }
 has_rtk() { command -v rtk &>/dev/null; }
 has_context_mode() {
-  [ -f "$SETTINGS" ] && grep -q '"context-mode"' "$SETTINGS" 2>/dev/null
+  { [ -f "$CLAUDE_JSON" ] && grep -q '"context-mode"' "$CLAUDE_JSON" 2>/dev/null; } || \
+  { [ -f "$SETTINGS" ] && grep -q '"context-mode"' "$SETTINGS" 2>/dev/null; }
 }
 
 # --- Nudge 1: No token reducer at all → show full 3-tier overview ---

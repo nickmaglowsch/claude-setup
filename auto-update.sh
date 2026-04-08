@@ -169,7 +169,8 @@ HOOK_EOF
 fi
 
 # Tier 3: context-mode
-if [ -f "$HOME/.claude/settings.json" ] && grep -q '"context-mode"' "$HOME/.claude/settings.json" 2>/dev/null; then
+if { [ -f "$HOME/.claude.json" ] && grep -q '"context-mode"' "$HOME/.claude.json" 2>/dev/null; } || \
+   { [ -f "$HOME/.claude/settings.json" ] && grep -q '"context-mode"' "$HOME/.claude/settings.json" 2>/dev/null; }; then
   # Already configured — just log, npx @latest is self-updating
   _log "[INFO] context-mode MCP server configured (npx @latest — self-updating)"
   touch "$HOME/.claude/.context-mode-nudged"
