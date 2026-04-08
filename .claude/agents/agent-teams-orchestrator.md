@@ -155,7 +155,9 @@ For **batched tasks**, list all task files in the prompt and specify the order t
 
 ### 3d: Reuse teammates across waves (if supported)
 
-Instead of shutting down teammates after each wave and spawning new ones (skip if your Claude Code version doesn't support sending follow-up messages to existing teammates):
+Instead of shutting down teammates after each wave and spawning new ones:
+
+> Skip this section if your Claude Code version doesn't support follow-up messages to existing teammates.
 
 1. After a wave completes, check which teammates are idle
 2. **Reassign idle teammates** to tasks in the next wave by sending them a message (via `Shift+Down` or direct messaging): "Your next task is tasks/task-XX-<name>.md. Read it and implement it following the same approach."
