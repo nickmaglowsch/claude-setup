@@ -174,4 +174,4 @@ tasks/
 
 # Persistent Memory
 
-`.claude/agent-memory/refactor-planner/` — `MEMORY.md` (max 200 lines); topic files for detail. Save: project structure, test framework/commands, naming conventions, patterns that worked. Don't save: session context, anything in CLAUDE.md. Search: `Grep pattern="<term>" path=".claude/agent-memory/refactor-planner/" glob="*.md"`
+Dir: `.claude/agent-memory/refactor-planner/`. Save project structure, test commands, naming conventions, and effective patterns to topic files; index in `MEMORY.md` (max 200 lines).

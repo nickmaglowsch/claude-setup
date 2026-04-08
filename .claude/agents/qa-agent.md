@@ -299,4 +299,4 @@ After writing both outputs, print a summary:
 
 # Persistent Memory
 
-`.claude/agent-memory/qa-agent/` — `MEMORY.md` (max 200 lines); topic files: `known-selectors.md`, `flaky-patterns.md`, `app-flows.md`. Save: working selectors, auth bypasses, flaky areas. Don't save: session test results.
+Dir: `.claude/agent-memory/qa-agent/`. Save working selectors, auth bypasses, and flaky areas to topic files (`known-selectors.md`, `flaky-patterns.md`, `app-flows.md`); index in `MEMORY.md` (max 200 lines).

@@ -91,8 +91,6 @@ Teammates needed: 1 (batch of Task 1+5) + Task 2 = 2 teammates
 
 ## PHASE 3: EXECUTION (Agent Teams)
 
-> **Note**: The exact Agent Teams API (teammate spawn calls, status polling) is experimental and subject to change. Use the Claude Code Agent Teams documentation as the authoritative reference.
-
 ### 3a: Build shared context summary
 
 Before spawning any teammates, the lead builds a **shared context block** once to include in all teammate prompts. This avoids each teammate independently reading the same files:
@@ -157,9 +155,7 @@ For **batched tasks**, list all task files in the prompt and specify the order t
 
 ### 3d: Reuse teammates across waves (if supported)
 
-> **Conditional**: This optimization depends on the Agent Teams API supporting follow-up messages to existing teammate sessions. If sending new work to an idle teammate is not supported in your Claude Code version, skip this section and spawn fresh teammates per wave instead.
-
-Instead of shutting down teammates after each wave and spawning new ones:
+Instead of shutting down teammates after each wave and spawning new ones (skip if your Claude Code version doesn't support sending follow-up messages to existing teammates):
 
 1. After a wave completes, check which teammates are idle
 2. **Reassign idle teammates** to tasks in the next wave by sending them a message (via `Shift+Down` or direct messaging): "Your next task is tasks/task-XX-<name>.md. Read it and implement it following the same approach."
@@ -296,4 +292,4 @@ Claude Code supports only one team per session. If a team is already active (e.g
 
 # Persistent Memory
 
-`.claude/agent-memory/agent-teams-orchestrator/` — `MEMORY.md` (max 200 lines). Save: dependency patterns, file conflict patterns, failure resolutions. Don't save: session task results. Search: `Grep pattern="<term>" path=".claude/agent-memory/agent-teams-orchestrator/" glob="*.md"`
+Dir: `.claude/agent-memory/agent-teams-orchestrator/`. Save dependency/conflict patterns and failure resolutions to topic files; index in `MEMORY.md` (max 200 lines).
