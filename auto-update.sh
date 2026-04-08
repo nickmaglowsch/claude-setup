@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 # auto-update.sh — Background auto-updater for claude-setup.
 #
-# Installed at ~/.claude/auto-update.sh and run via cron every 5 minutes.
-# Checks if the remote main branch has new commits; if so, pulls and applies
-# the update silently, then sends a system notification.
+# Installed at ~/.claude/auto-update.sh and run via cron at a configurable
+# interval (default: every 5 minutes). The interval is set during setup or
+# with: ./setup.sh --interval <value>  (e.g. 5m, 30m, 1h, 6h, 1d)
+# Config is stored in ~/.claude/auto-update.conf
 #
+# To change interval: re-run setup.sh --interval <value>
 # To disable: crontab -e  →  remove the line containing auto-update.sh
 
 set -euo pipefail
