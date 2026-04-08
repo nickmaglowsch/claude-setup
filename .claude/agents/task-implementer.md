@@ -87,9 +87,9 @@ After writing tests but BEFORE implementing production code, verify test quality
 - Check for import errors, missing dependencies, type mismatches
 - Verify all acceptance criteria from the task are met
 - Run lint/build/test commands if specified in the task
-- Actively look for existing test files related to the modified code (search for `*.test.*`, `*.spec.*`, `__tests__/` directories near modified files)
-- If tests are found, run them to ensure they still pass
-- If tests fail, investigate whether the task changes caused the failure and fix if appropriate
+- Search for existing test files related to the modified code (`*.test.*`, `*.spec.*`, `__tests__/` directories near modified files)
+- If tests are found, you MUST run them. Report any that fail.
+- If tests fail due to your changes, fix the regression before reporting completion.
 
 ## CRITICAL RULES
 
