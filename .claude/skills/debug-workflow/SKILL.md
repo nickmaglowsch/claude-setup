@@ -21,9 +21,17 @@ If `$ARGUMENTS` starts with `--fresh`: `FRESH=true`, strip it → `BUG_DESCRIPTI
 Ask: "Enable auto-commit and PR?" (Yes / No) → `AUTO_COMMIT`.
 
 **If `AUTO_COMMIT=true`:**
-1. Run `git rev-parse --abbrev-ref HEAD`. If `main`/`master`: `BRANCH_ACTION=new`. Else ask: "Branch `<name>` exists — create new or commit here?" → `BRANCH_ACTION=new/current`. (No commit granularity question — debug always uses a single commit.)
+1. Run `git rev-parse --abbrev-ref HEAD` to get `CURRENT_BRANCH`. If `CURRENT_BRANCH` is `main` or `master`: `BRANCH_ACTION=new`. Else ask: "Branch `<name>` exists — create new or commit here?" → `BRANCH_ACTION=new/current`. (No commit granularity question — debug always uses a single commit.)
 2. Generate `fix/<3-5-word-slug>` from `BUG_DESCRIPTION` → `AUTO_COMMIT_BRANCH`.
-3. `git checkout -b <AUTO_COMMIT_BRANCH>`. On failure append `-2`, retry once.
+3. **If `BRANCH_ACTION=new`:**
+   - Run `git fetch origin` to get latest remote state.
+   - Detect default branch: run `git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||'`. If empty or error, default to `main`. Store as `DEFAULT_BRANCH`.
+   - Ask: "Which branch should `<AUTO_COMMIT_BRANCH>` be based on?"
+     - Option 1: `<DEFAULT_BRANCH>` (remote default)
+     - Option 2: `<CURRENT_BRANCH>` (current branch)
+     - Option 3: Other (enter branch name)
+   - Store chosen base as `BASE_BRANCH`.
+   - Run `git checkout -b <AUTO_COMMIT_BRANCH> <BASE_BRANCH>`. On failure append `-2`, retry once.
 
 **If `AUTO_COMMIT=false`:** `BRANCH_ACTION=none`.
 

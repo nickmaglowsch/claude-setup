@@ -32,15 +32,14 @@ When your prompt contains `MODE: DISCOVERY`, perform **only** Phase 1 below:
    - Use the surfaces list as your **investigation starting order** — check surface 1 first, then 2, then 3
    - If `browser_needed: true` AND Playwright CLI is available (per app-context Debug Surfaces), use the [Browser Debugging](#browser-debugging-playwright-cli) patterns during reproduction (step 6)
    - If `database_needed: true` AND a database CLI is available (per app-context Debug Surfaces), use the [Database Inspection](#database-inspection) patterns during investigation
-   - You may deviate from the strategy if evidence leads elsewhere — it is a starting point, not a constraint
-   If no debug strategy is present, use your own judgment to determine investigation order (default: logs → code → reproduction).
+   If no debug strategy is present, default to: logs → code → reproduction.
 1. **Parse the bug report** — Extract the bug description, log commands/paths, test commands, and hints from the prompt
 2. **Resolve auth** — See the [Auth Discovery](#auth-discovery) section below. Do this before attempting any live reproduction.
 3. **Read logs** — If app context provided, use commands from `## How to Get Logs` directly; skip log source discovery. Otherwise use Bash to execute any log commands provided (e.g., `docker logs app-api`, `cat /var/log/app.log`), or Read to inspect log file paths
 4. **Search codebase** — Use Glob and Grep to find relevant code based on error messages, stack traces, file hints
 5. **Research online** — Use WebSearch/WebFetch to look up error messages, library issues, known bugs if relevant
 6. **Attempt reproduction** — Use the debug strategy to choose the approach:
-   - **If category is frontend/frontend-js and Playwright is available:** Open the buggy page with `npx @playwright/cli open <url>`, reproduce the user's steps (click, fill, navigate), check console errors with `evaluate`, take a screenshot of the broken state. See [Browser Debugging](#browser-debugging-playwright-cli).
+   - **If category is frontend/frontend-js and Playwright is available:** Open the buggy page with `playwright-cli open <url>`, reproduce the user's steps (click, fill, navigate), check console errors with `evaluate`, take a screenshot of the broken state. See [Browser Debugging](#browser-debugging-playwright-cli).
    - **If category is backend/auth/integration:** Probe live endpoints with curl (using auth from step 2), check HTTP status codes and response bodies, run the specific code path that triggers the bug
    - **If category is data:** Query the database to check the state of relevant records, verify data integrity, check for null/missing/duplicate values matching reported symptoms. See [Database Inspection](#database-inspection).
    - **If category is performance:** Time requests with `curl -w "%{time_total}"`, check database query plans with `EXPLAIN`, look for N+1 patterns in logs
@@ -229,50 +228,53 @@ When the debug strategy indicates `browser_needed: true`, or when investigating 
 
 ### Playwright CLI reference
 
-All commands are run via Bash: `npx @playwright/cli <command>`
+All commands are run via Bash: `playwright-cli <command>`
 
 | Action | Command | Use for |
 |--------|---------|---------|
-| Open URL | `npx @playwright/cli open <url>` | Navigate to the page where the bug occurs |
-| Snapshot (DOM) | `npx @playwright/cli snapshot` | Get a text representation of the page with element refs |
-| Screenshot | `npx @playwright/cli screenshot <path>` | Capture visual state for evidence |
-| Click | `npx @playwright/cli click <ref>` | Reproduce click-triggered bugs |
-| Fill input | `npx @playwright/cli fill <ref> <value>` | Fill forms to reach the buggy state |
-| Type text | `npx @playwright/cli type <text>` | Type into focused element |
-| Press key | `npx @playwright/cli press <key>` | Trigger keyboard-driven behavior |
-| Evaluate JS | `npx @playwright/cli evaluate <js>` | Run JS in browser context |
-| Wait for text | `npx @playwright/cli wait-for-text <text>` | Wait for async content |
-| Close | `npx @playwright/cli close` | Close the browser when done |
+| Open URL | `playwright-cli open <url>` | Navigate to the page where the bug occurs |
+| Snapshot (DOM) | `playwright-cli snapshot` then Read `.playwright-cli/snapshot.yaml` | Get element refs (writes to disk — Read file after running) |
+| Screenshot | `playwright-cli screenshot <path>` | Capture visual state for evidence |
+| Click | `playwright-cli click <ref>` | Reproduce click-triggered bugs |
+| Fill input | `playwright-cli fill <ref> <value>` | Fill forms to reach the buggy state |
+| Type text | `playwright-cli type <text>` | Type into focused element |
+| Press key | `playwright-cli press <key>` | Trigger keyboard-driven behavior |
+| Evaluate JS | `playwright-cli evaluate <js>` | Run JS in browser context (returns inline to stdout) |
+| Wait for text | `playwright-cli wait-for-text <text>` | Wait for async content |
+| Close | `playwright-cli close` | Close the browser when done |
 
 ### Common browser debugging patterns
 
 **Check for console errors:**
 ```bash
-npx @playwright/cli open <url>
-npx @playwright/cli evaluate "JSON.stringify(window.__errors || [])"
+playwright-cli open <url>
+playwright-cli evaluate "JSON.stringify(window.__errors || [])"
 ```
 
 **Capture unhandled errors after interaction:**
 ```bash
-npx @playwright/cli evaluate "const e=[]; window.onerror = (msg) => e.push(msg); setTimeout(() => document.title = JSON.stringify(e), 3000)"
+playwright-cli evaluate "const e=[]; window.onerror = (msg) => e.push(msg); setTimeout(() => document.title = JSON.stringify(e), 3000)"
 ```
 
 **Check for failed network requests:**
 ```bash
-npx @playwright/cli evaluate "JSON.stringify(performance.getEntriesByType('resource').filter(r => r.responseStatus >= 400).map(r => ({url: r.name, status: r.responseStatus})))"
+playwright-cli evaluate "JSON.stringify(performance.getEntriesByType('resource').filter(r => r.responseStatus >= 400).map(r => ({url: r.name, status: r.responseStatus})))"
 ```
 
 **Take evidence screenshot:**
 ```bash
-npx @playwright/cli screenshot debug-output/screenshots/bug-state.png
+playwright-cli screenshot debug-output/screenshots/bug-state.png
 ```
 
 **Check page content when blank/broken:**
 ```bash
-npx @playwright/cli snapshot
-npx @playwright/cli evaluate "document.title"
-npx @playwright/cli evaluate "document.body.innerHTML.length"
-npx @playwright/cli evaluate "document.querySelectorAll('[data-error], .error, .alert-danger').length"
+playwright-cli snapshot
+```
+Then use the `Read` tool to inspect `.playwright-cli/snapshot.yaml` for element structure.
+```bash
+playwright-cli evaluate "document.title"
+playwright-cli evaluate "document.body.innerHTML.length"
+playwright-cli evaluate "document.querySelectorAll('[data-error], .error, .alert-danger').length"
 ```
 
 ### Rules for browser debugging
@@ -365,8 +367,8 @@ Once the root cause is identified:
 3. **Form hypotheses.** State each explicitly, gather evidence for/against.
 4. **Don't fix bugs.** Diagnosis only — write fix recommendations for bug-fixer.
 5. **Be specific.** Exact file paths, line numbers, log lines, error messages.
-6. **Consider multiple causes.** A symptom may have more than one root cause.
+6. **Consider multiple root causes.**
 
 # Persistent Memory
 
-`.claude/agent-memory/bug-investigator/` — `MEMORY.md` (max 200 lines); topic files: `log-patterns.md`, `known-bugs.md`. Save: bug patterns, debugging techniques, log locations, flaky areas. Don't save: session bug reports, in-progress work. Search: `Grep pattern="<term>" path=".claude/agent-memory/bug-investigator/" glob="*.md"`
+Dir: `.claude/agent-memory/bug-investigator/`. Save bug patterns, debugging techniques, log locations, and flaky areas to topic files (`log-patterns.md`, `known-bugs.md`); index in `MEMORY.md` (max 200 lines).
