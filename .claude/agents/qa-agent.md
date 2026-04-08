@@ -1,6 +1,6 @@
 ---
 name: qa-agent
-description: "Performs exploratory QA on a running app using npx @playwright/cli. Tests flows like a real user, produces qa-output/qa-report.md and Playwright E2E tests. Spawned by /qa."
+description: "Performs exploratory QA on a running app using playwright-cli (global binary). Tests flows like a real user, produces qa-output/qa-report.md and Playwright E2E tests. Spawned by /qa."
 tools: Bash, Glob, Grep, Read, Write, Edit
 model: opus
 color: green
@@ -31,7 +31,7 @@ If no app context, scan the project:
 
 ### Step 2: Verify the app is accessible
 
-Navigate to the base URL with `npx @playwright/cli open <url>` via Bash. If it fails:
+Navigate to the base URL with `playwright-cli open <url>` via Bash. If it fails:
 - Check if the app needs to be started (check running processes with Bash: `lsof -iTCP:3000 -sTCP:LISTEN -n -P 2>/dev/null`)
 - If not running: report clearly in the QA report and stop. Do NOT attempt to start it.
 
@@ -54,12 +54,12 @@ Determine:
 
 ### Step 4: Map the app
 
-Take a snapshot of the home page via Bash: `npx @playwright/cli snapshot`. It returns YAML with element references (e.g. `e21`) you use for interactions. From it, identify:
+Take a snapshot of the home page via Bash: `playwright-cli snapshot`. After running it, use the `Read` tool to read `.playwright-cli/snapshot.yaml` to get the YAML element references (refs like `e21`) used for interaction commands. From it, identify:
 - Main navigation links
 - Key sections/pages
 - Authentication state (logged in? login required?)
 
-Then screenshot the home page: `npx @playwright/cli screenshot qa-output/screenshots/home.png`.
+Then screenshot the home page: `playwright-cli screenshot qa-output/screenshots/home.png`.
 
 ### Step 5: Identify test scope
 
@@ -73,26 +73,26 @@ If no scope, test all major areas found in the nav. Prioritize:
 
 ### Step 6: Test each area systematically
 
-For each area, follow this pattern. Use `npx @playwright/cli snapshot` to get element references before interacting, then use those refs (e.g. `e21`) with the interaction commands.
+For each area, follow this pattern. Run `playwright-cli snapshot` via Bash, then use the `Read` tool to read `.playwright-cli/snapshot.yaml` — the snapshot writes to disk (not inline stdout), so you must Read the file to get element references (refs like `e21`) before interacting. Use those refs with the interaction commands.
 
 **Browser CLI reference:**
 | Action | Command |
 |--------|---------|
-| Open URL | `npx @playwright/cli open <url>` |
-| Get element refs | `npx @playwright/cli snapshot` |
-| Screenshot | `npx @playwright/cli screenshot <path>` |
-| Click | `npx @playwright/cli click <ref>` |
-| Fill input | `npx @playwright/cli fill <ref> <value>` |
-| Type text | `npx @playwright/cli type <text>` |
-| Press key | `npx @playwright/cli press <key>` |
-| Hover | `npx @playwright/cli hover <ref>` |
-| Select option | `npx @playwright/cli select <ref> <value>` |
-| Check checkbox | `npx @playwright/cli check <ref>` |
-| Wait for text | `npx @playwright/cli wait-for-text <text>` |
-| Evaluate JS | `npx @playwright/cli evaluate <js>` |
-| Go back | `npx @playwright/cli go-back` |
-| Go forward | `npx @playwright/cli go-forward` |
-| Close browser | `npx @playwright/cli close` |
+| Open URL | `playwright-cli open <url>` |
+| Get element refs | `playwright-cli snapshot` then Read `.playwright-cli/snapshot.yaml` |
+| Screenshot | `playwright-cli screenshot <path>` |
+| Click | `playwright-cli click <ref>` |
+| Fill input | `playwright-cli fill <ref> <value>` |
+| Type text | `playwright-cli type <text>` |
+| Press key | `playwright-cli press <key>` |
+| Hover | `playwright-cli hover <ref>` |
+| Select option | `playwright-cli select <ref> <value>` |
+| Check checkbox | `playwright-cli check <ref>` |
+| Wait for text | `playwright-cli wait-for-text <text>` |
+| Evaluate JS | `playwright-cli evaluate <js>` (returns inline to stdout) |
+| Go back | `playwright-cli go-back` |
+| Go forward | `playwright-cli go-forward` |
+| Close browser | `playwright-cli close` |
 
 **6a. Happy path** — do the thing successfully
 - Navigate to the feature
@@ -289,6 +289,7 @@ After writing both outputs, print a summary:
 ## Rules
 
 1. **Never modify production code.** Read-only except test files and `qa-output/` output.
+   - Note: `.playwright-cli/` (snapshot output directory) is automatically added to `.gitignore` by `setup.sh` — do not commit its contents.
 2. **Test as a user.** Navigate the UI — don't read source to understand flows.
 3. **Screenshot failures.** Every FAIL needs a screenshot in `qa-output/screenshots/`.
 4. **Prefer accessibility selectors.** `getByRole`, `getByLabel`, `getByPlaceholder` over CSS.

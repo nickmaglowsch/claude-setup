@@ -855,29 +855,23 @@ if [ "$UPDATE_MODE" = true ]; then
     echo ""
   fi
 
-  # Configure Playwright MCP if qa-agent is installed and not already configured
-  SETTINGS_JSON="$TARGET_DIR/.claude/settings.json"
-  if [ -f "$SETTINGS_JSON" ] && grep -q '"playwright"' "$SETTINGS_JSON" 2>/dev/null; then
-    echo "=== Playwright MCP already configured — skipping ==="
+  # Install playwright-cli if qa-agent is installed and not already present
+  if command -v playwright-cli &>/dev/null; then
+    echo "=== playwright-cli already installed — skipping ==="
     echo ""
-  elif [ ! -f "$SETTINGS_JSON" ]; then
-    echo "=== Playwright MCP (for /qa browser testing) ==="
+  else
+    echo "=== playwright-cli (for /qa browser testing) ==="
     echo ""
-    read -rp "  Add Playwright MCP for browser-based QA (/qa skill)? [y/N] " install_playwright
+    read -rp "  Install playwright-cli for browser-based QA (/qa skill)? [y/N] " install_playwright
     echo ""
     if [[ "$install_playwright" =~ ^[Yy]$ ]]; then
-      mkdir -p "$TARGET_DIR/.claude"
-      cat > "$SETTINGS_JSON" <<'MCP_EOF'
-{
-  "mcpServers": {
-    "playwright": {
-      "command": "npx",
-      "args": ["@playwright/mcp@latest"]
-    }
-  }
-}
-MCP_EOF
-      echo "  Created: .claude/settings.json (Playwright MCP configured)"
+      if command -v npm &>/dev/null; then
+        npm install -g @playwright/cli
+        playwright-cli install
+        playwright-cli install --skills
+      else
+        echo "  npm not found — install playwright-cli manually: npm install -g @playwright/cli"
+      fi
       echo ""
     fi
   fi
@@ -905,6 +899,7 @@ MCP_EOF
     "tasks/"
     "qa-output/"
     "debug-output/"
+    ".playwright-cli/"
   )
 
   GITIGNORE_FILE="$TARGET_DIR/.gitignore"
@@ -1009,26 +1004,23 @@ if [[ "$install_devcontainer" =~ ^[Yy]$ ]]; then
   fi
 fi
 
-# --- Step 3b: Playwright MCP (optional) ---
-SETTINGS_JSON="$TARGET_DIR/.claude/settings.json"
-if [ ! -f "$SETTINGS_JSON" ]; then
-  echo "=== Playwright MCP (for /qa browser testing) ==="
+# --- Step 3b: playwright-cli (optional) ---
+if command -v playwright-cli &>/dev/null; then
+  echo "=== playwright-cli already installed — skipping ==="
   echo ""
-  read -rp "Add Playwright MCP for browser-based QA (/qa skill)? [y/N] " install_playwright
+else
+  echo "=== playwright-cli (for /qa browser testing) ==="
+  echo ""
+  read -rp "Install playwright-cli for browser-based QA (/qa skill)? [y/N] " install_playwright
   echo ""
   if [[ "$install_playwright" =~ ^[Yy]$ ]]; then
-    mkdir -p "$TARGET_DIR/.claude"
-    cat > "$SETTINGS_JSON" <<'MCP_EOF'
-{
-  "mcpServers": {
-    "playwright": {
-      "command": "npx",
-      "args": ["@playwright/mcp@latest"]
-    }
-  }
-}
-MCP_EOF
-    echo "  Created: .claude/settings.json (Playwright MCP configured)"
+    if command -v npm &>/dev/null; then
+      npm install -g @playwright/cli
+      playwright-cli install
+      playwright-cli install --skills
+    else
+      echo "  npm not found — install playwright-cli manually: npm install -g @playwright/cli"
+    fi
     echo ""
   fi
 fi
@@ -1049,6 +1041,7 @@ GITIGNORE_ENTRIES=(
   "tasks/"
   "qa-output/"
   "debug-output/"
+  ".playwright-cli/"
 )
 
 GITIGNORE_FILE="$TARGET_DIR/.gitignore"
@@ -1109,7 +1102,7 @@ fi
 if [[ "${install_playwright:-}" =~ ^[Yy]$ ]]; then
   echo "  Browser QA:"
   echo "    Run /qa in Claude Code with your app running to test it like a user"
-  echo "    First run will auto-install @playwright/mcp via npx"
+  echo "    playwright-cli is installed and ready — no extra config needed"
   echo ""
 fi
 if command -v rtk &>/dev/null; then

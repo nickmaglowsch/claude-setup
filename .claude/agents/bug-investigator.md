@@ -39,7 +39,7 @@ When your prompt contains `MODE: DISCOVERY`, perform **only** Phase 1 below:
 4. **Search codebase** — Use Glob and Grep to find relevant code based on error messages, stack traces, file hints
 5. **Research online** — Use WebSearch/WebFetch to look up error messages, library issues, known bugs if relevant
 6. **Attempt reproduction** — Use the debug strategy to choose the approach:
-   - **If category is frontend/frontend-js and Playwright is available:** Open the buggy page with `npx @playwright/cli open <url>`, reproduce the user's steps (click, fill, navigate), check console errors with `evaluate`, take a screenshot of the broken state. See [Browser Debugging](#browser-debugging-playwright-cli).
+   - **If category is frontend/frontend-js and Playwright is available:** Open the buggy page with `playwright-cli open <url>`, reproduce the user's steps (click, fill, navigate), check console errors with `evaluate`, take a screenshot of the broken state. See [Browser Debugging](#browser-debugging-playwright-cli).
    - **If category is backend/auth/integration:** Probe live endpoints with curl (using auth from step 2), check HTTP status codes and response bodies, run the specific code path that triggers the bug
    - **If category is data:** Query the database to check the state of relevant records, verify data integrity, check for null/missing/duplicate values matching reported symptoms. See [Database Inspection](#database-inspection).
    - **If category is performance:** Time requests with `curl -w "%{time_total}"`, check database query plans with `EXPLAIN`, look for N+1 patterns in logs
@@ -228,50 +228,53 @@ When the debug strategy indicates `browser_needed: true`, or when investigating 
 
 ### Playwright CLI reference
 
-All commands are run via Bash: `npx @playwright/cli <command>`
+All commands are run via Bash: `playwright-cli <command>`
 
 | Action | Command | Use for |
 |--------|---------|---------|
-| Open URL | `npx @playwright/cli open <url>` | Navigate to the page where the bug occurs |
-| Snapshot (DOM) | `npx @playwright/cli snapshot` | Get a text representation of the page with element refs |
-| Screenshot | `npx @playwright/cli screenshot <path>` | Capture visual state for evidence |
-| Click | `npx @playwright/cli click <ref>` | Reproduce click-triggered bugs |
-| Fill input | `npx @playwright/cli fill <ref> <value>` | Fill forms to reach the buggy state |
-| Type text | `npx @playwright/cli type <text>` | Type into focused element |
-| Press key | `npx @playwright/cli press <key>` | Trigger keyboard-driven behavior |
-| Evaluate JS | `npx @playwright/cli evaluate <js>` | Run JS in browser context |
-| Wait for text | `npx @playwright/cli wait-for-text <text>` | Wait for async content |
-| Close | `npx @playwright/cli close` | Close the browser when done |
+| Open URL | `playwright-cli open <url>` | Navigate to the page where the bug occurs |
+| Snapshot (DOM) | `playwright-cli snapshot` then Read `.playwright-cli/snapshot.yaml` | Get element refs (writes to disk — Read file after running) |
+| Screenshot | `playwright-cli screenshot <path>` | Capture visual state for evidence |
+| Click | `playwright-cli click <ref>` | Reproduce click-triggered bugs |
+| Fill input | `playwright-cli fill <ref> <value>` | Fill forms to reach the buggy state |
+| Type text | `playwright-cli type <text>` | Type into focused element |
+| Press key | `playwright-cli press <key>` | Trigger keyboard-driven behavior |
+| Evaluate JS | `playwright-cli evaluate <js>` | Run JS in browser context (returns inline to stdout) |
+| Wait for text | `playwright-cli wait-for-text <text>` | Wait for async content |
+| Close | `playwright-cli close` | Close the browser when done |
 
 ### Common browser debugging patterns
 
 **Check for console errors:**
 ```bash
-npx @playwright/cli open <url>
-npx @playwright/cli evaluate "JSON.stringify(window.__errors || [])"
+playwright-cli open <url>
+playwright-cli evaluate "JSON.stringify(window.__errors || [])"
 ```
 
 **Capture unhandled errors after interaction:**
 ```bash
-npx @playwright/cli evaluate "const e=[]; window.onerror = (msg) => e.push(msg); setTimeout(() => document.title = JSON.stringify(e), 3000)"
+playwright-cli evaluate "const e=[]; window.onerror = (msg) => e.push(msg); setTimeout(() => document.title = JSON.stringify(e), 3000)"
 ```
 
 **Check for failed network requests:**
 ```bash
-npx @playwright/cli evaluate "JSON.stringify(performance.getEntriesByType('resource').filter(r => r.responseStatus >= 400).map(r => ({url: r.name, status: r.responseStatus})))"
+playwright-cli evaluate "JSON.stringify(performance.getEntriesByType('resource').filter(r => r.responseStatus >= 400).map(r => ({url: r.name, status: r.responseStatus})))"
 ```
 
 **Take evidence screenshot:**
 ```bash
-npx @playwright/cli screenshot debug-output/screenshots/bug-state.png
+playwright-cli screenshot debug-output/screenshots/bug-state.png
 ```
 
 **Check page content when blank/broken:**
 ```bash
-npx @playwright/cli snapshot
-npx @playwright/cli evaluate "document.title"
-npx @playwright/cli evaluate "document.body.innerHTML.length"
-npx @playwright/cli evaluate "document.querySelectorAll('[data-error], .error, .alert-danger').length"
+playwright-cli snapshot
+```
+Then use the `Read` tool to inspect `.playwright-cli/snapshot.yaml` for element structure.
+```bash
+playwright-cli evaluate "document.title"
+playwright-cli evaluate "document.body.innerHTML.length"
+playwright-cli evaluate "document.querySelectorAll('[data-error], .error, .alert-danger').length"
 ```
 
 ### Rules for browser debugging
