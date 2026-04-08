@@ -93,12 +93,6 @@ For each area, follow this pattern. Run `playwright-cli snapshot` via Bash, then
 | Go back | `playwright-cli go-back` |
 | Go forward | `playwright-cli go-forward` |
 | Close browser | `playwright-cli close` |
-| Manage cookies | `playwright-cli cookies` |
-| Inspect storage | `playwright-cli storage` |
-| Manage tabs | `playwright-cli tabs` |
-| Record trace | `playwright-cli tracing` |
-| Record video | `playwright-cli video` |
-| Named session | `playwright-cli -s=<name> <command>` (named sessions allow multiple independent browser contexts; not a required workflow but available when needed) |
 
 **6a. Happy path** — do the thing successfully
 - Navigate to the feature

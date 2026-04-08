@@ -855,15 +855,25 @@ if [ "$UPDATE_MODE" = true ]; then
     echo ""
   fi
 
-  # Install playwright-cli if qa-agent is installed
-  echo "=== playwright-cli (for /qa browser testing) ==="
-  echo ""
-  read -rp "  Install playwright-cli for browser-based QA (/qa skill)? [y/N] " install_playwright
-  echo ""
-  if [[ "$install_playwright" =~ ^[Yy]$ ]]; then
-    playwright-cli install
-    playwright-cli install --skills
+  # Install playwright-cli if qa-agent is installed and not already present
+  if command -v playwright-cli &>/dev/null; then
+    echo "=== playwright-cli already installed — skipping ==="
     echo ""
+  else
+    echo "=== playwright-cli (for /qa browser testing) ==="
+    echo ""
+    read -rp "  Install playwright-cli for browser-based QA (/qa skill)? [y/N] " install_playwright
+    echo ""
+    if [[ "$install_playwright" =~ ^[Yy]$ ]]; then
+      if command -v npm &>/dev/null; then
+        npm install -g @playwright/cli
+        playwright-cli install
+        playwright-cli install --skills
+      else
+        echo "  npm not found — install playwright-cli manually: npm install -g @playwright/cli"
+      fi
+      echo ""
+    fi
   fi
 
   # --- Token Reducer Pack (silent refresh on update) ---
@@ -995,14 +1005,24 @@ if [[ "$install_devcontainer" =~ ^[Yy]$ ]]; then
 fi
 
 # --- Step 3b: playwright-cli (optional) ---
-echo "=== playwright-cli (for /qa browser testing) ==="
-echo ""
-read -rp "Install playwright-cli for browser-based QA (/qa skill)? [y/N] " install_playwright
-echo ""
-if [[ "$install_playwright" =~ ^[Yy]$ ]]; then
-  playwright-cli install
-  playwright-cli install --skills
+if command -v playwright-cli &>/dev/null; then
+  echo "=== playwright-cli already installed — skipping ==="
   echo ""
+else
+  echo "=== playwright-cli (for /qa browser testing) ==="
+  echo ""
+  read -rp "Install playwright-cli for browser-based QA (/qa skill)? [y/N] " install_playwright
+  echo ""
+  if [[ "$install_playwright" =~ ^[Yy]$ ]]; then
+    if command -v npm &>/dev/null; then
+      npm install -g @playwright/cli
+      playwright-cli install
+      playwright-cli install --skills
+    else
+      echo "  npm not found — install playwright-cli manually: npm install -g @playwright/cli"
+    fi
+    echo ""
+  fi
 fi
 
 # --- Step 3c: Token Reducer Pack (optional) ---

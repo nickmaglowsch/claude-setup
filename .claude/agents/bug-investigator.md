@@ -269,7 +269,9 @@ playwright-cli screenshot debug-output/screenshots/bug-state.png
 **Check page content when blank/broken:**
 ```bash
 playwright-cli snapshot
-# Then Read .playwright-cli/snapshot.yaml to inspect element structure
+```
+Then use the `Read` tool to inspect `.playwright-cli/snapshot.yaml` for element structure.
+```bash
 playwright-cli evaluate "document.title"
 playwright-cli evaluate "document.body.innerHTML.length"
 playwright-cli evaluate "document.querySelectorAll('[data-error], .error, .alert-danger').length"
