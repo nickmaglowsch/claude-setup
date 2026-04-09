@@ -193,10 +193,10 @@ This step always runs. Do not skip it.
    Then add: "You can also open and edit any file in `$TASKS_DIR/` directly before proceeding."
 
 3. Use `AskUserQuestion` with a single question: "How would you like to proceed?"
-   - **"Looks good — start implementation"** — continue to Step 2
+   - **"Looks good — start implementation"** — continue to Step 1e
    - **"Regenerate with feedback"** — user provides feedback via the "Other" field
 
-4. **If user approves**: proceed to Step 2.
+4. **If user approves**: proceed to Step 1e.
 
 5. **If user requests regeneration**: resume the **same** prd-task-planner agent (from Step 1a/1c) with:
    - `resume: "<agent-id-from-step-1a>"`
