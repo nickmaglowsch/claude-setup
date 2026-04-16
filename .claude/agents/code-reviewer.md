@@ -99,6 +99,7 @@ If TDD-specific review criteria are included in your prompt, also evaluate TDD c
 - Read each new test file. For every `it()`/`test()`/`def test_` block, verify: (a) it calls the code under test, (b) it asserts on the result or side-effect, (c) the assertion is specific enough to catch a real regression
 - Flag tests that only assert on type/existence ("toBeDefined", "not null") without checking actual values
 - Flag tests where the expected value is hardcoded to match current output without testing the logic (snapshot-style assertions in unit tests)
+- **Mocking discipline**: flag tests that mock the code under test, or mock internal modules the code under test calls into. Mocks belong at the system boundary (paid/external APIs, network, wall clock & randomness, destructive side effects, filesystem) — mocking internals produces silently-passing tests that miss real regressions. Also flag mocks placed one layer above the real boundary (e.g., mocking a `UserRepository` wrapper instead of the underlying DB driver), since a regression in the wrapper stays invisible.
 - If a task had TDD mode but the implementer declared "TDD not feasible", verify the stated reason is valid — flag if the project has a working test framework and the reason is vague
 
 ### Step 4b: Test Execution Verification

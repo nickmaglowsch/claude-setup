@@ -50,6 +50,12 @@ Before writing code, check the conventions in the relevant app/package:
 - If tests unexpectedly pass, note this — the requirement may already be met or the test needs adjustment
 - **If tests fail for wrong reasons** (import errors, missing modules, syntax errors): fix the test setup, not the test logic. Re-run. Max 3 fix-and-retry cycles before escalating as a blocker.
 
+**Mocking discipline** (critical — prevents silent regressions):
+- Mock only at the **system boundary**: paid/external APIs, network, wall clock & randomness, destructive side effects, filesystem I/O.
+- Do NOT mock the code under test, or **internal modules it calls**. Using real internal collaborators is what makes the test catch real regressions. If an internal module is hard to set up, use an in-memory instance or a lightweight fake — not a mock.
+- Do NOT mock a layer *above* the real boundary (mock the HTTP client / SDK / DB driver, not your own service wrapper around it — otherwise a regression in the wrapper is invisible).
+- When mocking a real boundary, the mock's shape and behavior must match the real dependency. Prefer shared types / recorded fixtures / a reusable thin fake over ad-hoc stubs returning whatever a particular test happens to need.
+
 **If TDD is not feasible**, document why and fall back to Step 4 (Standard Mode). Valid reasons:
 - No test framework configured in the project **and** installing one is outside task scope
 - The code is infrastructure/configuration (e.g., CI config, Docker, env vars) that has no testable interface

@@ -198,7 +198,7 @@ Each task file MUST contain:
 - Blocks: [task numbers that depend on this task]
 ```
 
-When TDD mode was requested by the user, task files for functional code tasks MUST also include the following optional section:
+When TDD mode was requested by the user, task files for functional code tasks MUST also include the following optional section (copy the template below verbatim into each TDD task file, including the `### Mocking Discipline` block):
 
 ```markdown
 ## TDD Mode
@@ -219,6 +219,12 @@ This task uses Test-Driven Development. Write tests BEFORE implementation.
 2. Implement the minimum code to make them pass (GREEN)
 3. Run the full test suite to check for regressions
 4. Refactor if needed while keeping tests green
+
+### Mocking Discipline
+- Mock only at the **system boundary**: paid/external APIs, network, wall clock & randomness, destructive side effects, filesystem I/O.
+- Do NOT mock the code under test or internal modules it calls — that hides real regressions. Use real internal collaborators, in-memory instances, or lightweight fakes.
+- Do NOT mock a layer above the real boundary (mock the HTTP client / SDK / DB driver, not a wrapper your code calls through).
+- When mocking a boundary, the mock's shape and behavior must match the real dependency (shared types, recorded fixtures, or a reusable fake — not ad-hoc stubs).
 ```
 
 #### Task Decomposition Principles
