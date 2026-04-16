@@ -198,7 +198,7 @@ Each task file MUST contain:
 - Blocks: [task numbers that depend on this task]
 ```
 
-When TDD mode was requested by the user, task files for functional code tasks MUST also include the following optional section:
+When TDD mode was requested by the user, task files for functional code tasks MUST also include the following optional section (copy the template below verbatim into each TDD task file, including the `### Mocking Discipline` block):
 
 ```markdown
 ## TDD Mode

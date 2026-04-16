@@ -61,7 +61,7 @@ Mocks are for the **system boundary only**. Anything further in is a silent-regr
 - **Do NOT mock:**
   - The code under test, or **internal modules it calls**. Mocking internal collaborators lets real bugs or refactor breakage pass green.
   - Internal code just because it's inconvenient to set up. Use real instances, in-memory implementations, or lightweight fakes instead.
-  - A layer *above* the boundary. Mock the HTTP client / SDK / DB driver — not a service wrapper your code calls through, because a regression in the wrapper would be invisible.
+  - A layer *above* the boundary. Mock the HTTP client / SDK / DB driver — not a service wrapper your code calls through, because a regression in the wrapper would be invisible. Concrete example: mock `pg.Pool.query` (the driver), not `UserRepository.findById` (a wrapper the code under test calls through).
 - **When you do mock a boundary**, the mock's shape and behavior must match the real dependency. Prefer shared types, recorded fixtures, or a reusable thin fake over ad-hoc stubs that return whatever a particular test happens to need.
 
 ### Step 5: Run and fix
