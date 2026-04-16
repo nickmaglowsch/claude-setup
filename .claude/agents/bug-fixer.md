@@ -34,6 +34,12 @@ You receive a **bug diagnosis** (from `tasks/bug-diagnosis.md` or a description 
 - If the test unexpectedly passes, reassess the diagnosis — the bug may already be fixed or the test is wrong
 - **If the test fails for wrong reasons** (import errors, missing modules, syntax errors): fix the test setup, not the test logic. Re-run. Max 3 fix-and-retry cycles before escalating as a blocker.
 
+**Mocking discipline** (critical — prevents silent regressions):
+- Mock only at the **system boundary**: paid/external APIs, network, wall clock & randomness, destructive side effects, filesystem I/O.
+- Do NOT mock the code under test, or **internal modules it calls**. A regression test that mocks the very module where the bug lived (or its internal dependencies) can pass while the bug is still present. Use real internal collaborators; use in-memory instances or lightweight fakes if setup is heavy.
+- Do NOT mock a layer *above* the real boundary (mock the HTTP client / SDK / DB driver, not a wrapper around it).
+- When mocking a real boundary, the mock's shape and behavior must match the real dependency — shared types, recorded fixtures, or a reusable fake beat ad-hoc stubs.
+
 **If TDD is not feasible, document why and proceed with a verification plan:**
 - No test framework configured in the project **and** installing one is outside scope
 - Bug is in infrastructure/configuration (CI, Docker, env vars) that has no testable interface

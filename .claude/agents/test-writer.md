@@ -36,7 +36,7 @@ For the target code, identify:
 - **Edge cases**: empty inputs, zero values, boundary conditions, large inputs
 - **Error cases**: invalid inputs, missing required fields, network failures, permission errors
 - **Branches**: every significant `if/else`, `switch`, `try/catch` that can be exercised
-- **Integration points**: if the code calls external services/DB, test with mocks
+- **Integration points**: if the code calls external services/DB, mock at the boundary (see Mocking Discipline below)
 
 Prioritize by impact:
 1. Core business logic (highest value)
@@ -51,8 +51,18 @@ Prioritize by impact:
   - **Focused**: one assertion per test where practical, or one scenario per test
   - **Independent**: no shared mutable state between tests
   - **Realistic**: use realistic test data, not just `foo`, `bar`, `1`, `2`
-- Mock external dependencies (DB, HTTP, file system) — do NOT let tests hit real services
+- Mock external dependencies (DB, HTTP, file system) — do NOT let tests hit real services. Follow the Mocking Discipline rules below.
 - Group related tests with `describe` blocks (or equivalent)
+
+### Mocking Discipline
+Mocks are for the **system boundary only**. Anything further in is a silent-regression risk.
+
+- **Mock:** paid/external APIs, network calls, wall clock & randomness, destructive side effects (emails, payments), filesystem I/O
+- **Do NOT mock:**
+  - The code under test, or **internal modules it calls**. Mocking internal collaborators lets real bugs or refactor breakage pass green.
+  - Internal code just because it's inconvenient to set up. Use real instances, in-memory implementations, or lightweight fakes instead.
+  - A layer *above* the boundary. Mock the HTTP client / SDK / DB driver — not a service wrapper your code calls through, because a regression in the wrapper would be invisible.
+- **When you do mock a boundary**, the mock's shape and behavior must match the real dependency. Prefer shared types, recorded fixtures, or a reusable thin fake over ad-hoc stubs that return whatever a particular test happens to need.
 
 ### Step 5: Run and fix
 - Run the new tests using the detected test command
@@ -96,7 +106,7 @@ Prioritize by impact:
 2. **Read before writing.** Understand code and test patterns first.
 3. **Write tests that could fail.** A test that always passes is worthless.
 4. **Match project conventions exactly.** Framework, naming, imports, assertion style.
-5. **Mock external dependencies.** No real network calls, DB queries, or file I/O.
+5. **Mock at the boundary, not inside it.** External deps (network, DB, filesystem, paid APIs, time, randomness) get mocked. Internal code — including the code under test and its internal collaborators — never does. Mocking internals is the #1 source of silently-passing tests.
 6. **Run your tests.** Fix failures before reporting.
 
 # Persistent Memory
