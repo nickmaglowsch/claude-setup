@@ -223,6 +223,8 @@ Before launching the orchestrator, analyze the task files to determine if orches
 
 **Skip this step only if there are 2 or fewer tasks.** Plan review is cheap insurance for any plan large enough to have real dependency or scoping risk — run it even for 3+ task sequential plans (FAST_PATH decoupling: skipping the orchestrator is not a reason to skip the sanity check).
 
+**Initialize `PLAN_REVIEW_ITER = 1`** as you enter Step 1f (before 1f.1). Increment it each time you loop back to 1f.1 from 1f.3. Used below to drive the iteration-3 nudge.
+
 ### 1f.1: Launch plan review
 
 Launch the `code-reviewer` agent using the Task tool with:
@@ -253,9 +255,9 @@ Wait for it to complete.
 
 ### 1f.3: Handle user choice
 
-Track an iteration counter `PLAN_REVIEW_ITER` in your session state. Initialize it to `1` the first time you enter Step 1f.1, and increment it by 1 each time you loop back.
+(The `PLAN_REVIEW_ITER` counter was initialized at the top of Step 1f. Read below for how it gates the soft nudge.)
 
-**Loop guardrail — soft nudge after iteration 3.** If `PLAN_REVIEW_ITER >= 3` and the user selects "Regenerate with feedback" or "Edit files manually" again, insert this message before proceeding: "Heads up — this is plan-review iteration N. If the reviewer keeps flagging the same class of issue, consider either editing files manually (if you haven't), picking 'Proceed anyway' and fixing at implementation time, or stopping to revise the PRD itself." Then honor the user's choice. Do not hard-cap the loop.
+**Loop guardrail — soft nudge after iteration 3.** If `PLAN_REVIEW_ITER >= 3` AND the user's choice at 1f.2 was either "Regenerate with feedback" or "Edit files manually" (i.e., any choice that will cause a loop-back to 1f.1), insert this message before proceeding with that choice: "Heads up — this is plan-review iteration N. If the reviewer keeps flagging the same class of issue, consider either editing files manually (if you haven't), picking 'Proceed anyway' and fixing at implementation time, or stopping to revise the PRD itself." Then honor the user's choice. The nudge fires on every looping iteration from N=3 onward, not just once. Do not hard-cap the loop.
 
 **If "Proceed anyway"**:
 Log "Plan review issues noted. Proceeding to implementation." Continue to Step 2. This is a valid exit regardless of whether issues remain.
