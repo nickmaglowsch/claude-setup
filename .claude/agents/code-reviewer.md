@@ -233,16 +233,16 @@ When implementation notes are available, also include:
 
 ### Plan Review Criteria
 
-When plan-review criteria are included in your prompt, run the following checks on the task files in `tasks/` before producing the review report. Read all `tasks/task-*.md` files and `tasks/updated-prd.md` first.
+When plan-review criteria are included in your prompt, run the following checks on the task files in `$TASKS_DIR/` before producing the review report. Read all `$TASKS_DIR/task-*.md` files and `$TASKS_DIR/updated-prd.md` first.
 
 **Check 1 — Dependency soundness**
-- For every task with `Depends on: [task-N]`, verify that task-N exists as a file in `tasks/`
+- For every task with `Depends on: [task-N]`, verify that task-N exists as a file in `$TASKS_DIR/`
 - Check for circular dependencies (task A depends on B, B depends on C, C depends on A)
 - Check for missing dependency declarations: if task B reads output from task A or modifies a file that task A also modifies, it should declare `Depends on: task-A`
 - Severity guidance: missing dep declarations → Important; circular deps → Critical; phantom dep references (task-N doesn't exist) → Critical
 
 **Check 2 — PRD coverage gaps**
-- Read `tasks/updated-prd.md`. For every acceptance criterion and requirement in the PRD, identify which task implements it
+- Read `$TASKS_DIR/updated-prd.md`. For every acceptance criterion and requirement in the PRD, identify which task implements it
 - Flag any PRD requirement that no task covers
 - Flag any task that has no clear mapping to a PRD requirement (scope creep)
 - Severity guidance: uncovered acceptance criteria → Critical; uncovered requirements → Important; unmapped tasks → Minor
