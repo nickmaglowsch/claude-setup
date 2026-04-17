@@ -26,7 +26,7 @@ Check whether `.claude/agents/` exists in the current working directory.
 .claude/auth.local.md
 .claude-worktrees/
 .DS_Store
-tasks/
+tasks/**
 qa-output/
 debug-output/
 .playwright-cli/

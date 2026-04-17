@@ -70,10 +70,32 @@ json.dump(prefs, open(path, 'w'), indent=2)
 "
 ```
 
-## Step 0: Clean up — Remove stale task files
+## Step 0: Resolve TASKS_DIR + clean up
 
-Before starting, remove any leftover files from a previous run:
-- Use Bash to run `rm -rf tasks/` to clear the entire tasks directory
+### Step 0a: Resolve TASKS_DIR
+
+Run the following in Bash to determine the branch-scoped task directory:
+
+```bash
+RAW_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+if [ -z "$RAW_BRANCH" ] || [ "$RAW_BRANCH" = "HEAD" ]; then
+  SHORT_SHA=$(git rev-parse --short HEAD 2>/dev/null || echo "")
+  RAW_BRANCH=${SHORT_SHA:+detached-$SHORT_SHA}
+fi
+if [ -z "$RAW_BRANCH" ]; then
+  echo "Warning: not a git repo — using tasks/ as task directory" >&2
+  TASKS_DIR="tasks"
+else
+  SANITIZED=$(echo "$RAW_BRANCH" | tr '/' '-' | tr -cs 'A-Za-z0-9._-' '-' | sed 's/-*$//')
+  TASKS_DIR="tasks/$SANITIZED"
+fi
+```
+
+Store `TASKS_DIR` as a session variable — use it everywhere below.
+
+### Step 0b: Clean up stale task files
+
+Use Bash to run `rm -rf "$TASKS_DIR"` to clear only this branch's task directory.
 
 ## Step 1: Plan — Two-phase planning with user Q&A
 
@@ -81,14 +103,14 @@ Before starting, remove any leftover files from a previous run:
 
 Launch the `refactor-planner` agent using the Task tool with:
 - `subagent_type: "refactor-planner"`
-- Prompt: `MODE: DISCOVERY\n\nTarget: <target from $ARGUMENTS>`
-- Tell it to output questions to `tasks/refactor-questions.md`
+- Prompt: `MODE: DISCOVERY\n\nTarget: <target from $ARGUMENTS>\nTASKS_DIR=$TASKS_DIR`
+- Tell it to output questions to `$TASKS_DIR/refactor-questions.md`
 
 Wait for it to complete. **Save the returned agent ID** — you will resume this agent in Step 1c.
 
 ### Step 1b: User Q&A — Present questions and collect answers
 
-1. Read `tasks/refactor-questions.md`
+1. Read `$TASKS_DIR/refactor-questions.md`
 2. Present the code audit summary and each question to the user using `AskUserQuestion`
 3. Collect all answers — pay special attention to:
    - Whether the user wants tests written first (Step 1.5 gate)
@@ -100,15 +122,16 @@ Resume the **same** refactor-planner agent (using the agent ID from Step 1a) wit
 - `resume: "<agent-id-from-step-1a>"`
 - Provide all user answers in the prompt, formatted clearly
 - Prepend `MODE: GENERATE` to the prompt
-- Tell it to generate the refactoring task files and `tasks/refactor-plan.md` in `tasks/`
+- Tell it to generate the refactoring task files and `$TASKS_DIR/refactor-plan.md` in `$TASKS_DIR/`
+- Include `TASKS_DIR=$TASKS_DIR` in the resume prompt
 
-Wait for it to complete. Confirm that task files were created in `tasks/`.
+Wait for it to complete. Confirm that task files were created in `$TASKS_DIR/`.
 
 ### Step 1d: Task review — Present plan and get approval
 
 This step always runs. Do not skip it.
 
-1. Read all `task-*.md` files from `tasks/`. For each, extract:
+1. Read all `task-*.md` files from `$TASKS_DIR/`. For each, extract:
    - Task number and title
    - Objective
    - Dependencies
@@ -123,7 +146,7 @@ This step always runs. Do not skip it.
       Dependencies: task-01
    ...
    ```
-   Then add: "You can also open and edit any file in `tasks/` directly before proceeding."
+   Then add: "You can also open and edit any file in `$TASKS_DIR/` directly before proceeding."
 
 3. Use `AskUserQuestion` with a single question: "How would you like to proceed?"
    - **"Looks good — start refactoring"** — continue to Step 1.5
@@ -133,7 +156,7 @@ This step always runs. Do not skip it.
 
 5. **If user requests regeneration**: resume the **same** refactor-planner agent (from Step 1a) with:
    - `resume: "<agent-id-from-step-1a>"`
-   - Prompt: `MODE: GENERATE\n\nUser feedback on the refactoring plan:\n<feedback>\n\nPlease regenerate the task files incorporating this feedback.`
+   - Prompt: `MODE: GENERATE\n\nTASKS_DIR=$TASKS_DIR\n\nUser feedback on the refactoring plan:\n<feedback>\n\nPlease regenerate the task files incorporating this feedback.`
    - Wait for it to complete, then **loop back to the top of Step 1d**.
 
 ## Step 1.5: Safety net — Write missing tests (if requested)
@@ -154,7 +177,8 @@ Wait for it to complete. Confirm tests pass before proceeding — do not start r
 
 Launch the `parallel-task-orchestrator` agent using the Task tool with:
 - `subagent_type: "parallel-task-orchestrator"`
-- Tell it to read and execute all tasks from `tasks/`
+- Tell it to read and execute all tasks from `$TASKS_DIR/`
+- Include `TASKS_DIR=$TASKS_DIR` in the launch prompt
 - **If `COMMIT_MODE=per-wave`**: Include `COMMIT_MODE=per-wave` in the launch prompt so the orchestrator commits after each wave.
 - **If `COMMIT_MODE=squash`, `per-task-at-end`, or `AUTO_COMMIT=false`**: Launch normally with no additional commit instructions.
 
@@ -168,8 +192,8 @@ First, enable the required env var by finding the user's settings file (check `.
 
 Do NOT spawn a sub-agent. Instead, execute Agent Teams orchestration directly in this session:
 1. Read `.claude/agents/agent-teams-orchestrator.md` (check `~/.claude/agents/` for global installs, `.claude/agents/` for local)
-2. Follow those instructions directly in this session to orchestrate tasks using Agent Teams teammates
-3. Produce the same outputs: `tasks/implementation-notes.md` and `tasks/execution-metrics.md`
+2. Follow those instructions directly in this session to orchestrate tasks using Agent Teams teammates, passing `TASKS_DIR=$TASKS_DIR` as session context
+3. Produce the same outputs: `$TASKS_DIR/implementation-notes.md` and `$TASKS_DIR/execution-metrics.md`
 
 Note: Per-wave commits in Agent Teams mode are handled by the agent-teams-orchestrator when `COMMIT_MODE=per-wave` is passed in the session context. Per-task-at-end commits are handled by the skill layer in Step 2.5b (runs after Agent Teams execution completes).
 
@@ -199,7 +223,7 @@ This step is especially critical for refactoring — the primary success criteri
 
 **2.5b Commit:**
 
-- **`COMMIT_MODE=squash`**: Read all `tasks/task-*.md` files. Extract the `## Objective` line from each. Run:
+- **`COMMIT_MODE=squash`**: Read all `$TASKS_DIR/task-*.md` files. Extract the `## Objective` line from each. Run:
   ```bash
   git add -A
   git commit -m "refactor: <$ARGUMENTS summary>" -m "$(cat <<'EOF'
@@ -221,7 +245,7 @@ This step is especially critical for refactoring — the primary success criteri
 
 - **`COMMIT_MODE=per-task-at-end`**: Full parallel run is complete. Now create one commit per task in task-file order:
   1. Run `git add -A` to stage all changes.
-  2. Read each `tasks/task-NN-*.md` file in numerical order.
+  2. Read each `$TASKS_DIR/task-NN-*.md` file in numerical order.
   3. For each task, extract its `## Objective` line and the list of files it touched (from the `## Target Files` section).
   4. Use `git restore --staged .` to unstage everything, then selectively stage only the files for this task using `git add <file1> <file2> ...`, then commit:
      ```bash
@@ -242,13 +266,14 @@ This step is especially critical for refactoring — the primary success criteri
 
 ## Step 3: Review — Run code-reviewer
 
-Check if `tasks/implementation-notes.md` and `tasks/execution-metrics.md` exist (produced by the orchestrator).
+Check if `$TASKS_DIR/implementation-notes.md` and `$TASKS_DIR/execution-metrics.md` exist (produced by the orchestrator).
 
 Launch the `code-reviewer` agent using the Task tool with:
 - `subagent_type: "code-reviewer"`
-- Tell it to review all changes against `tasks/refactor-plan.md`
-- **If `tasks/implementation-notes.md` exists**, tell it to read this file for implementer decision context
-- Tell it to write the review report to `tasks/refactor-review-report.md`
+- Tell it to review all changes against `$TASKS_DIR/refactor-plan.md`
+- **If `$TASKS_DIR/implementation-notes.md` exists**, tell it to read this file for implementer decision context
+- Tell it to write the review report to `$TASKS_DIR/refactor-review-report.md`
+- Include `TASKS_DIR=$TASKS_DIR` in the launch prompt
 - Include these refactor-specific review criteria in the prompt:
   - Is behavior preserved? Are there any logic changes that shouldn't be there?
   - Do all existing tests still pass?
@@ -262,7 +287,7 @@ Wait for it to complete.
 
 Summarize the full refactoring run to the user:
 
-Check if `tasks/execution-metrics.md` exists (produced by the orchestrator). Use it to populate the metrics section.
+Check if `$TASKS_DIR/execution-metrics.md` exists (produced by the orchestrator). Use it to populate the metrics section.
 
 ```
 ## Refactor Complete
@@ -282,7 +307,7 @@ Check if `tasks/execution-metrics.md` exists (produced by the orchestrator). Use
 
 ### Execution Metrics
 - Tasks: [completed/total] | Waves: [N] | Retries: [N]
-- Implementation notes: [see tasks/implementation-notes.md]
+- Implementation notes: [see $TASKS_DIR/implementation-notes.md]
 
 ### Review
 - [compliance score]

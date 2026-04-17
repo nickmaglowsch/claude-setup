@@ -35,10 +35,31 @@ Ask: "Enable auto-commit and PR?" (Yes / No) → `AUTO_COMMIT`.
 
 **If `AUTO_COMMIT=false`:** `BRANCH_ACTION=none`.
 
-## Step 0: Clean up — Remove stale debug artifacts
+## Step 0a: Resolve TASKS_DIR
+
+Run the following in Bash to determine the branch-scoped task directory:
+
+```bash
+RAW_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+if [ -z "$RAW_BRANCH" ] || [ "$RAW_BRANCH" = "HEAD" ]; then
+  SHORT_SHA=$(git rev-parse --short HEAD 2>/dev/null || echo "")
+  RAW_BRANCH=${SHORT_SHA:+detached-$SHORT_SHA}
+fi
+if [ -z "$RAW_BRANCH" ]; then
+  echo "Warning: not a git repo — using tasks/ as task directory" >&2
+  TASKS_DIR="tasks"
+else
+  SANITIZED=$(echo "$RAW_BRANCH" | tr '/' '-' | tr -cs 'A-Za-z0-9._-' '-' | sed 's/-*$//')
+  TASKS_DIR="tasks/$SANITIZED"
+fi
+```
+
+Store `TASKS_DIR` as a session variable — use it everywhere below.
+
+## Step 0b: Clean up — Remove stale debug artifacts
 
 Before starting, remove any leftover files from a previous debug run:
-- Use Bash to run `rm -rf tasks/` to clear the entire tasks directory
+- Use Bash to run `rm -rf "$TASKS_DIR"` to clear this branch's task directory
 - This prevents stale diagnosis and questions files from interfering
 
 ## Step 0.5: App Recon — Discover how to interact with the app
@@ -129,13 +150,14 @@ If `.claude/app-context.md` does not exist, omit the App Context section but sti
 Launch the `bug-investigator` agent using the Task tool with:
 - `subagent_type: "bug-investigator"`
 - Provide the constructed prompt above
-- Tell it to output questions to `tasks/debug-questions.md`
+- Tell it to output questions to `$TASKS_DIR/debug-questions.md`
+- Include `TASKS_DIR=$TASKS_DIR` in the launch prompt
 
 Wait for it to complete. **Save the returned agent ID** — you will resume this agent in Step 1c.
 
 ### Step 1b: User Q&A — Present questions and collect answers
 
-1. Read `tasks/debug-questions.md`
+1. Read `$TASKS_DIR/debug-questions.md`
 2. Present each question to the user using `AskUserQuestion` — use the questions, context, and options from the file to construct clear choices
 3. Collect all answers
 
@@ -145,15 +167,15 @@ Resume the **same** bug-investigator agent (using the agent ID from Step 1a) wit
 - `resume: "<agent-id-from-step-1a>"`
 - Provide all user answers in the prompt, formatted clearly
 - Prepend `MODE: DIAGNOSE` to the prompt
-- Tell it to write the diagnosis to `tasks/bug-diagnosis.md`
+- Tell it to write the diagnosis to `$TASKS_DIR/bug-diagnosis.md`
 
-Wait for it to complete. Confirm that `tasks/bug-diagnosis.md` was created.
+Wait for it to complete. Confirm that `$TASKS_DIR/bug-diagnosis.md` was created.
 
 ### Step 1d: Diagnosis review — Present diagnosis and get approval
 
 This step always runs. Do not skip it.
 
-1. Read `tasks/bug-diagnosis.md`. Extract:
+1. Read `$TASKS_DIR/bug-diagnosis.md`. Extract:
    - Root cause summary
    - Proposed fix approach
    - Affected files
@@ -166,7 +188,7 @@ This step always runs. Do not skip it.
    **Proposed fix:** [fix approach]
    **Affected files:** [list]
    ```
-   Then add: "You can also open `tasks/bug-diagnosis.md` directly to read the full diagnosis."
+   Then add: "You can also open `$TASKS_DIR/bug-diagnosis.md` directly to read the full diagnosis."
 
 3. Use `AskUserQuestion` with a single question: "How would you like to proceed?"
    - **"Looks good — apply the fix"** — continue to Step 2
@@ -189,7 +211,8 @@ Read `.claude/app-context.md` and extract the test infrastructure details to pas
 
 Launch the `bug-fixer` agent using the Task tool with:
 - `subagent_type: "bug-fixer"`
-- Tell it to read `tasks/bug-diagnosis.md` for the diagnosis
+- Tell it to read `$TASKS_DIR/bug-diagnosis.md` for the diagnosis
+- Include `TASKS_DIR=$TASKS_DIR` in the launch prompt
 - Pass along the test commands and log commands from `.claude/app-context.md` (from the `## How to Run Tests` and `## Debug Surfaces > Logs` sections) so the fixer can use them
 - **Pass the test infrastructure details** so the fixer doesn't have to rediscover them:
   ```
@@ -218,7 +241,7 @@ Before reviewing, run a quick build/lint check to catch obvious breakage:
 
 **2.5a Safety:** Run `git rev-parse --abbrev-ref HEAD`. If `main`/`master`: abort ("Auto-commit aborted: on main/master. Commit manually.") → proceed to Step 3.
 
-**2.5c Commit:** Read `tasks/bug-diagnosis.md` for `## Bug Summary` and root cause. Run `git add -A && git commit -m "fix: <BUG_DESCRIPTION summary>" -m "- <root cause>\n- <fix approach>"` (72-char subject, 1-2 body bullets).
+**2.5c Commit:** Read `$TASKS_DIR/bug-diagnosis.md` for `## Bug Summary` and root cause. Run `git add -A && git commit -m "fix: <BUG_DESCRIPTION summary>" -m "- <root cause>\n- <fix approach>"` (72-char subject, 1-2 body bullets).
 
 **2.5d Push:** `git push -u origin <branch-name>`. On failure, show manual command and continue.
 
@@ -230,13 +253,14 @@ Before reviewing, run a quick build/lint check to catch obvious breakage:
 
 ## Step 3: Review — Run code-reviewer with debug-specific criteria
 
-Write the bug-fixer's Implementation Notes to `tasks/implementation-notes.md` so the reviewer can read them.
+Write the bug-fixer's Implementation Notes to `$TASKS_DIR/implementation-notes.md` so the reviewer can read them.
 
 Launch the `code-reviewer` agent using the Task tool with:
 - `subagent_type: "code-reviewer"`
-- Tell it to review all changes against `tasks/bug-diagnosis.md`
-- Tell it to read `tasks/implementation-notes.md` for the fixer's decision context
-- Tell it to write the review report to `tasks/debug-review-report.md`
+- Tell it to review all changes against `$TASKS_DIR/bug-diagnosis.md`
+- Tell it to read `$TASKS_DIR/implementation-notes.md` for the fixer's decision context
+- Tell it to write the review report to `$TASKS_DIR/debug-review-report.md`
+- Include `TASKS_DIR=$TASKS_DIR` in the launch prompt
 - **Include these additional debug-specific review criteria in the prompt:**
   - Was the root cause identified in the diagnosis actually addressed by the fix?
   - Are there any regressions introduced by the fix?
@@ -248,15 +272,16 @@ Wait for it to complete.
 
 ## Step 3b: Auto-fix — Address critical review issues (one pass)
 
-Read `tasks/debug-review-report.md`. Check if the `### Critical` section contains any items.
+Read `$TASKS_DIR/debug-review-report.md`. Check if the `### Critical` section contains any items.
 
 **If critical issues are found:**
 1. Collect all items listed under `### Critical` (file paths, line numbers, descriptions)
 2. Launch a `task-implementer` sub-agent with a prompt that includes:
    - The list of critical issues verbatim from the report
    - Instruction to fix only these specific issues, touching no other code
+   - Include `TASKS_DIR=$TASKS_DIR` in the launch prompt
 3. Wait for it to complete.
-4. Re-run the code-reviewer (same criteria as Step 3) **once more**. Write the updated report to `tasks/debug-review-report.md` (overwrite).
+4. Re-run the code-reviewer (same criteria as Step 3) **once more**. Write the updated report to `$TASKS_DIR/debug-review-report.md` (overwrite).
 
 **If no critical issues:** proceed directly to Step 4.
 
