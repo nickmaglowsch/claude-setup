@@ -74,11 +74,34 @@ json.dump(prefs, open(path, 'w'), indent=2)
 "
 ```
 
-## Step 0: Clean up — Remove stale task files
+## Step 0: Resolve TASKS_DIR + clean up
 
-Before starting, remove any leftover files from a previous build run:
-- Use Bash to run `rm -rf tasks/` to clear the entire tasks directory
-- This prevents stale task files from being picked up by the orchestrator
+### Step 0a: Resolve TASKS_DIR
+
+Run the following in Bash to determine the branch-scoped task directory:
+
+```bash
+RAW_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+if [ -z "$RAW_BRANCH" ] || [ "$RAW_BRANCH" = "HEAD" ]; then
+  SHORT_SHA=$(git rev-parse --short HEAD 2>/dev/null || echo "")
+  RAW_BRANCH=${SHORT_SHA:+detached-$SHORT_SHA}
+fi
+if [ -z "$RAW_BRANCH" ]; then
+  echo "Warning: not a git repo — using tasks/ as task directory" >&2
+  TASKS_DIR="tasks"
+else
+  SANITIZED=$(echo "$RAW_BRANCH" | tr '/' '-' | tr -cs 'A-Za-z0-9._-' '-' | sed 's/^-*//; s/-*$//')
+  [ -z "$SANITIZED" ] && SANITIZED="unknown-branch"
+  TASKS_DIR="tasks/$SANITIZED"
+fi
+```
+
+Store `TASKS_DIR` as a session variable — use it everywhere below.
+
+### Step 0b: Clean up stale task files
+
+Use Bash to run `rm -rf "$TASKS_DIR"` to clear only this branch's task directory.
+This prevents stale task files from being picked up by the orchestrator.
 
 ## Step 0.5 (if BRAINSTORM=true): Design brainstorm
 
@@ -86,10 +109,16 @@ Before starting, remove any leftover files from a previous build run:
 
 1. Launch the `prd-task-planner` agent using the Task tool with:
    - `subagent_type: "prd-task-planner"`
-   - Prompt: `MODE: BRAINSTORM\n\n<clean PRD content>`
+   - Prompt:
+     ```
+     TASKS_DIR=$TASKS_DIR
+     MODE: BRAINSTORM
+
+     <clean PRD content>
+     ```
    - Wait for it to complete. **Save the returned agent ID** — this agent will be resumed in Step 1a.
 
-2. Read `tasks/design-options.md`.
+2. Read `$TASKS_DIR/design-options.md`.
 
 3. Present the design options to the user using `AskUserQuestion`. Build one question per option listed in the file, using the option names as labels and their summaries/trade-offs as descriptions. Include a "Custom direction" option. Ask: "Which design approach should we use for this feature?"
 
@@ -101,20 +130,34 @@ Before starting, remove any leftover files from a previous build run:
 
 **If BRAINSTORM=true** — resume the agent from Step 0.5:
 - `resume: "<agent-id-from-step-0.5>"`
-- Prompt: `MODE: DISCOVERY\n\nChosen design direction: <CHOSEN_DESIGN>\n\n<clean PRD content>`
-- Tell it to output questions to `tasks/planning-questions.md`
+- Prompt:
+  ```
+  TASKS_DIR=$TASKS_DIR
+  MODE: DISCOVERY
+
+  Chosen design direction: <CHOSEN_DESIGN>
+
+  <clean PRD content>
+  ```
+- Tell it to output questions to `$TASKS_DIR/planning-questions.md`
 - The agent already has full codebase context from the brainstorm phase — it will skip re-exploration.
 
 **If BRAINSTORM=false** — launch a fresh agent:
 - `subagent_type: "prd-task-planner"`
-- Prompt: `MODE: DISCOVERY\n\n<PRD content>`
-- Tell it to output questions to `tasks/planning-questions.md`
+- Prompt:
+  ```
+  TASKS_DIR=$TASKS_DIR
+  MODE: DISCOVERY
+
+  <PRD content>
+  ```
+- Tell it to output questions to `$TASKS_DIR/planning-questions.md`
 
 Wait for it to complete. **Save the returned agent ID** — you will resume this agent in Step 1c.
 
 ### Step 1b: User Q&A — Present questions and collect answers
 
-1. Read `tasks/planning-questions.md`
+1. Read `$TASKS_DIR/planning-questions.md`
 2. Present each question to the user using `AskUserQuestion` — use the questions, context, and options from the file to construct clear choices
 3. Collect all answers
 
@@ -124,15 +167,15 @@ Resume the **same** prd-task-planner agent (using the agent ID from Step 1a) wit
 - `resume: "<agent-id-from-step-1a>"`
 - Provide all user answers in the prompt, formatted clearly
 - Prepend `MODE: GENERATE` to the prompt
-- Tell it to generate the updated PRD and task files in `tasks/`
+- Tell it to generate the updated PRD and task files in `$TASKS_DIR/`
 
-Wait for it to complete. Confirm that task files were created in `tasks/`.
+Wait for it to complete. Confirm that task files were created in `$TASKS_DIR/`.
 
 ### Step 1d: Task review — Present plan and get approval
 
 This step always runs. Do not skip it.
 
-1. Read all `task-*.md` files from `tasks/`. For each, extract:
+1. Read all `task-*.md` files from `$TASKS_DIR/`. For each, extract:
    - Task number and title (from filename or `# Task N:` heading)
    - Objective (first line of `## Objective` section)
    - Dependencies (from `## Dependencies` section)
@@ -147,7 +190,7 @@ This step always runs. Do not skip it.
       Dependencies: task-01
    ...
    ```
-   Then add: "You can also open and edit any file in `tasks/` directly before proceeding."
+   Then add: "You can also open and edit any file in `$TASKS_DIR/` directly before proceeding."
 
 3. Use `AskUserQuestion` with a single question: "How would you like to proceed?"
    - **"Looks good — start implementation"** — continue to Step 2
@@ -164,7 +207,7 @@ This step always runs. Do not skip it.
 
 Before launching the orchestrator, analyze the task files to determine if orchestration overhead is justified.
 
-**Read all `tasks/task-*.md` files and extract:**
+**Read all `$TASKS_DIR/task-*.md` files and extract:**
 1. Total task count
 2. Per-task: files to modify (from `## Files to Modify` or `## Context Files` sections)
 3. Per-task: explicit dependencies (from `## Dependencies` or `Depends on:` lines)
@@ -188,7 +231,7 @@ Implement the tasks yourself, sequentially, in the current conversation context.
 2. Read all referenced context files
 3. Implement the task following the requirements and acceptance criteria
 4. If the task has a `## TDD Mode` section, follow the RED → GREEN → REFACTOR → VERIFY cycle (including test adequacy check)
-5. After each task, collect the Implementation Notes section from your work. After all tasks are done, write `tasks/implementation-notes.md` consolidating all notes.
+5. After each task, collect the Implementation Notes section from your work. After all tasks are done, write `$TASKS_DIR/implementation-notes.md` consolidating all notes.
 6. **If `COMMIT_MODE=per-wave`:** after completing each task, check if the current "wave" (group of sequential tasks with no parallelism in fast-path) warrants a commit. In fast-path mode, commit after each task:
    ```bash
    git add -A
@@ -204,7 +247,11 @@ This avoids orchestrator overhead and gives you continuous context across tasks 
 
 Launch the `parallel-task-orchestrator` agent using the Task tool with:
 - `subagent_type: "parallel-task-orchestrator"`
-- Tell it to read and execute all tasks from `tasks/`
+- Prompt:
+  ```
+  TASKS_DIR=$TASKS_DIR
+  Read and execute all tasks from `$TASKS_DIR/`
+  ```
 - **If `COMMIT_MODE=per-wave`**: Include `COMMIT_MODE=per-wave` in the launch prompt so the orchestrator commits after each wave. Also include: `Use commit subject prefix 'feat:' instead of 'refactor:' for per-wave commits.`
 - **If `COMMIT_MODE=squash`, `per-task-at-end`, or `AUTO_COMMIT=false`**: Launch normally with no additional commit instructions.
 
@@ -218,8 +265,8 @@ First, enable the required env var by finding the user's settings file (check `.
 
 Do NOT spawn a sub-agent. Instead, execute Agent Teams orchestration directly in this session:
 1. Read `.claude/agents/agent-teams-orchestrator.md` (check `~/.claude/agents/` for global installs, `.claude/agents/` for local)
-2. Follow those instructions directly in this session to orchestrate tasks using Agent Teams teammates
-3. Produce the same outputs: `tasks/implementation-notes.md` and `tasks/execution-metrics.md`
+2. Follow those instructions directly in this session to orchestrate tasks using Agent Teams teammates, passing `TASKS_DIR=$TASKS_DIR` so teammates know where to read and write task files
+3. Produce the same outputs: `$TASKS_DIR/implementation-notes.md` and `$TASKS_DIR/execution-metrics.md`
 
 Note: Per-wave commits in Agent Teams mode are handled by the agent-teams-orchestrator when `COMMIT_MODE=per-wave` is passed in the session context. Per-task-at-end commits are handled by the skill layer in Step 2.5b (runs after Agent Teams execution completes). Auto-commit/branch handling (if `AUTO_COMMIT=true`) applies identically to both modes.
 
@@ -249,7 +296,7 @@ After the build check, run the project's full test suite to catch regressions an
 
 **2.5b Commit:**
 
-- **`COMMIT_MODE=squash`**: Read all `tasks/task-*.md` files. Extract the `## Objective` line from each. Run:
+- **`COMMIT_MODE=squash`**: Read all `$TASKS_DIR/task-*.md` files. Extract the `## Objective` line from each. Run:
   ```bash
   git add -A
   git commit -m "feat: <PRD summary>" -m "$(cat <<'EOF'
@@ -271,7 +318,7 @@ After the build check, run the project's full test suite to catch regressions an
 
 - **`COMMIT_MODE=per-task-at-end`**: Full parallel run is complete. Now create one commit per task in task-file order:
   1. Run `git add -A` to stage all changes.
-  2. Read each `tasks/task-NN-*.md` file in numerical order.
+  2. Read each `$TASKS_DIR/task-NN-*.md` file in numerical order.
   3. For each task, extract its `## Objective` line and the list of files it touched (from the `## Target Files` section).
   4. Use `git restore --staged .` to unstage everything, then selectively stage only the files for this task using `git add <file1> <file2> ...`, then commit:
      ```bash
@@ -292,13 +339,16 @@ After the build check, run the project's full test suite to catch regressions an
 
 ## Step 3: Review — Run code-reviewer
 
-Before launching the code-reviewer, check if TDD mode was used by reading any task file from `tasks/` and looking for a `## TDD Mode` section. Also check if `tasks/implementation-notes.md` and `tasks/execution-metrics.md` exist.
+Before launching the code-reviewer, check if TDD mode was used by reading any task file from `$TASKS_DIR/` and looking for a `## TDD Mode` section. Also check if `$TASKS_DIR/implementation-notes.md` and `$TASKS_DIR/execution-metrics.md` exist.
 
 Launch the `code-reviewer` agent using the Task tool with:
 - `subagent_type: "code-reviewer"`
-- Tell it to review all changes against `tasks/updated-prd.md`
-- Tell it to write the review report to `tasks/review-report.md`
-- **If `tasks/implementation-notes.md` exists**, tell it to read this file for implementer decision context
+- Prompt:
+  ```
+  TASKS_DIR=$TASKS_DIR
+  Review all changes against `$TASKS_DIR/updated-prd.md` and write the review report to `$TASKS_DIR/review-report.md`.
+  ```
+- **If `$TASKS_DIR/implementation-notes.md` exists**, tell it to read this file for implementer decision context
 - **If TDD mode was used**, include these additional review criteria in the prompt:
   - Were tests written for each task that had TDD mode enabled?
   - Do the tests meaningfully cover the acceptance criteria from the task files?
@@ -312,15 +362,16 @@ Wait for it to complete.
 
 ## Step 3b: Auto-fix — Address critical review issues (one pass)
 
-Read `tasks/review-report.md`. Check if the `### Critical` section contains any items.
+Read `$TASKS_DIR/review-report.md`. Check if the `### Critical` section contains any items.
 
 **If critical issues are found:**
 1. Collect all items listed under `### Critical` (file paths, line numbers, descriptions)
 2. For each distinct file affected, launch a `task-implementer` sub-agent (parallel where no file conflicts) with a prompt that includes:
+   - `TASKS_DIR=$TASKS_DIR` so the sub-agent knows where shared-context lives
    - The specific critical issue(s) for that file verbatim from the report
    - Instruction to fix only these specific issues, touching no other code
 3. Wait for all task-implementers to complete.
-4. Re-run the code-reviewer (same criteria as Step 3) **once more** against `tasks/updated-prd.md`. Write the updated report to `tasks/review-report.md` (overwrite).
+4. Re-run the code-reviewer (same criteria as Step 3) **once more** against `$TASKS_DIR/updated-prd.md`. Write the updated report to `$TASKS_DIR/review-report.md` (overwrite).
 
 **If no critical issues:** proceed directly to Step 4.
 
@@ -328,7 +379,7 @@ Do not loop — the auto-fix runs at most once. If critical issues persist after
 
 ## Step 4: Report
 
-Check if `tasks/execution-metrics.md` exists (produced by the orchestrator in full-path mode). If not (fast-path mode), generate equivalent metrics from your own execution.
+Check if `$TASKS_DIR/execution-metrics.md` exists (produced by the orchestrator in full-path mode). If not (fast-path mode), generate equivalent metrics from your own execution.
 
 Summarize the full pipeline run to the user:
 
@@ -352,7 +403,7 @@ Summarize the full pipeline run to the user:
 ### Execution Metrics
 - Tasks: [completed/total] | Waves: [N] | Retries: [N]
 - TDD: [N/M tasks used TDD] | TDD skipped: [N (reasons)]
-- Implementation notes: [see tasks/implementation-notes.md or "inline above"]
+- Implementation notes: [see $TASKS_DIR/implementation-notes.md or "inline above"]
 
 ### Review
 - [compliance score]

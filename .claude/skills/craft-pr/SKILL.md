@@ -1,6 +1,6 @@
 ---
 name: craft-pr
-description: "Reads task files from tasks/ and the diff against origin/main, then generates a polished PR description in markdown for the user to copy-paste."
+description: "Reads task files from tasks/<branch>/ and the diff against origin/main, then generates a polished PR description in markdown for the user to copy-paste."
 argument-hint: "[optional: extra context or PR title]"
 ---
 
@@ -14,29 +14,48 @@ $ARGUMENTS
 
 ## Step 1: Gather context
 
-Run **all** of the following in parallel using the Bash tool:
+### Step 1a: Resolve TASKS_DIR
 
-1. **Current branch name**
-   ```
-   git rev-parse --abbrev-ref HEAD
-   ```
+Run this first using the Bash tool (step 1b depends on the output):
 
-2. **Diff summary (stat) against origin/main**
+```bash
+RAW_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+if [ -z "$RAW_BRANCH" ] || [ "$RAW_BRANCH" = "HEAD" ]; then
+  SHORT_SHA=$(git rev-parse --short HEAD 2>/dev/null || echo "")
+  RAW_BRANCH=${SHORT_SHA:+detached-$SHORT_SHA}
+fi
+if [ -z "$RAW_BRANCH" ]; then
+  echo "Warning: not a git repo — using tasks/ as task directory" >&2
+  TASKS_DIR="tasks"
+else
+  SANITIZED=$(echo "$RAW_BRANCH" | tr '/' '-' | tr -cs 'A-Za-z0-9._-' '-' | sed 's/^-*//; s/-*$//')
+  [ -z "$SANITIZED" ] && SANITIZED="unknown-branch"
+  TASKS_DIR="tasks/$SANITIZED"
+fi
+echo "BRANCH=$RAW_BRANCH"
+echo "TASKS_DIR=$TASKS_DIR"
+```
+
+### Step 1b: Gather diff + tasks in parallel
+
+Run **all** of the following in parallel using the Bash tool (and Read/Glob for item 4):
+
+1. **Diff summary (stat) against origin/main**
    ```
    git diff --stat origin/main...HEAD
    ```
 
-3. **Full diff against origin/main**
+2. **Full diff against origin/main**
    ```
    git diff origin/main...HEAD
    ```
 
-4. **Commit log since diverging from origin/main**
+3. **Commit log since diverging from origin/main**
    ```
    git log --oneline origin/main..HEAD
    ```
 
-5. **Read all files in the `tasks/` directory** using the Read tool (read every `.md` file found via Glob `tasks/*.md`).
+4. **Read all files in the branch-scoped task directory** using the Read tool (read every `.md` file found via Glob `$TASKS_DIR/*.md`, using the `TASKS_DIR` resolved in step 1a). If `$TASKS_DIR` does not exist or contains no `.md` files, note this in the PR description — the tasks directory may have been cleaned up after the run.
 
 ## Step 2: Analyze
 
