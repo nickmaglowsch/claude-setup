@@ -14,10 +14,33 @@ The test scope (optional — empty means test everything):
 
 $ARGUMENTS
 
-## Step 0: Clean up — Remove stale QA artifacts
+## Step 0: Resolve QA_OUTPUT_DIR + clean up
 
-Remove leftover files from a previous QA run:
-- Use Bash to run `rm -rf qa-output/` to remove all stale QA artifacts from a previous run
+### Step 0a: Resolve QA_OUTPUT_DIR
+
+Run the following in Bash to determine the branch-scoped QA output directory:
+
+```bash
+RAW_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+if [ -z "$RAW_BRANCH" ] || [ "$RAW_BRANCH" = "HEAD" ]; then
+  SHORT_SHA=$(git rev-parse --short HEAD 2>/dev/null || echo "")
+  RAW_BRANCH=${SHORT_SHA:+detached-$SHORT_SHA}
+fi
+if [ -z "$RAW_BRANCH" ]; then
+  echo "Warning: not a git repo — using qa-output/ as QA output directory" >&2
+  QA_OUTPUT_DIR="qa-output"
+else
+  SANITIZED=$(echo "$RAW_BRANCH" | tr '/' '-' | tr -cs 'A-Za-z0-9._-' '-' | sed 's/^-*//; s/-*$//')
+  [ -z "$SANITIZED" ] && SANITIZED="unknown-branch"
+  QA_OUTPUT_DIR="qa-output/$SANITIZED"
+fi
+```
+
+Store `QA_OUTPUT_DIR` as a session variable — use it everywhere below.
+
+### Step 0b: Clean up stale QA artifacts
+
+Use Bash to run `rm -rf "$QA_OUTPUT_DIR"` to clear only this branch's QA artifacts from a previous run.
 
 ## Step 0.5: App Recon — Discover how to interact with the app
 
@@ -34,10 +57,14 @@ Wait for it to complete. If the agent fails or the file is not created, log a wa
 
 ## Step 1: QA — Test the app and generate outputs
 
-Read `.claude/app-context.md` (from Step 0.5). If it exists, build the qa-agent prompt as follows — otherwise use just the scope:
+Read `.claude/app-context.md` (from Step 0.5). Build the qa-agent prompt as follows (if `.claude/app-context.md` does not exist, omit the App Context section but always include `QA_OUTPUT_DIR`):
 
 ```
 Test scope: $ARGUMENTS (if empty: test all major flows)
+
+QA_OUTPUT_DIR=$QA_OUTPUT_DIR
+
+Write all outputs (report, screenshots, etc.) under this branch-scoped directory.
 
 ## App Context (from pre-recon)
 
@@ -49,13 +76,13 @@ URL from this context. Re-check running status yourself.
 
 Launch the `qa-agent` using the Task tool with:
 - `subagent_type: "qa-agent"`
-- Provide the constructed prompt above
+- Provide the constructed prompt above (with `$QA_OUTPUT_DIR` expanded)
 
 Wait for it to complete.
 
 ## Step 2: Report
 
-Read `qa-output/qa-report.md` and summarize to the user:
+Read `$QA_OUTPUT_DIR/qa-report.md` and summarize to the user:
 
 ```
 ## QA Complete
@@ -68,12 +95,12 @@ Read `qa-output/qa-report.md` and summarize to the user:
 - [list from report, or "None found"]
 
 **Outputs:**
-- Full report: qa-output/qa-report.md
+- Full report: $QA_OUTPUT_DIR/qa-report.md
 - E2E tests: <list files written>
 - Run tests: playwright test
 ```
 
-If `qa-output/qa-report.md` does not exist, report that the QA agent failed to complete and show any error output.
+If `$QA_OUTPUT_DIR/qa-report.md` does not exist, report that the QA agent failed to complete and show any error output.
 
 ## Rules
 
