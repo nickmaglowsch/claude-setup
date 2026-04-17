@@ -231,6 +231,104 @@ When implementation notes are available, also include:
 **Decision Assessment**: [brief — did implementers make good calls? Any patterns of concern?]
 ```
 
+## Plan Review Criteria
+
+When plan-review criteria are included in your prompt, run the following checks on the task files in `$TASKS_DIR/` before producing the review report. Read all `$TASKS_DIR/task-*.md` files and `$TASKS_DIR/updated-prd.md` first.
+
+**Output contract — read this first.** You MUST emit the `### Plan Issues Found` section in your report, even when no issues are found. When a severity bucket (Critical / Important / Minor) has no items, write `- None` under that heading. The caller parses this section programmatically; omitting it or using an alternate heading will break the pipeline.
+
+**Check 1 — Dependency soundness**
+- Parse each task's `## Dependencies` section. The `prd-task-planner` writes dependencies as task numbers (e.g., `- Depends on: 1, 3` or `- Depends on: None`), but humans editing task files may use prefixed forms (`task-01`, `task-01-add-auth`). **Normalize each dependency token before validation**: strip whitespace and any `task-` prefix, parse the leading integer, then match against task files by their leading numeric prefix (`task-01-*.md` → `1`, with or without zero-padding). Treat `None` / empty / missing as "no dependencies".
+- For every normalized dependency N, verify a task file matching `task-<N>*.md` (or `task-0<N>*.md` for zero-padded variants) exists in `$TASKS_DIR/`. A dep that doesn't resolve to any file after normalization is phantom.
+- Check for circular dependencies (task A depends on B, B depends on C, C depends on A) using the normalized IDs.
+- Check for missing dependency declarations: if task B reads output from task A or modifies a file that task A also modifies, it should declare a dependency on A.
+- Severity guidance: missing dep declarations → Important; circular deps → Critical; phantom dep references (no matching task file after normalization) → Critical.
+
+**Check 2 — PRD coverage gaps**
+- Read `$TASKS_DIR/updated-prd.md`. For every acceptance criterion and requirement in the PRD, identify which task implements it
+- Flag any PRD requirement that no task covers
+- Flag any task that has no clear mapping to a PRD requirement (scope creep)
+- Severity guidance: uncovered acceptance criteria → Critical; uncovered requirements → Important; unmapped tasks → Minor
+
+**Check 3 — Task file conflicts**
+- Identify all files that appear in more than one task's `## Implementation Details` or `## Existing Code References` sections as targets for modification
+- For each shared file, verify the tasks modify non-overlapping parts OR that the later task depends on the earlier task
+- Flag concurrent modification of the same file with no dependency ordering as a conflict
+- Severity guidance: unordered concurrent writes to the same file → Critical; same file referenced in read-only context by multiple tasks → acceptable, no issue
+
+**Check 4 — Task sizing**
+- Review each task for signs of being too large (single task implementing an entire subsystem with many unrelated files) or too small (a single line rename warranting its own task file)
+- "Too large" signal: Objective spans multiple distinct concerns, Implementation Details section touches 5+ unrelated files, or Acceptance Criteria lists 10+ unrelated checks
+- "Too small" signal: Entire task could be completed in under 5 minutes by a human, or it is a pure rename/constant change with no logic
+- Severity guidance: oversized tasks that risk partial completion → Important; trivial tasks that add orchestration overhead → Minor
+
+**Check 5 — TDD spec consistency**
+- For tasks that include a `## TDD Mode` section: verify the test file path follows detected project conventions, the test framework matches what exists in the repo, and the test command is real (check for its presence in `package.json`, `Makefile`, etc.)
+- Flag TDD sections that reference non-existent test frameworks or commands
+- Flag tasks without a `## TDD Mode` section when the updated PRD states TDD was requested
+- Severity guidance: TDD section referencing a non-existent framework → Important; missing TDD section when TDD was requested → Important; test command not discoverable → Important
+
+When plan-review criteria are provided in your prompt, include the following section in your report:
+
+```markdown
+## Plan Review
+
+### Dependency Graph
+
+| Task | Depends On | Status |
+|------|-----------|--------|
+| task-01 | None | ✅ Valid |
+| task-02 | task-01 | ✅ Valid |
+
+**Dependency Assessment**: [circular deps, phantom refs, undeclared deps — or "No issues found"]
+
+### PRD Coverage
+
+| PRD Requirement | Covered By | Status |
+|----------------|-----------|--------|
+| [requirement] | task-N | ✅ Covered |
+| [requirement] | — | ❌ Not covered |
+
+**Coverage Score**: X/Y requirements covered
+
+### File Conflict Analysis
+
+| File | Tasks Touching It | Conflict? |
+|------|------------------|-----------|
+| [file path] | task-01, task-02 | ✅ Ordered (02 depends on 01) |
+| [file path] | task-02, task-03 | ❌ Concurrent write, no dependency |
+
+**Conflict Assessment**: [issues found or "No conflicts detected"]
+
+### Task Sizing
+
+| Task | Assessment | Notes |
+|------|-----------|-------|
+| task-01 | ✅ Well-sized | |
+| task-02 | ⚠️ Oversized | [reason] |
+
+### TDD Spec Consistency
+
+| Task | Has TDD Section | Framework Valid | Command Valid | Status |
+|------|----------------|-----------------|--------------|--------|
+| task-01 | Yes | Yes | Yes | ✅ |
+
+**TDD Spec Assessment**: [brief]
+
+### Plan Issues Found
+
+#### Critical (blocks implementation)
+- [description, or `- None` if no issues in this bucket]
+
+#### Important (should fix before proceeding)
+- [description, or `- None` if no issues in this bucket]
+
+#### Minor (nice to fix)
+- [description, or `- None` if no issues in this bucket]
+```
+
+**Always emit all three severity buckets** (Critical / Important / Minor). If a bucket has no items, emit `- None` beneath it. Do not omit the `### Plan Issues Found` section or any of its sub-headings.
+
 ## SAVING THE REPORT
 
 If your prompt specifies an output file path (e.g., `$TASKS_DIR/review-report.md`), write the full report to that file using the Write tool. Always output the report as text too so the caller sees it.
