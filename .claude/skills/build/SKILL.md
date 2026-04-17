@@ -90,7 +90,8 @@ if [ -z "$RAW_BRANCH" ]; then
   echo "Warning: not a git repo — using tasks/ as task directory" >&2
   TASKS_DIR="tasks"
 else
-  SANITIZED=$(echo "$RAW_BRANCH" | tr '/' '-' | tr -cs 'A-Za-z0-9._-' '-' | sed 's/-*$//')
+  SANITIZED=$(echo "$RAW_BRANCH" | tr '/' '-' | tr -cs 'A-Za-z0-9._-' '-' | sed 's/^-*//; s/-*$//')
+  [ -z "$SANITIZED" ] && SANITIZED="unknown-branch"
   TASKS_DIR="tasks/$SANITIZED"
 fi
 ```

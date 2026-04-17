@@ -147,10 +147,10 @@ When spawning each teammate, use this prompt structure:
 ```
 You are implementing a task from a task file.
 
-TASKS_DIR=<expand to the actual resolved path, e.g., tasks/feature-auth>
+TASKS_DIR=<resolved_tasks_dir, e.g., tasks/feature-auth>
 
-Read the task file at: $TASKS_DIR/task-XX-<name>.md
-If $TASKS_DIR/shared-context.md exists, read it before starting — it contains the project's tech stack, test infrastructure, naming conventions, and key shared file references. You do not need to re-discover these from scratch.
+Read the task file at: <resolved_tasks_dir>/task-XX-<name>.md
+If <resolved_tasks_dir>/shared-context.md exists, read it before starting — it contains the project's tech stack, test infrastructure, naming conventions, and key shared file references. You do not need to re-discover these from scratch.
 
 Follow all instructions in the task file. Implement the changes it describes.
 
@@ -173,7 +173,7 @@ Instead of shutting down teammates after each wave and spawning new ones:
 > Skip this section if your Claude Code version doesn't support follow-up messages to existing teammates.
 
 1. After a wave completes, check which teammates are idle
-2. **Reassign idle teammates** to tasks in the next wave by sending them a message (via `Shift+Down` or direct messaging): "Your next task is <expanded $TASKS_DIR>/task-XX-<name>.md. Read it and implement it following the same approach."
+2. **Reassign idle teammates** to tasks in the next wave by sending them a message (via `Shift+Down` or direct messaging): "Your next task is <resolved_tasks_dir>/task-XX-<name>.md. Read it and implement it following the same approach."
 3. Only **spawn new teammates** if the next wave has more tasks than available idle teammates
 4. Only **shut down excess teammates** if the next wave has fewer tasks than idle teammates
 

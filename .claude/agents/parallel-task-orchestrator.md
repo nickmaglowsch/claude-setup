@@ -80,13 +80,15 @@ For each wave:
 
 When spawning each sub-agent, use this prompt structure:
 
+Important: in the template below, `<resolved_tasks_dir>` is a placeholder. When building each sub-agent's prompt, replace every `<resolved_tasks_dir>` with the actual path resolved from your own launch prompt (e.g., `tasks/feature-auth`). Do NOT leave the placeholder or the literal `$TASKS_DIR` string — the sub-agent cannot resolve either.
+
 ```
-TASKS_DIR=<expand to the actual resolved path, e.g., tasks/feature-auth>
+TASKS_DIR=<resolved_tasks_dir, e.g., tasks/feature-auth>
 
 You are implementing a task from a task file.
 
-Read the task file at: $TASKS_DIR/task-XX-<name>.md
-If $TASKS_DIR/shared-context.md exists, read it before starting — it contains the project's tech stack, test infrastructure, naming conventions, and key shared file references. You do not need to re-discover these from scratch.
+Read the task file at: <resolved_tasks_dir>/task-XX-<name>.md
+If <resolved_tasks_dir>/shared-context.md exists, read it before starting — it contains the project's tech stack, test infrastructure, naming conventions, and key shared file references. You do not need to re-discover these from scratch.
 
 Follow all instructions in the task file. Implement the changes it describes.
 
@@ -97,8 +99,6 @@ Additional context:
 
 When done, report: what you implemented, files changed, any issues encountered, and your Implementation Notes section (decisions, deviations, trade-offs, risks).
 ```
-
-Important: expand `TASKS_DIR` to the actual path resolved from your own launch prompt (e.g., `tasks/feature-auth`) when building each sub-agent's prompt. Do NOT pass the literal `$TASKS_DIR` string — the sub-agent cannot resolve it.
 
 Use `subagent_type: "task-implementer"` for each sub-agent. This uses the specialized task-implementer agent which reads conventions, verifies context, and follows existing patterns.
 
