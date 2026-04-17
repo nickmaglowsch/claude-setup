@@ -231,9 +231,11 @@ When implementation notes are available, also include:
 **Decision Assessment**: [brief — did implementers make good calls? Any patterns of concern?]
 ```
 
-### Plan Review Criteria
+## Plan Review Criteria
 
 When plan-review criteria are included in your prompt, run the following checks on the task files in `$TASKS_DIR/` before producing the review report. Read all `$TASKS_DIR/task-*.md` files and `$TASKS_DIR/updated-prd.md` first.
+
+**Output contract — read this first.** You MUST emit the `### Plan Issues Found` section in your report, even when no issues are found. When a severity bucket (Critical / Important / Minor) has no items, write `- None` under that heading. The caller parses this section programmatically; omitting it or using an alternate heading will break the pipeline.
 
 **Check 1 — Dependency soundness**
 - For every task with `Depends on: [task-N]`, verify that task-N exists as a file in `$TASKS_DIR/`
@@ -315,14 +317,16 @@ When plan-review criteria are provided in your prompt, include the following sec
 ### Plan Issues Found
 
 #### Critical (blocks implementation)
-- [description]
+- [description, or `- None` if no issues in this bucket]
 
 #### Important (should fix before proceeding)
-- [description]
+- [description, or `- None` if no issues in this bucket]
 
 #### Minor (nice to fix)
-- [description]
+- [description, or `- None` if no issues in this bucket]
 ```
+
+**Always emit all three severity buckets** (Critical / Important / Minor). If a bucket has no items, emit `- None` beneath it. Do not omit the `### Plan Issues Found` section or any of its sub-headings.
 
 ## SAVING THE REPORT
 

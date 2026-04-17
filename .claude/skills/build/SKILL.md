@@ -221,7 +221,7 @@ Before launching the orchestrator, analyze the task files to determine if orches
 
 ## Step 1f: Plan review — Validate task plan soundness
 
-**Skip this step if `FAST_PATH=true`.** For ≤2 tasks or all-sequential plans, orchestration overhead is not justified and plan review is skipped.
+**Skip this step only if there are 2 or fewer tasks.** Plan review is cheap insurance for any plan large enough to have real dependency or scoping risk — run it even for 3+ task sequential plans (FAST_PATH decoupling: skipping the orchestrator is not a reason to skip the sanity check).
 
 ### 1f.1: Launch plan review
 
@@ -230,7 +230,12 @@ Launch the `code-reviewer` agent using the Task tool with:
 - Prompt:
   ```
   TASKS_DIR=$TASKS_DIR
-  Apply the plan-review checks defined in your `### Plan Review Criteria` section: (1) Dependency soundness, (2) PRD coverage gaps, (3) Task file conflicts, (4) Task sizing, (5) TDD spec consistency. Read all `$TASKS_DIR/task-*.md` files and `$TASKS_DIR/updated-prd.md`. Write the plan review report to `$TASKS_DIR/plan-review-report.md`.
+
+  MODE: PLAN REVIEW
+
+  Apply the five plan-review checks defined under the "Plan Review Criteria" heading in your own agent definition: (1) Dependency soundness, (2) PRD coverage gaps, (3) Task file conflicts, (4) Task sizing, (5) TDD spec consistency.
+
+  Read all `$TASKS_DIR/task-*.md` files and `$TASKS_DIR/updated-prd.md` before running the checks. Write the plan review report to `$TASKS_DIR/plan-review-report.md`. You MUST emit the `### Plan Issues Found` section with all three severity buckets (Critical / Important / Minor) — use `- None` for buckets with no issues. Do not omit the section or any sub-heading.
   ```
 
 Wait for it to complete.
@@ -248,22 +253,31 @@ Wait for it to complete.
 
 ### 1f.3: Handle user choice
 
-**If "Proceed anyway"**: Log "Plan review issues noted. Proceeding to implementation." Continue to Step 2.
+Track an iteration counter `PLAN_REVIEW_ITER` in your session state. Initialize it to `1` the first time you enter Step 1f.1, and increment it by 1 each time you loop back.
+
+**Loop guardrail — soft nudge after iteration 3.** If `PLAN_REVIEW_ITER >= 3` and the user selects "Regenerate with feedback" or "Edit files manually" again, insert this message before proceeding: "Heads up — this is plan-review iteration N. If the reviewer keeps flagging the same class of issue, consider either editing files manually (if you haven't), picking 'Proceed anyway' and fixing at implementation time, or stopping to revise the PRD itself." Then honor the user's choice. Do not hard-cap the loop.
+
+**If "Proceed anyway"**:
+Log "Plan review issues noted. Proceeding to implementation." Continue to Step 2. This is a valid exit regardless of whether issues remain.
 
 **If "Regenerate with feedback"**:
-1. Collect the user's feedback from their response
-2. Resume the **same** `prd-task-planner` agent (agent ID from Step 1a) with:
+
+1. Collect the user's feedback from their `AskUserQuestion` response (the "Other" field).
+2. **Validate feedback is non-empty.** If the user picked "Regenerate with feedback" but left the "Other" field blank (or provided only whitespace), re-prompt via `AskUserQuestion`: "Regeneration needs either specific feedback or a direction. Provide feedback, or switch to 'Edit files manually' / 'Proceed anyway'." Do not resume the planner with an empty feedback block — it has no new signal to work from and will likely produce a near-identical plan.
+3. Read `$TASKS_DIR/plan-review-report.md` and extract the `### Plan Issues Found` section contents (the reviewer's output contract guarantees this section exists).
+4. Resume the **same** `prd-task-planner` agent (agent ID from Step 1a) with:
    - `resume: "<agent-id-from-step-1a>"`
-   - Prompt: `TASKS_DIR=$TASKS_DIR\n\nMODE: GENERATE\n\nPlan review found issues requiring changes. User feedback:\n<feedback>\n\nPlan review report summary:\n<contents of Plan Issues Found section from $TASKS_DIR/plan-review-report.md>\n\nPlease regenerate the task files addressing these issues.`
-3. Wait for regeneration to complete
-4. **Loop back to the top of Step 1f.1** — re-run the plan review on the new task files
+   - Prompt: `TASKS_DIR=$TASKS_DIR\n\nMODE: GENERATE\n\nPlan review found issues requiring changes. User feedback:\n<feedback text collected in step 1>\n\nPlan review findings:\n<contents of "### Plan Issues Found" section extracted in step 3>\n\nPlease regenerate the task files addressing these issues.`
+5. Wait for regeneration to complete.
+6. Increment `PLAN_REVIEW_ITER` and **loop back to the top of Step 1f.1** — re-run the plan review on the new task files.
 
 **If "Edit files manually"**:
-1. Display: "Edit the files in `$TASKS_DIR/` directly. When done, reply to continue."
-2. Wait for user confirmation
-3. **Loop back to the top of Step 1f.1** — re-run the plan review against the edited files
 
-There is no hard retry cap — the loop continues until the user chooses "Proceed anyway."
+1. Display: "Edit the files in `$TASKS_DIR/` directly. When done, reply to continue."
+2. Wait for user confirmation.
+3. Increment `PLAN_REVIEW_ITER` and **loop back to the top of Step 1f.1** — re-run the plan review against the edited files.
+
+**Loop exit conditions.** The loop exits whenever the user selects "Proceed anyway" at Step 1f.2, regardless of iteration count or remaining issues. A clean review ("No plan issues found") still requires the user to confirm via "Proceed anyway" — the skill does not auto-advance. There is no hard retry cap.
 
 ## Step 2: Implement
 
