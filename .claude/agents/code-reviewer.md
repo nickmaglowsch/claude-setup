@@ -238,10 +238,11 @@ When plan-review criteria are included in your prompt, run the following checks 
 **Output contract — read this first.** You MUST emit the `### Plan Issues Found` section in your report, even when no issues are found. When a severity bucket (Critical / Important / Minor) has no items, write `- None` under that heading. The caller parses this section programmatically; omitting it or using an alternate heading will break the pipeline.
 
 **Check 1 — Dependency soundness**
-- For every task with `Depends on: [task-N]`, verify that task-N exists as a file in `$TASKS_DIR/`
-- Check for circular dependencies (task A depends on B, B depends on C, C depends on A)
-- Check for missing dependency declarations: if task B reads output from task A or modifies a file that task A also modifies, it should declare `Depends on: task-A`
-- Severity guidance: missing dep declarations → Important; circular deps → Critical; phantom dep references (task-N doesn't exist) → Critical
+- Parse each task's `## Dependencies` section. The `prd-task-planner` writes dependencies as task numbers (e.g., `- Depends on: 1, 3` or `- Depends on: None`), but humans editing task files may use prefixed forms (`task-01`, `task-01-add-auth`). **Normalize each dependency token before validation**: strip whitespace and any `task-` prefix, parse the leading integer, then match against task files by their leading numeric prefix (`task-01-*.md` → `1`, with or without zero-padding). Treat `None` / empty / missing as "no dependencies".
+- For every normalized dependency N, verify a task file matching `task-<N>*.md` (or `task-0<N>*.md` for zero-padded variants) exists in `$TASKS_DIR/`. A dep that doesn't resolve to any file after normalization is phantom.
+- Check for circular dependencies (task A depends on B, B depends on C, C depends on A) using the normalized IDs.
+- Check for missing dependency declarations: if task B reads output from task A or modifies a file that task A also modifies, it should declare a dependency on A.
+- Severity guidance: missing dep declarations → Important; circular deps → Critical; phantom dep references (no matching task file after normalization) → Critical.
 
 **Check 2 — PRD coverage gaps**
 - Read `$TASKS_DIR/updated-prd.md`. For every acceptance criterion and requirement in the PRD, identify which task implements it
