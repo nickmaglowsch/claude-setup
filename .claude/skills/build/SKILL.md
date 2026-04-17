@@ -366,6 +366,7 @@ Read `$TASKS_DIR/review-report.md`. Check if the `### Critical` section contains
 **If critical issues are found:**
 1. Collect all items listed under `### Critical` (file paths, line numbers, descriptions)
 2. For each distinct file affected, launch a `task-implementer` sub-agent (parallel where no file conflicts) with a prompt that includes:
+   - `TASKS_DIR=$TASKS_DIR` so the sub-agent knows where shared-context lives
    - The specific critical issue(s) for that file verbatim from the report
    - Instruction to fix only these specific issues, touching no other code
 3. Wait for all task-implementers to complete.

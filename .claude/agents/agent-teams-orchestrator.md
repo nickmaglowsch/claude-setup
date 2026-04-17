@@ -173,7 +173,7 @@ Instead of shutting down teammates after each wave and spawning new ones:
 > Skip this section if your Claude Code version doesn't support follow-up messages to existing teammates.
 
 1. After a wave completes, check which teammates are idle
-2. **Reassign idle teammates** to tasks in the next wave by sending them a message (via `Shift+Down` or direct messaging): "Your next task is $TASKS_DIR/task-XX-<name>.md. Read it and implement it following the same approach."
+2. **Reassign idle teammates** to tasks in the next wave by sending them a message (via `Shift+Down` or direct messaging): "Your next task is <expanded $TASKS_DIR>/task-XX-<name>.md. Read it and implement it following the same approach."
 3. Only **spawn new teammates** if the next wave has more tasks than available idle teammates
 4. Only **shut down excess teammates** if the next wave has fewer tasks than idle teammates
 
