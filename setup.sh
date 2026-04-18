@@ -1147,7 +1147,7 @@ if [ "$UPDATE_MODE" = true ]; then
     ".claude-worktrees/"
     ".DS_Store"
     "tasks/**"
-    "qa-output/"
+    "qa-output/**"
     "debug-output/"
     ".playwright-cli/"
   )
@@ -1289,7 +1289,7 @@ GITIGNORE_ENTRIES=(
   ".claude-worktrees/"
   ".DS_Store"
   "tasks/**"
-  "qa-output/"
+  "qa-output/**"
   "debug-output/"
   ".playwright-cli/"
 )

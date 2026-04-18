@@ -27,7 +27,7 @@ Check whether `.claude/agents/` exists in the current working directory.
 .claude-worktrees/
 .DS_Store
 tasks/**
-qa-output/
+qa-output/**
 debug-output/
 .playwright-cli/
 ```
