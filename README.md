@@ -2,6 +2,18 @@
 
 A template for setting up Claude Code (agents, skills, memory) in any project. Use it to bootstrap a new repo or add Claude to an existing one.
 
+**What you get**: a set of specialized agents and slash-command pipelines for common software tasks:
+
+| Pipeline | What it does |
+|---|---|
+| [`/build`](#the-build-pipeline-build) | PRD → plan → **plan review** → parallel implementation → code review |
+| [`/debug-workflow`](#the-debug-pipeline-debug-workflow) | Bug report → investigate → diagnose → TDD fix → review |
+| [`/refactor`](#the-refactor-pipeline-refactor) | Target → audit → (write tests) → refactor → behavior-preservation review |
+| [`/qa`](#the-qa-pipeline-qa) | Running app → exploratory browser testing → QA report + Playwright E2E tests |
+| [`/craft-pr`](#craft-a-pr-craft-pr) | Branch's task files + diff → polished PR description |
+
+Task/QA artifacts are [branch-scoped](#branch-scoped-work-directories) so you can run multiple pipelines in parallel across branches (including git worktrees) without collision.
+
 ## Creating a New Project
 
 Use this repo as a GitHub template to start a new project with Claude Code pre-configured:
@@ -176,20 +188,39 @@ Review `.claude/settings.local.json` to adjust permissions for your project.
 
 ```
 .claude/
-├── agents/                  # Custom agent definitions
-│   ├── bug-fixer.md             # Fixes diagnosed bugs using adaptive TDD
-│   ├── bug-investigator.md      # Investigates bugs, reads logs, produces diagnosis
-│   ├── prd-task-planner.md      # Analyzes PRDs, explores codebase, generates task files
-│   ├── task-implementer.md      # Implements a single task from a task file
-│   ├── parallel-task-orchestrator.md  # Executes task files in parallel waves
-│   └── code-reviewer.md        # Reviews changes against PRD/spec
-├── skills/                  # User-invocable skills (slash commands)
-│   ├── build/SKILL.md           # /build — full pipeline: plan → implement → review
-│   ├── craft-pr/SKILL.md       # /craft-pr — generates PR description from tasks + diff
-│   └── debug-workflow/SKILL.md  # /debug-workflow — investigate → diagnose → TDD fix → review
-├── agent-memory/            # Persistent memory per agent (survives across sessions)
-└── settings.local.json      # Local Claude Code settings
+├── agents/                           # Custom agent definitions
+│   ├── agent-teams-orchestrator.md       # Lead for Agent Teams mode (beta)
+│   ├── app-scout.md                      # Fast read-only project recon
+│   ├── bug-fixer.md                      # Fixes diagnosed bugs using adaptive TDD
+│   ├── bug-investigator.md               # Investigates bugs, reads logs, produces diagnosis
+│   ├── code-reviewer.md                  # Reviews code changes AND validates plans (pre-implementation)
+│   ├── parallel-task-orchestrator.md     # Executes task files in parallel waves
+│   ├── prd-task-planner.md               # Analyzes PRDs, explores codebase, generates task files
+│   ├── qa-agent.md                       # Tests running apps via playwright-cli, produces QA report + E2E tests
+│   ├── refactor-planner.md               # Analyzes code smells and generates refactor tasks
+│   ├── task-implementer.md               # Implements a single task from a task file
+│   └── test-writer.md                    # Writes missing tests for existing code
+├── skills/                           # User-invocable skills (slash commands)
+│   ├── build/SKILL.md                    # /build — plan → review-plan → implement → review
+│   ├── craft-pr/SKILL.md                 # /craft-pr — generates PR description from tasks + diff
+│   ├── debug-workflow/SKILL.md           # /debug-workflow — investigate → diagnose → TDD fix → review
+│   ├── init-claude-setup/SKILL.md        # /init-claude-setup — project-level init (gitignore, settings)
+│   ├── qa/SKILL.md                       # /qa — exploratory QA via browser + Playwright E2E tests
+│   └── refactor/SKILL.md                 # /refactor — audit → plan → (tests) → implement → review
+├── agent-memory/                     # Persistent memory per agent (survives across sessions)
+└── settings.local.json               # Local Claude Code settings
+
+tasks/<branch>/                       # Branch-scoped task/diagnosis/plan files (see below)
+qa-output/<branch>/                   # Branch-scoped QA reports + screenshots
 ```
+
+### Branch-scoped work directories
+
+Both `tasks/` and `qa-output/` are **branch-scoped**: the pipelines write into `tasks/<sanitized-current-branch>/` and `qa-output/<sanitized-current-branch>/` respectively. Slashes become dashes (e.g. `feat/plan-review` → `feat-plan-review`).
+
+Why: lets you run `/build`, `/debug-workflow`, `/refactor`, and `/qa` in parallel across branches (including git worktrees) without any of them clobbering each other's files. If you're not in a git repo or are in detached HEAD, there's a sensible fallback — no pipeline will silently write into a shared directory.
+
+Both trees are gitignored by default (`tasks/**`, `qa-output/**`).
 
 ## The Build Pipeline (`/build`)
 
@@ -198,15 +229,17 @@ The `/build` skill orchestrates the full feature implementation lifecycle. Paste
 ### How it works
 
 ```
-PRD → [Plan] → [User Q&A] → [Implement] → [Test] → [Review] → Done
+PRD → [Plan] → [User Q&A] → [Review Plan] → [Implement] → [Test] → [Review Code] → Done
 ```
+
+All outputs land in `tasks/<branch>/` (see [Branch-scoped work directories](#branch-scoped-work-directories)).
 
 #### Step 1: Two-Phase Planning (with user input)
 
 The planning step is split into **discovery** and **generation** so the planner can ask you questions before committing to a plan.
 
 **Step 1a — Discovery**
-The `prd-task-planner` agent explores the codebase and writes `tasks/planning-questions.md` with:
+The `prd-task-planner` agent explores the codebase and writes `tasks/<branch>/planning-questions.md` with:
 - A summary of what it found in the codebase (architecture, existing features, relevant code)
 - 3-8 questions about architectural decisions, scope, and integration choices that would materially change the plan
 
@@ -215,8 +248,16 @@ The build orchestrator reads the questions file and presents them to you interac
 
 **Step 1c — Generation**
 The same planner agent is **resumed** (keeping all its codebase exploration context) with your answers. It then generates:
-- `tasks/updated-prd.md` — the PRD refined with codebase context
-- `tasks/task-01-*.md`, `task-02-*.md`, ... — ordered, self-contained task files
+- `tasks/<branch>/updated-prd.md` — the PRD refined with codebase context
+- `tasks/<branch>/task-01-*.md`, `task-02-*.md`, ... — ordered, self-contained task files
+
+**Step 1d — Plan approval**
+The build orchestrator presents the plan (task list + dependencies) to you. You can approve or regenerate with feedback.
+
+**Step 1e — Plan Review (pre-implementation validation)**
+Before any code is written, the `code-reviewer` runs in **plan-review mode** against the generated task files and `updated-prd.md`. It performs five checks — dependency soundness, PRD coverage, task self-containedness, file-conflict detection across parallel waves, and TDD-mode sanity — and writes findings to `tasks/<branch>/plan-review-report.md` with severity (Critical / Important / Minor).
+
+You then decide: regenerate the plan with the reviewer's findings as feedback, proceed anyway, or abort. The loop has no hard cap but nudges you after 3 iterations if planner and reviewer can't converge. Skipped automatically on small plans (≤2 tasks) to avoid overhead.
 
 #### Step 2: Parallel Implementation
 
@@ -224,7 +265,7 @@ The `parallel-task-orchestrator` reads all task files, builds a dependency graph
 
 #### Step 3: Code Review
 
-The `code-reviewer` audits all changes against `tasks/updated-prd.md` and produces a compliance report.
+The `code-reviewer` audits all changes against `tasks/<branch>/updated-prd.md` and produces a compliance report.
 
 ### Usage
 
@@ -243,16 +284,16 @@ You can also invoke agents directly via the Task tool:
 
 ```
 # Just plan (discovery + generate in one shot, no Q&A pause)
-Task: prd-task-planner — "Here's the PRD: ... Output tasks to tasks/"
+Task: prd-task-planner — "Here's the PRD: ... Output tasks to tasks/<branch>/"
 
 # Just implement
-Task: parallel-task-orchestrator — "Execute all tasks from tasks/"
+Task: parallel-task-orchestrator — "Execute all tasks from tasks/<branch>/"
 
 # Just review
-Task: code-reviewer — "Review changes against tasks/updated-prd.md"
+Task: code-reviewer — "Review changes against tasks/<branch>/updated-prd.md"
 ```
 
-When invoked directly (outside `/build`), the `prd-task-planner` runs all phases end-to-end without the Q&A pause. The two-phase flow only activates when the prompt includes `MODE: DISCOVERY` or `MODE: GENERATE`.
+When invoked directly (outside `/build`), the `prd-task-planner` runs all phases end-to-end without the Q&A pause. The two-phase flow only activates when the prompt includes `MODE: DISCOVERY` or `MODE: GENERATE`. If no `TASKS_DIR=<path>` is provided in the prompt, the agent falls back to a flat `tasks/` directory.
 
 ### TDD Mode (opt-in)
 
@@ -288,7 +329,7 @@ Bug Report → [Investigate] → [User Q&A] → [Diagnose] → [TDD Fix] → [Re
 #### Step 1: Two-Phase Investigation (with user input)
 
 **Step 1a — Discovery**
-The `bug-investigator` agent reads logs, searches the codebase, attempts to reproduce the issue, and writes `tasks/debug-questions.md` with:
+The `bug-investigator` agent reads logs, searches the codebase, attempts to reproduce the issue, and writes `tasks/<branch>/debug-questions.md` with:
 - A summary of what it found (symptoms confirmed, code traced, hypotheses)
 - 2-6 questions about environment, recent changes, reproduction conditions
 
@@ -297,7 +338,7 @@ The debug orchestrator reads the questions file and presents them to you interac
 
 **Step 1c — Diagnosis**
 The same investigator agent is **resumed** with your answers. It then produces:
-- `tasks/bug-diagnosis.md` — root cause analysis, affected files, fix recommendations, test strategy
+- `tasks/<branch>/bug-diagnosis.md` — root cause analysis, affected files, fix recommendations, test strategy
 
 #### Step 2: TDD Fix
 
@@ -305,7 +346,7 @@ The `bug-fixer` agent reads the diagnosis, writes a failing test (when feasible)
 
 #### Step 3: Code Review
 
-The `code-reviewer` audits the fix against `tasks/bug-diagnosis.md` with debug-specific criteria (root cause addressed, regressions checked, test coverage).
+The `code-reviewer` audits the fix against `tasks/<branch>/bug-diagnosis.md` with debug-specific criteria (root cause addressed, regressions checked, test coverage).
 
 ### Usage
 
@@ -320,10 +361,54 @@ The `code-reviewer` audits the fix against `tasks/bug-diagnosis.md` with debug-s
 Task: bug-investigator — "Investigate: Login fails with 500 error..."
 
 # Just fix a diagnosed bug
-Task: bug-fixer — "Fix the bug. Diagnosis: tasks/bug-diagnosis.md. Tests: npm test"
+Task: bug-fixer — "Fix the bug. Diagnosis: tasks/<branch>/bug-diagnosis.md. Tests: npm test"
 
 # Just review a bug fix
-Task: code-reviewer — "Review changes against tasks/bug-diagnosis.md"
+Task: code-reviewer — "Review changes against tasks/<branch>/bug-diagnosis.md"
+```
+
+## The Refactor Pipeline (`/refactor`)
+
+The `/refactor` skill improves code quality without adding features. It's the same shape as `/build` but the planner is focused on code smells, duplication, and complexity — and there's an optional safety-net step to write missing tests before any code is changed.
+
+```
+Target → [Audit + Q&A] → [Tests (optional)] → [Implement] → [Build check] → [Test verify] → [Review] → Done
+```
+
+The `refactor-planner` agent audits the target file/directory, surfaces clarifying questions (scope, API compatibility, whether to write tests first), then generates ordered refactor tasks in `tasks/<branch>/`. If you asked for tests first, the `test-writer` agent fills in coverage gaps *before* any refactoring starts — giving you a safety net against regressions. The `code-reviewer` then validates that behavior was preserved and the result is measurably cleaner.
+
+```bash
+/refactor src/auth/
+/refactor path/to/really-gnarly-file.ts
+```
+
+The pipeline supports auto-commit with three commit modes (squash / per-wave / per-task-at-end) and can open a PR via `gh`.
+
+## The QA Pipeline (`/qa`)
+
+The `/qa` skill runs exploratory QA against a running app — like a real user, via a browser. It produces a QA report **and** Playwright E2E tests you can keep as regression coverage.
+
+```
+App running → [Recon] → [Explore + test flows] → [Write report] → [Write E2E tests]
+```
+
+- `app-scout` detects the dev-server URL, test commands, and tech stack (cached for 1 hour, `--fresh` forces a re-scan)
+- `qa-agent` navigates the app via `playwright-cli`, tests happy paths + edge cases + error handling, writes `qa-output/<branch>/qa-report.md` (with severity-tagged issues and screenshots of failures), then emits Playwright E2E tests to the project's test directory
+
+```bash
+/qa                                    # test every major flow
+/qa checkout                           # scope to the checkout feature
+/qa --fresh signup                     # force re-scan of app context
+```
+
+The agent never modifies production code — its writes are confined to `qa-output/<branch>/` and your `e2e/` (or equivalent) test directory.
+
+## Craft a PR (`/craft-pr`)
+
+Once work is done on a branch, `/craft-pr` reads `tasks/<branch>/*.md` plus the diff against `origin/main` and drafts a polished PR description (summary, changes, test plan) for you to copy into GitHub.
+
+```bash
+/craft-pr
 ```
 
 ## Agent Memory
