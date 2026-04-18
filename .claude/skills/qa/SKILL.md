@@ -105,6 +105,6 @@ If `$QA_OUTPUT_DIR/qa-report.md` does not exist, report that the QA agent failed
 ## Rules
 
 - Run steps **sequentially** — each depends on the previous
-- If Step 0.5 fails (no app-context.md created), log a warning and continue
+- If Step 0.5 fails (no app-context.md created), log a warning and continue to Step 1 anyway — qa-agent will discover the app independently; this is non-fatal
 - If the app is not running, the qa-agent will report it — do not attempt to start the app here
 - Always present the summary in Step 2, even if QA found no failures
