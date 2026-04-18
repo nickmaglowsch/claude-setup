@@ -72,7 +72,7 @@ Check whether to run app-scout:
   - `subagent_type: "app-scout"`
   - Prompt: `Perform project recon. Write your findings to .claude/app-context.md.`
 
-Wait for it to complete. If the agent fails or the file is not created, log a warning and proceed without it — this is a best-effort step.
+Wait for it to complete. If the agent fails or the file is not created, log a warning and proceed to Step 0.7 without `.claude/app-context.md`. Downstream steps will use generic fallbacks (no pre-discovered test command, no log surfaces) — this is non-fatal.
 
 ## Step 0.7: Bug Classification — Infer debug strategy from description
 
@@ -201,6 +201,7 @@ This step always runs. Do not skip it.
    - `resume: "<agent-id-from-step-1a>"`
    - Prompt: `MODE: DIAGNOSE\n\nUser feedback on the diagnosis:\n<feedback>\n\nPlease revise the diagnosis incorporating this feedback.`
    - Wait for it to complete, then **loop back to the top of Step 1d** to re-present the updated diagnosis.
+   - **Iteration cap**: max 3 re-diagnose cycles. If the user requests a 4th, stop looping — surface the stuck state and ask whether to abort the workflow or proceed to Step 2 with the current diagnosis.
 
 ## Step 2: Fix — Run bug-fixer with adaptive TDD
 

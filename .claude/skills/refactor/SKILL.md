@@ -159,6 +159,7 @@ This step always runs. Do not skip it.
    - `resume: "<agent-id-from-step-1a>"`
    - Prompt: `MODE: GENERATE\n\nTASKS_DIR=$TASKS_DIR\n\nUser feedback on the refactoring plan:\n<feedback>\n\nPlease regenerate the task files incorporating this feedback.`
    - Wait for it to complete, then **loop back to the top of Step 1d**.
+   - **Iteration cap**: max 3 regeneration cycles. If the user requests a 4th, stop looping — surface the stuck state and ask whether to abort the workflow or proceed to Step 1.5 with the current plan.
 
 ## Step 1.5: Safety net — Write missing tests (if requested)
 
@@ -170,7 +171,7 @@ Launch the `test-writer` agent using the Task tool with:
 - `subagent_type: "test-writer"`
 - Prompt: `Write tests for <target> to create a safety net before refactoring. Focus on covering the behavior that the refactoring tasks will touch.`
 
-Wait for it to complete. Confirm tests pass before proceeding — do not start refactoring if tests are failing.
+Wait for it to complete, then read the test-writer's final output. It reports whether the tests it wrote pass. If all tests pass, proceed to Step 2. If any test fails, do NOT proceed — surface the failures to the user and ask whether to abort or to fix the failing tests first.
 
 ## Step 2: Implement — Run orchestrator
 
