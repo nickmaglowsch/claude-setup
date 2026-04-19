@@ -69,7 +69,7 @@ Store `WORKTREE_PATH=""` as the default. It is set to the new worktree's relativ
    ```bash
    git worktree add -b "$WT_BRANCH" ".claude-worktrees/$WT_PATH_SEG" "$WT_BASE"
    ```
-   On failure (branch or path already exists), append `-2` to both `$WT_BRANCH` and `$WT_PATH_SEG` and retry once. If it still fails, abort with a clear error to the user.
+   On failure (branch or path already exists), append `-2` to both `$WT_BRANCH` and `$WT_PATH_SEG` and retry once. If it still fails, abort with a clear error to the user. **If the retry succeeds and `AUTO_COMMIT=true`, set `AUTO_COMMIT_BRANCH=$WT_BRANCH`** so downstream commit/push/PR/report steps target the renamed branch.
 
 5. `cd ".claude-worktrees/$WT_PATH_SEG"`. All subsequent steps run inside the worktree.
 
