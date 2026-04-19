@@ -38,9 +38,46 @@ Ask: "Enable auto-commit and PR?" (Yes / No) → `AUTO_COMMIT`.
      - Option 2: `<CURRENT_BRANCH>` (current branch)
      - Option 3: Other (enter branch name)
    - Store chosen base as `BASE_BRANCH`.
-   - Run `git checkout -b <AUTO_COMMIT_BRANCH> <BASE_BRANCH>`. On failure append `-2`, retry once.
+   - **Do not create the branch yet** — Step 0.1b performs the actual `git checkout -b` or `git worktree add -b` based on the worktree choice.
 
 **If `AUTO_COMMIT=false`:** `BRANCH_ACTION=none`, `COMMIT_MODE=none`.
+
+## Step 0.1b: Worktree opt-in and branch creation
+
+Ask: "Run workflow in a new git worktree? (enables running multiple pipelines in parallel in the same project)" (Yes / No) → `USE_WORKTREE`.
+
+Store `WORKTREE_PATH=""` as the default. It is set to the new worktree's relative path only if one is created.
+
+### If `USE_WORKTREE=false`:
+
+- **If `AUTO_COMMIT=true` AND `BRANCH_ACTION=new`**: run `git checkout -b <AUTO_COMMIT_BRANCH> <BASE_BRANCH>`. On failure append `-2` to `AUTO_COMMIT_BRANCH`, retry once.
+- Otherwise: take no action here. Continue to Step 0.2.
+
+### If `USE_WORKTREE=true`:
+
+1. **If `AUTO_COMMIT=true` AND `BRANCH_ACTION=current`**: worktrees require a fresh branch (git disallows two worktrees on the same branch). Ask: "Worktree needs a new branch. Switch to a new branch, or skip the worktree and commit on the current branch?"
+   - **"Create new branch"** → set `BRANCH_ACTION=new`. Generate `AUTO_COMMIT_BRANCH=feat/<3-5-word-slug>` from the PRD content if not already generated. Run the same base-branch Q&A as Step 0.1 step 4 to pick `BASE_BRANCH`.
+   - **"Skip worktree"** → set `USE_WORKTREE=false` and fall through to the `USE_WORKTREE=false` branch above.
+
+2. Resolve the worktree branch and base:
+   - **If `AUTO_COMMIT=true`**: `WT_BRANCH=$AUTO_COMMIT_BRANCH`, `WT_BASE=$BASE_BRANCH` (both set in Step 0.1).
+   - **If `AUTO_COMMIT=false`**:
+     - Ask: "Branch name for the worktree?" Suggest `feat/<3-5-word-slug>` derived from the PRD content. Store as `WT_BRANCH`.
+     - Run `git fetch origin` and detect `DEFAULT_BRANCH` (same as Step 0.1 step 4).
+     - Get `CURRENT_BRANCH` if not already set.
+     - Ask: "Which branch should `<WT_BRANCH>` be based on?" with the same three options (default / current / other). Store as `WT_BASE`.
+
+3. Sanitize `$WT_BRANCH` into a filesystem-safe path segment (same rules as Step 0a's `SANITIZED`): replace `/` with `-`, strip non-`[A-Za-z0-9._-]`, trim leading/trailing dashes. Store as `WT_PATH_SEG`.
+
+4. Create the worktree and branch atomically:
+   ```bash
+   git worktree add -b "$WT_BRANCH" ".claude-worktrees/$WT_PATH_SEG" "$WT_BASE"
+   ```
+   On failure (branch or path already exists), append `-2` to both `$WT_BRANCH` and `$WT_PATH_SEG` and retry once. If it still fails, abort with a clear error to the user.
+
+5. `cd ".claude-worktrees/$WT_PATH_SEG"`. All subsequent steps run inside the worktree.
+
+6. Set `WORKTREE_PATH=".claude-worktrees/$WT_PATH_SEG"` for the final report.
 
 ## Step 0.2: Orchestration Mode Selection
 
@@ -477,6 +514,12 @@ Summarize the full pipeline run to the user:
   OR
 - Branch: <branch-name>
 - PR: <url or "manual command displayed">
+
+### Worktree
+- [omit this section entirely if `WORKTREE_PATH` is empty]
+  OR
+- Path: <WORKTREE_PATH>
+- Cleanup: `git worktree remove <WORKTREE_PATH>` (run from the original repo root)
 
 ### Next Steps
 - [what the user should do — e.g., run tests, fix issues, deploy]
