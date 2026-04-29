@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
-# statusline.sh — Claude Code status line.
-# Reads session JSON on stdin, prints one line: model | project | folder | branch | ctx%.
+# statusline.sh — Agnoster-style Claude Code status line.
+# Reads session JSON on stdin, prints powerline segments:
+#   model | project | folder | branch | ctx %
 #
 # Wired in ~/.claude/settings.json under "statusLine":
 #   { "type": "command", "command": "bash ~/.claude/statusline.sh", "padding": 0 }
+#
+# Requires a Powerline / Nerd Font in the terminal for the segment arrows
+# and branch glyph to render. Without one, glyphs appear as boxes/question marks.
 
 set -u
 
@@ -34,28 +38,38 @@ project_dir=$(_get '.workspace.project_dir')
 current_dir=$(_get '.workspace.current_dir')
 transcript=$(_get '.transcript_path')
 
-# --- Project name + path relative to project root ---
+# --- Project name + folder relative to project root ---
 project_name=""
 rel_dir=""
 if [ -n "$project_dir" ]; then
   project_name=$(basename "$project_dir")
   if [ -n "$current_dir" ] && [ "$current_dir" != "$project_dir" ]; then
-    rel_dir="${current_dir#"$project_dir"/}"
+    if [[ "$current_dir" == "$project_dir"/* ]]; then
+      rel_dir="${current_dir#"$project_dir"/}"
+    else
+      rel_dir=$(basename "$current_dir")
+    fi
   fi
 fi
 
-# --- Git branch ---
+# --- Git branch + dirty flag ---
 branch=""
+dirty=0
 if [ -n "$current_dir" ] && [ -d "$current_dir" ]; then
   branch=$(git -C "$current_dir" branch --show-current 2>/dev/null || true)
   if [ -z "$branch" ]; then
-    # Detached HEAD — show short SHA
-    branch=$(git -C "$current_dir" rev-parse --short HEAD 2>/dev/null || true)
-    [ -n "$branch" ] && branch="@$branch"
+    sha=$(git -C "$current_dir" rev-parse --short HEAD 2>/dev/null || true)
+    [ -n "$sha" ] && branch="@$sha"
+  fi
+  if [ -n "$branch" ]; then
+    if ! git -C "$current_dir" diff --quiet 2>/dev/null \
+       || ! git -C "$current_dir" diff --cached --quiet 2>/dev/null; then
+      dirty=1
+    fi
   fi
 fi
 
-# --- Context window % (parses latest usage from transcript JSONL) ---
+# --- Context window % from transcript ---
 ctx_pct=""
 if [ -n "$transcript" ] && [ -f "$transcript" ] && command -v python3 &>/dev/null; then
   ctx_pct=$(python3 - "$transcript" "${model:-}" <<'PYEOF' 2>/dev/null
@@ -85,39 +99,59 @@ PYEOF
 )
 fi
 
-# --- Colors (ANSI — Claude Code statuslines render these) ---
-DIM=$'\033[2m'
+# --- Powerline glyphs (require Nerd Font / Powerline-patched font) ---
+ARROW=$''   # right-pointing solid triangle
+BRANCH=$''  # branch glyph
 RESET=$'\033[0m'
-CYAN=$'\033[36m'
-GREEN=$'\033[32m'
-MAGENTA=$'\033[35m'
-YELLOW=$'\033[33m'
-RED=$'\033[31m'
 
-# --- Assemble output ---
-parts=()
-[ -n "$model" ] && parts+=("${MAGENTA}${model}${RESET}")
-[ -n "$project_name" ] && parts+=("${CYAN}${project_name}${RESET}")
-[ -n "$rel_dir" ] && parts+=("${DIM}${rel_dir}${RESET}")
-[ -n "$branch" ] && parts+=("${GREEN}(${branch})${RESET}")
+# --- 256-color palette (agnoster-inspired) ---
+BG_MODEL=54;       FG_MODEL=255    # purple bg, white text
+BG_PROJ=31;        FG_PROJ=255     # teal bg, white text
+BG_DIR=240;        FG_DIR=252      # gray bg, light gray text
+BG_BRANCH_OK=64;   FG_BRANCH_OK=235    # green bg, near-black text
+BG_BRANCH_DIRTY=166; FG_BRANCH_DIRTY=235 # orange bg, near-black text
+BG_CTX_OK=236;     FG_CTX_OK=245   # near-black bg, mid-gray text
+BG_CTX_WARN=178;   FG_CTX_WARN=235 # gold bg, near-black text
+BG_CTX_DANGER=124; FG_CTX_DANGER=255 # red bg, white text
 
-if [ -n "$ctx_pct" ] && [ "$ctx_pct" -ge 0 ] 2>/dev/null; then
-  if [ "$ctx_pct" -ge 90 ] 2>/dev/null; then
-    parts+=("${RED}ctx ${ctx_pct}%${RESET}")
-  elif [ "$ctx_pct" -ge 70 ] 2>/dev/null; then
-    parts+=("${YELLOW}ctx ${ctx_pct}%${RESET}")
+# --- Segment renderer: builds a continuous powerline strip ---
+prev_bg=""
+out=""
+seg() {
+  local bg=$1 fg=$2 text=$3
+  [ -z "$text" ] && return
+  if [ -n "$prev_bg" ]; then
+    out+=$'\033[38;5;'"$prev_bg"$';48;5;'"$bg"$'m'"$ARROW"
+  fi
+  out+=$'\033[38;5;'"$fg"$';48;5;'"$bg"$'m '"$text"' '
+  prev_bg=$bg
+}
+
+[ -n "$model" ]        && seg "$BG_MODEL" "$FG_MODEL" "$model"
+[ -n "$project_name" ] && seg "$BG_PROJ"  "$FG_PROJ"  "$project_name"
+[ -n "$rel_dir" ]      && seg "$BG_DIR"   "$FG_DIR"   "$rel_dir"
+
+if [ -n "$branch" ]; then
+  if [ "$dirty" -eq 1 ]; then
+    seg "$BG_BRANCH_DIRTY" "$FG_BRANCH_DIRTY" "$BRANCH $branch *"
   else
-    parts+=("${DIM}ctx ${ctx_pct}%${RESET}")
+    seg "$BG_BRANCH_OK" "$FG_BRANCH_OK" "$BRANCH $branch"
   fi
 fi
 
-sep=" ${DIM}|${RESET} "
-out=""
-for i in "${!parts[@]}"; do
-  if [ "$i" -eq 0 ]; then
-    out="${parts[$i]}"
+if [ -n "$ctx_pct" ] && [ "$ctx_pct" -ge 0 ] 2>/dev/null; then
+  if [ "$ctx_pct" -ge 90 ] 2>/dev/null; then
+    seg "$BG_CTX_DANGER" "$FG_CTX_DANGER" "ctx ${ctx_pct}%"
+  elif [ "$ctx_pct" -ge 70 ] 2>/dev/null; then
+    seg "$BG_CTX_WARN" "$FG_CTX_WARN" "ctx ${ctx_pct}%"
   else
-    out="${out}${sep}${parts[$i]}"
+    seg "$BG_CTX_OK" "$FG_CTX_OK" "ctx ${ctx_pct}%"
   fi
-done
+fi
+
+# Closing arrow: previous bg as fg, default bg.
+if [ -n "$prev_bg" ]; then
+  out+=$'\033[0m\033[38;5;'"$prev_bg"$'m'"$ARROW""$RESET"
+fi
+
 printf '%s' "$out"
