@@ -6,6 +6,7 @@ A template for setting up Claude Code (agents, skills, memory) in any project. U
 
 | Pipeline | What it does |
 |---|---|
+| [`/grill-me`, `/grill-with-docs`](#pre-build-grilling-grill-me-grill-with-docs) | Fuzzy idea → relentless interview → sharpened plan (run before `/build`) |
 | [`/build`](#the-build-pipeline-build) | PRD → plan → **plan review** → parallel implementation → code review |
 | [`/debug-workflow`](#the-debug-pipeline-debug-workflow) | Bug report → investigate → diagnose → TDD fix → review |
 | [`/refactor`](#the-refactor-pipeline-refactor) | Target → audit → (write tests) → refactor → behavior-preservation review |
@@ -204,6 +205,8 @@ Review `.claude/settings.local.json` to adjust permissions for your project.
 │   ├── build/SKILL.md                    # /build — plan → review-plan → implement → review
 │   ├── craft-pr/SKILL.md                 # /craft-pr — generates PR description from tasks + diff
 │   ├── debug-workflow/SKILL.md           # /debug-workflow — investigate → diagnose → TDD fix → review
+│   ├── grill-me/SKILL.md                 # /grill-me — pre-PRD interview to align on a fuzzy plan
+│   ├── grill-with-docs/                  # /grill-with-docs — grill + update CONTEXT.md/ADRs inline
 │   ├── init-claude-setup/SKILL.md        # /init-claude-setup — project-level init (gitignore, settings)
 │   ├── qa/SKILL.md                       # /qa — exploratory QA via browser + Playwright E2E tests
 │   └── refactor/SKILL.md                 # /refactor — audit → plan → (tests) → implement → review
@@ -229,10 +232,12 @@ The `/build` skill orchestrates the full feature implementation lifecycle. Paste
 ### How it works
 
 ```
-PRD → [Plan] → [User Q&A] → [Review Plan] → [Implement] → [Test] → [Review Code] → Done
+PRD → [Adequacy check] → [Plan] → [User Q&A] → [Review Plan] → [Implement] → [Test] → [Review Code] → Done
 ```
 
 All outputs land in `tasks/<branch>/` (see [Branch-scoped work directories](#branch-scoped-work-directories)).
+
+Before any planning, `/build` checks whether the input PRD has enough substance. If it's a one-liner or full of hedges, you're offered three escapes: run [`/grill-me`](#pre-build-grilling-grill-me-grill-with-docs) (or [`/grill-with-docs`](#pre-build-grilling-grill-me-grill-with-docs) if the repo has a `CONTEXT.md`) first, switch to `--brainstorm` mode, or continue anyway. Skipped automatically when `--brainstorm` is already passed.
 
 #### Step 1: Two-Phase Planning (with user input)
 
@@ -315,6 +320,24 @@ Even when TDD mode is not enabled, the pipeline is test-aware:
 - The `task-implementer` discovers and runs existing tests related to modified files
 - The build pipeline runs the project's full test suite after implementation (Step 2c)
 - The `code-reviewer` evaluates test coverage as a standard quality check
+
+## Pre-build grilling (`/grill-me`, `/grill-with-docs`)
+
+The most common reason a build goes sideways isn't bad code — it's that the PRD didn't say what the user actually wanted. These two skills sit *before* `/build` and force alignment up front.
+
+- **`/grill-me`** — interview-style skill that walks down every branch of a plan one question at a time, recommending an answer for each. Use when you have a fuzzy idea and no PRD yet.
+- **`/grill-with-docs`** — same shape, but also reads the project's `CONTEXT.md` (and `docs/adr/`) and challenges your terminology against the documented domain language. Updates `CONTEXT.md` and creates ADRs inline as decisions crystallise. Use when the project has (or should have) a domain glossary.
+
+`CONTEXT.md` is a per-repo file capturing the domain language: bolded canonical terms, aliases to avoid, relationships, and an example dialogue. ADRs live in `docs/adr/` and capture the *why* of hard-to-reverse decisions. Both files are created lazily — the skill writes to them only when there's something to record. See [`CONTEXT-FORMAT.md`](.claude/skills/grill-with-docs/CONTEXT-FORMAT.md) and [`ADR-FORMAT.md`](.claude/skills/grill-with-docs/ADR-FORMAT.md) for the formats.
+
+```bash
+/grill-me                 # I want to add comment threading to the wiki
+/grill-with-docs          # same, but also evolve CONTEXT.md/ADRs
+```
+
+When `/build` detects a sparse PRD it offers these as the recommended next step (Step 0.05 in `build/SKILL.md`).
+
+Credit: adapted from [mattpocock/skills](https://github.com/mattpocock/skills).
 
 ## The Debug Pipeline (`/debug-workflow`)
 
