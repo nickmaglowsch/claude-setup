@@ -18,6 +18,36 @@ $ARGUMENTS
 - If `$ARGUMENTS` starts with or contains `--brainstorm`, set `BRAINSTORM=true` and strip `--brainstorm` to get the clean PRD content.
 - Otherwise, `BRAINSTORM=false` and the full arguments are the PRD content.
 
+## Step 0.05: PRD adequacy check
+
+Before any planning, gauge whether the input PRD has enough substance for the planner to work with. Read the parsed PRD content (or the file at the path provided in `$ARGUMENTS`).
+
+**Skip this step entirely if `--brainstorm` was passed.** Brainstorm mode is itself a form of pre-planning sharpening — the user has explicitly asked for options to be proposed.
+
+**Treat the PRD as underspecified if any are true:**
+- It is shorter than ~3 sentences
+- It expresses a desire ("I want to...", "we should...") without naming user-facing behavior, scope, or success criteria
+- It contains explicit hedges ("not sure if...", "maybe...", "something like...")
+- The current chat session has no prior context indicating the design has been worked through (no prior grilling, no design doc shared, no answered clarifying questions)
+
+**If underspecified:**
+
+1. Detect domain docs at the repo root: check whether `CONTEXT.md` (single-context) or `CONTEXT-MAP.md` (multi-context) exists.
+
+2. Use `AskUserQuestion`:
+   - Question: "The PRD is sparse. Grilling first usually catches misalignment cheaper than the planner does. How do you want to proceed?"
+   - Options:
+     - **"Run `/grill-with-docs` first"** (only offer when `CONTEXT.md` or `CONTEXT-MAP.md` was detected) — stop the build pipeline; user re-runs `/build` after grilling
+     - **"Run `/grill-me` first"** — stop the build pipeline; user re-runs `/build` after grilling
+     - **"Continue anyway"** — proceed; the planner's discovery phase will pick up the slack
+     - **"Switch to `--brainstorm`"** — re-run `/build` with the `--brainstorm` flag to get design options proposed instead
+
+3. If the user picks a grill or brainstorm option, exit cleanly with a message like: "Stopping `/build`. Re-run with the sharpened PRD when grilling is complete." Do not invoke the chosen skill yourself — the user re-invokes manually so the grilling session has a clean context.
+
+4. If the user picks "Continue anyway", proceed to Step 0.1.
+
+**If the PRD is adequate:** proceed directly to Step 0.1.
+
 ## Step 0.1: Auto-commit opt-in
 
 Ask: "Enable auto-commit and PR?" (Yes / No) → `AUTO_COMMIT`.
