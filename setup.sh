@@ -187,6 +187,7 @@ CLAUDE_FILES=(
   ".claude/skills/qa/SKILL.md"
   ".claude/skills/refactor/SKILL.md"
   ".claude/hooks/token-reducer-nudge.sh"
+  ".claude/statusline.sh"
 )
 
 DEVCONTAINER_FILES=(
@@ -828,6 +829,69 @@ _remove_nudge_hook() {
   touch "$HOME/.claude/.token-reducer-nudged"
 }
 
+# --- Status line: copy script and merge config into ~/.claude/settings.json ---
+_install_statusline_config() {
+  local script_dest="$HOME/.claude/statusline.sh"
+  local settings_file="$HOME/.claude/settings.json"
+
+  # The script itself is already copied via CLAUDE_FILES — just chmod it.
+  if [ -f "$script_dest" ]; then
+    chmod +x "$script_dest" 2>/dev/null || true
+  fi
+
+  mkdir -p "$HOME/.claude"
+
+  # If statusLine is already configured (any value), don't clobber it.
+  if [ -f "$settings_file" ] && grep -q '"statusLine"' "$settings_file" 2>/dev/null; then
+    return 0
+  fi
+
+  local cfg='{"type":"command","command":"bash ~/.claude/statusline.sh","padding":0}'
+
+  if [ ! -f "$settings_file" ]; then
+    python3 -c "
+import json, sys
+cfg = json.loads(sys.argv[1])
+print(json.dumps({'statusLine': cfg}, indent=2))
+" "$cfg" > "$settings_file" 2>/dev/null && {
+      echo "  Created ~/.claude/settings.json with statusLine config."
+      return 0
+    }
+    if command -v jq &>/dev/null; then
+      echo "$cfg" | jq '{statusLine: .}' > "$settings_file" 2>/dev/null && {
+        echo "  Created ~/.claude/settings.json with statusLine config."
+        return 0
+      }
+    fi
+  else
+    local merged
+    merged=$(python3 -c "
+import json, sys
+cfg = json.loads(sys.argv[1])
+with open(sys.argv[2]) as f:
+    data = json.load(f)
+data['statusLine'] = cfg
+print(json.dumps(data, indent=2))
+" "$cfg" "$settings_file" 2>/dev/null) && {
+      echo "$merged" > "$settings_file"
+      echo "  Added statusLine to ~/.claude/settings.json."
+      return 0
+    }
+    if command -v jq &>/dev/null; then
+      merged=$(jq --argjson cfg "$cfg" '.statusLine = $cfg' "$settings_file" 2>/dev/null) && {
+        echo "$merged" > "$settings_file"
+        echo "  Added statusLine to ~/.claude/settings.json."
+        return 0
+      }
+    fi
+  fi
+
+  echo "  Warning: could not wire up statusLine (python3 and jq unavailable)."
+  echo "  Add manually to ~/.claude/settings.json:"
+  echo "    \"statusLine\": $cfg"
+  return 1
+}
+
 _setup_token_reducer_pack() {
   echo "=== Token Reducer Pack ==="
   echo ""
@@ -978,6 +1042,12 @@ perform_global_install() {
       fi
     fi
   fi
+
+  # --- Status line ---
+  echo "=== Status line ==="
+  echo ""
+  _install_statusline_config
+  echo ""
 
   # --- Token Reducer Pack ---
   _setup_token_reducer_pack
