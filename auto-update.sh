@@ -94,6 +94,7 @@ CLAUDE_FILES=(
   ".claude/skills/init-claude-setup/SKILL.md"
   ".claude/skills/qa/SKILL.md"
   ".claude/skills/refactor/SKILL.md"
+  ".claude/statusline.sh"
 )
 
 for file in "${CLAUDE_FILES[@]}"; do
@@ -102,6 +103,8 @@ for file in "${CLAUDE_FILES[@]}"; do
   if [ -f "$src" ]; then
     mkdir -p "$(dirname "$dest")"
     cp "$src" "$dest"
+    # Keep shell scripts executable (statusline.sh, hooks/*.sh)
+    case "$dest" in *.sh) chmod +x "$dest" 2>/dev/null || true ;; esac
   fi
 done
 
@@ -109,6 +112,31 @@ done
 if [ -f "$CLONE_DIR/auto-update.sh" ]; then
   cp "$CLONE_DIR/auto-update.sh" "$HOME/.claude/auto-update.sh"
   chmod +x "$HOME/.claude/auto-update.sh"
+fi
+
+# --- Status line: idempotently wire up if not already configured ---
+statusline_settings="$HOME/.claude/settings.json"
+if [ -f "$HOME/.claude/statusline.sh" ] && \
+   ! { [ -f "$statusline_settings" ] && grep -q '"statusLine"' "$statusline_settings" 2>/dev/null; }; then
+  mkdir -p "$HOME/.claude"
+  sl_cfg='{"type":"command","command":"bash ~/.claude/statusline.sh","padding":0}'
+  if [ ! -f "$statusline_settings" ]; then
+    python3 -c "
+import json, sys
+print(json.dumps({'statusLine': json.loads(sys.argv[1])}, indent=2))
+" "$sl_cfg" > "$statusline_settings" 2>>"$LOG_FILE" && \
+      _log "[STATUSLINE] Created settings.json with statusLine config"
+  else
+    sl_merged=$(python3 -c "
+import json, sys
+with open(sys.argv[2]) as f:
+    data = json.load(f)
+data['statusLine'] = json.loads(sys.argv[1])
+print(json.dumps(data, indent=2))
+" "$sl_cfg" "$statusline_settings" 2>>"$LOG_FILE") && \
+      echo "$sl_merged" > "$statusline_settings" && \
+      _log "[STATUSLINE] Added statusLine to settings.json"
+  fi
 fi
 
 # --- Token Reducer ---
