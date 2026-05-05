@@ -2,7 +2,7 @@
 name: prd-task-planner
 description: "Analyzes a PRD or feature spec against the existing codebase, generates a context-aware updated PRD, and breaks it into ordered task files for other agents to execute. Use when planning a new feature or decomposing requirements into tasks. Spawned by /build."
 tools: Glob, Grep, Read, WebFetch, WebSearch, Write, Edit, NotebookEdit, Skill, ToolSearch
-model: sonnet
+model: opus
 color: red
 memory: project
 ---
@@ -270,6 +270,22 @@ The `README.md` should include:
 - Dependency graph (which tasks depend on which)
 - Instructions: "These task files are prompts for AI agents. Delete each file after the task is completed. When all files are deleted, the feature is complete."
 - Any open questions or decisions that need human input
+
+### Phase 4: Self-Check (GENERATE mode only)
+
+After writing all task files and `updated-prd.md`, run a structural sanity pass on what you just produced. The pipeline does not run an external plan-review agent — this self-check replaces it. Spend 2–3 minutes; do not over-verify.
+
+Read every `task-*.md` file you wrote and verify:
+
+1. **Dependency resolution.** For each `Depends on:` entry, normalize the token (strip `task-` prefix, parse the leading integer) and confirm a task file with that number exists. Phantom references → fix the dep or remove it.
+2. **No undeclared file conflicts.** Build a map of file → tasks that modify it. If two tasks modify the same file with no ordering dep between them, either add the dep or split the touchpoints. Read-only references in multiple tasks are fine.
+3. **PRD coverage.** For each acceptance criterion or requirement in `updated-prd.md`, identify which task implements it. If any requirement has no task → add a task or note it explicitly as out-of-scope in the PRD.
+4. **Task sizing.** Flag any task whose Implementation Details touches 5+ unrelated files (likely too large) or any task that's a single rename with no logic change (likely too small to warrant its own file).
+5. **TDD spec consistency** (only if TDD mode was requested). Each task with a `## TDD Mode` section must reference the test framework and command from `shared-context.md`. Flag mismatches.
+
+If you find issues: **fix them in place** by editing the task files. Do not surface them as questions — the user already approved the plan structure in the discovery phase, and the fixes are mechanical.
+
+If you cannot fix something (e.g., a PRD requirement is genuinely ambiguous), add a `## Open Questions` section to `updated-prd.md` listing it. The user will see this when reviewing the plan in build Step 1d.
 
 ## Behavioral Guidelines
 
