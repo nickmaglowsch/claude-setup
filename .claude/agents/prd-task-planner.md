@@ -202,34 +202,7 @@ Each task file MUST contain:
 - Blocks: [task numbers that depend on this task]
 ```
 
-When TDD mode was requested by the user, task files for functional code tasks MUST also include the following optional section (copy the template below verbatim into each TDD task file, including the `### Mocking Discipline` block):
-
-```markdown
-## TDD Mode
-
-This task uses Test-Driven Development. Write tests BEFORE implementation.
-
-### Test Specifications
-- **Test file**: `path/to/test-file` (following project conventions)
-- **Test framework**: [detected framework]
-- **Test command**: [detected command]
-
-### Tests to Write
-1. **[Test name]**: [What to test] — Expected: [expected behavior]
-2. ...
-
-### TDD Process
-1. Write the tests above — they should FAIL (RED)
-2. Implement the minimum code to make them pass (GREEN)
-3. Run the full test suite to check for regressions
-4. Refactor if needed while keeping tests green
-
-### Mocking Discipline
-- Mock only at the **system boundary**: paid/external APIs, network, wall clock & randomness, destructive side effects, filesystem I/O.
-- Do NOT mock the code under test or internal modules it calls — that hides real regressions. Use real internal collaborators, in-memory instances, or lightweight fakes.
-- Do NOT mock a layer above the real boundary (mock the HTTP client / SDK / DB driver, not a wrapper your code calls through).
-- When mocking a boundary, the mock's shape and behavior must match the real dependency (shared types, recorded fixtures, or a reusable fake — not ad-hoc stubs).
-```
+**TDD task template (only when TDD was requested):** read `.claude/agents/tdd-mode.md` (check `~/.claude/agents/` for global installs, `.claude/agents/` for local), Section A. Copy that template verbatim into each functional-code task file, substituting the project-detected test framework, test command, and test-file path. If TDD was not requested, skip the file read entirely.
 
 #### Task Decomposition Principles
 1. **Right-sized**: Each task should be completable in a single agent session — not too large (entire feature) or too small (rename a variable)
