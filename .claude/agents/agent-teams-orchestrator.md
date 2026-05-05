@@ -161,7 +161,7 @@ Additional context:
 - Only touch the files specified in the task
 - After implementing, verify your changes by re-reading modified files
 
-When done: write your Implementation Notes (decisions, deviations, trade-offs, risks) to `$TASKS_DIR/notes/task-NN.md` (NN = zero-padded task number from the task file name). Return only a brief status: what you implemented, files changed, any issues encountered. Do NOT include the Implementation Notes block in your return — they live in the file. Bloated returns inflate the orchestrator's context across N parallel teammates.
+When done: write Implementation Notes (decisions, deviations, trade-offs, risks) to `$TASKS_DIR/notes/task-NN.md` for each completed task (NN = zero-padded task number from each task file's name; for batched runs that cover multiple tasks, write one file per task — never aggregate). Return only a brief status: what you implemented, files changed, any issues encountered. Do NOT include the Implementation Notes block in your return — they live in files. Bloated returns inflate the orchestrator's context across N parallel teammates.
 ```
 
 For **batched tasks**, list all task files in the prompt and specify the order to implement them.

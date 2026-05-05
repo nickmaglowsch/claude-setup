@@ -37,7 +37,7 @@ Check if `$TASKS_DIR/implementation-notes.md` exists. If it does:
 
 ### Step 2: Identify Changes
 
-`git diff` for uncommitted changes, `git diff main...HEAD` for the branch, `git log --oneline main..HEAD` for history. Read specific files when directed.
+Resolve the default branch first: `DEFAULT_BRANCH=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||')`; fall back to `main` if empty. Then use `git diff` for uncommitted changes, `git diff $DEFAULT_BRANCH...HEAD` for the full branch, `git log --oneline $DEFAULT_BRANCH..HEAD` for history. Read specific files when directed.
 
 ### Step 3: Map Changes to Requirements
 

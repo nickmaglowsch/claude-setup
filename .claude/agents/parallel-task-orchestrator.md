@@ -97,7 +97,7 @@ Additional context:
 - Only touch the files specified in the task
 - After implementing, verify your changes by re-reading modified files
 
-When done, report: what you implemented, files changed, any issues encountered, and your Implementation Notes section (decisions, deviations, trade-offs, risks).
+When done: write your Implementation Notes (decisions, deviations, trade-offs, risks) to `<resolved_tasks_dir>/notes/task-NN.md` (NN = zero-padded task number from your task file's name). Return only a brief status: what you implemented, files changed, and any issues encountered. Do NOT include the Implementation Notes block in your return — they live in the file.
 ```
 
 Use `subagent_type: "task-implementer"` for each sub-agent. This uses the specialized task-implementer agent which reads conventions, verifies context, and follows existing patterns.

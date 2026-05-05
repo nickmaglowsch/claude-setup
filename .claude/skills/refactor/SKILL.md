@@ -227,7 +227,7 @@ Refactoring task files often have linear dependency chains (rename → extract �
 
 If `ORCHESTRATION_MODE=agent-teams`: inform the user "Fast-path detected — using direct implementation instead of Agent Teams; orchestration overhead is not justified for simple refactors." Skip the env-var setup from Step 0.2.
 
-Implement tasks yourself, sequentially, in the current session. For each task file in order: (1) read the task file fully, (2) read any referenced tests, (3) apply the refactor, (4) run the test command for that task to verify behavior is preserved, (5) write `$TASKS_DIR/notes/task-NN.md` with notes on what was changed and why, anything risky for review. After all tasks: concatenate `$TASKS_DIR/notes/task-*.md` (sorted) into `$TASKS_DIR/implementation-notes.md`.
+Implement tasks yourself, sequentially, in the current session. For each task file in order: (1) read the task file fully, (2) read any referenced tests, (3) apply the refactor, (4) run **the project test command** (the same one Step 1.5 used to write the safety net, or whichever command the task file specifies) to verify behavior is preserved — refactor tasks rarely have their own per-task test commands; the safety net is the verification surface, (5) write `$TASKS_DIR/notes/task-NN.md` with notes on what was changed and why, plus anything risky for review (Decisions / Deviations / Trade-offs / Risks). After all tasks: concatenate `$TASKS_DIR/notes/task-*.md` (sorted) into `$TASKS_DIR/implementation-notes.md` with a `# Implementation Notes` header.
 
 Commit handling: if `COMMIT_MODE=per-wave`, after each task run `git add -A && git diff --staged --quiet || git commit -m "refactor: <task-objective>"`. If `COMMIT_MODE=per-task-at-end`, skip — commits happen in Step 2.5b.
 

@@ -181,7 +181,7 @@ The planner already self-checked dependency soundness, file conflicts, PRD cover
 
 If `ORCHESTRATION_MODE=agent-teams`: inform the user "Fast-path detected — using direct implementation instead of Agent Teams; orchestration overhead is not justified." Skip the env-var setup from Step 0.2.
 
-Implement tasks yourself, sequentially, in the current session. For each task file in order: (1) read the task file fully, (2) read referenced context files, (3) implement, (4) if `## TDD Mode` is present follow RED→GREEN→REFACTOR→VERIFY, (5) write `$TASKS_DIR/notes/task-NN.md` with Implementation Notes. After all tasks: concatenate `$TASKS_DIR/notes/task-*.md` (sorted) into `$TASKS_DIR/implementation-notes.md` with a `# Implementation Notes` header.
+Implement tasks yourself, sequentially, in the current session. For each task file in order: (1) read the task file fully, (2) read referenced context files, (3) implement, (4) if `## TDD Mode` is present, follow Section B of `.claude/agents/tdd-mode.md` (RED → adequacy check → GREEN → REFACTOR → VERIFY). (5) write `$TASKS_DIR/notes/task-NN.md` with Implementation Notes — same template the `task-implementer` agent uses (Decisions / Deviations / Trade-offs / Risks; one bullet per category, or a single `No non-obvious decisions.` line if all choices were obvious). After all tasks: concatenate `$TASKS_DIR/notes/task-*.md` (sorted) into `$TASKS_DIR/implementation-notes.md` with a `# Implementation Notes` header.
 
 Commit handling: if `COMMIT_MODE=per-wave`, after each task run `git add -A && git diff --staged --quiet || git commit -m "feat: <task-objective>"`. If `COMMIT_MODE=per-task-at-end`, skip — commits happen in Step 2.5b.
 
@@ -289,15 +289,18 @@ Read `$TASKS_DIR/review-report.md`. Check if the `### Critical` section contains
    - **"Stop here"** — halt the pipeline at this point; user reviews state before deciding next move
 
 3. **If "Auto-fix"**:
-   - For each distinct file affected, launch a `task-implementer` sub-agent in parallel with:
+   - For each distinct file affected (index them as `01`, `02`, ...), launch a `task-implementer` sub-agent in parallel with:
      - `TASKS_DIR=$TASKS_DIR` so it can find shared-context
      - The specific critical issue(s) for that file verbatim from the report
      - Instruction to fix only these specific issues, touching no other code
+     - **Notes file path override**: tell the implementer to write its Implementation Notes to `$TASKS_DIR/notes/autofix-<idx>.md` (e.g., `notes/autofix-01.md`) instead of the standard `task-NN.md` path — there is no task file for auto-fix runs, so the standard NN-derivation rule does not apply.
    - Wait for all task-implementers to complete.
    - Re-run the code-reviewer (same criteria as Step 3) **once** against `$TASKS_DIR/updated-prd.md`. Write the updated report to `$TASKS_DIR/review-report.md` (overwrite).
    - Do not loop — the auto-fix runs at most once. If critical issues persist after the retry, report them in Step 4.
 
-4. **If "Skip" or "Stop here"**: proceed to Step 4 (or halt for "Stop here"). Do not spawn any sub-agents.
+4. **If "Skip — I'll fix them"**: proceed to Step 4 with issues unfixed. Do not spawn any sub-agents. The Step 4 report will list the open critical issues so the user has them in writing.
+
+5. **If "Stop here"**: halt the pipeline. Print a short state summary (branch name, tasks completed, critical-issue count, path to `$TASKS_DIR/review-report.md`) and exit cleanly. Do **not** run Step 4. Do not spawn any sub-agents. Do not commit or push.
 
 ## Step 4: Report
 

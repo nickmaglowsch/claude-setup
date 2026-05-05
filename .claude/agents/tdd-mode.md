@@ -1,8 +1,11 @@
 # TDD Mode — shared reference
 
-This file is loaded **only when needed** by `prd-task-planner` and `task-implementer` agents — when a task has (or is about to have) a `## TDD Mode` section. Agents that are not doing TDD work do not read this file.
+This file is loaded **only when needed** by three readers, and only when a task has (or is about to have) a `## TDD Mode` section:
+- `prd-task-planner` (GENERATE mode) — when the user requested TDD; reads **Section A** to copy the task-file template into each functional-code task.
+- `task-implementer` — when the task it's implementing has a `## TDD Mode` section; reads **Section B** for the workflow.
+- `/build` SKILL **fast-path** (Step 2, when `FAST_PATH=true`) — when implementing a TDD task inline without spawning task-implementer; reads **Section B**.
 
-The goal: keep TDD-specific instructions out of every agent's always-on context, since most builds run without TDD.
+Readers that are not doing TDD work do not read this file. The goal: keep TDD-specific instructions out of every agent's always-on context, since most builds run without TDD.
 
 ---
 

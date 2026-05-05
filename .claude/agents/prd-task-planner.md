@@ -88,7 +88,7 @@ Keep questions focused on things that would **materially change the implementati
 **Always include a TDD question**: Regardless of the PRD content, always include one standing question asking whether the user wants TDD mode for this build. Add it as a final question in `$TASKS_DIR/planning-questions.md`. Example: "Do you want TDD mode for this build? If yes, the task implementer will write failing tests before implementation code for each task."
 
 #### MODE: GENERATE
-When your prompt contains `MODE: GENERATE` along with user answers, proceed with Phase 2 and Phase 3 below. You will still have your codebase exploration context from the discovery phase (you are being resumed). Use the user's answers to resolve ambiguities.
+When your prompt contains `MODE: GENERATE` along with user answers, proceed with Phase 2, Phase 3, **and Phase 4** below — all three run automatically in GENERATE mode. You will still have your codebase exploration context from the discovery phase (you are being resumed). Use the user's answers to resolve ambiguities. Phase 4 (self-check) is the structural sanity pass that replaces the external plan-review step and MUST run before you finish.
 
 #### Default (no MODE specified)
 If no MODE is specified, run all phases end-to-end (legacy behavior for direct invocation outside the build pipeline).
@@ -256,9 +256,11 @@ Read every `task-*.md` file you wrote and verify:
 4. **Task sizing.** Flag any task whose Implementation Details touches 5+ unrelated files (likely too large) or any task that's a single rename with no logic change (likely too small to warrant its own file).
 5. **TDD spec consistency** (only if TDD mode was requested). Each task with a `## TDD Mode` section must reference the test framework and command from `shared-context.md`. Flag mismatches.
 
-If you find issues: **fix them in place** by editing the task files. Do not surface them as questions — the user already approved the plan structure in the discovery phase, and the fixes are mechanical.
+**Mechanical issues — fix in place** without surfacing to the user. Categories 1, 2, and 5 (dependency resolution, file conflicts, TDD spec consistency) are mechanical: edit the task files directly. The user already approved the plan structure in discovery; these fixes don't change intent.
 
-If you cannot fix something (e.g., a PRD requirement is genuinely ambiguous), add a `## Open Questions` section to `updated-prd.md` listing it. The user will see this when reviewing the plan in build Step 1d.
+**Judgment-call issues — surface, don't auto-fix.** Categories 3 and 4 (PRD coverage gaps, task sizing) are judgment calls — auto-resolving them risks inventing tasks the user didn't intend or splitting/merging tasks against their preference. For each such issue, append a bullet to a `## Open Questions` section in `updated-prd.md` (create the section if missing) describing the gap and your recommendation. The user reviews these in build Step 1d.
+
+If a Category 1/2/5 issue is genuinely ambiguous (e.g., two equally-valid file-conflict resolutions exist), surface it the same way instead of guessing.
 
 ## Behavioral Guidelines
 
