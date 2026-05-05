@@ -137,20 +137,11 @@ After each wave:
 After all waves are done:
 
 1. **Quick verification**: Read a sample of modified files to confirm changes were made
-2. **Collect implementation notes**: Extract the `## Implementation Notes` section from each sub-agent's output. Write a consolidated file to `$TASKS_DIR/implementation-notes.md`:
-   ```markdown
-   # Implementation Notes
-
-   ## Task 01: [title]
-   - **Decisions**: [from sub-agent output]
-   - **Deviations**: [from sub-agent output]
-   - **Trade-offs**: [from sub-agent output]
-   - **Risks**: [from sub-agent output]
-
-   ## Task 02: [title]
-   ...
-   ```
-   If a sub-agent reported "No non-obvious decisions", include a single line: `No non-obvious decisions.`
+2. **Collect implementation notes from files** (do NOT scrape sub-agent return values — implementers write notes to files to keep your context lean):
+   - List `$TASKS_DIR/notes/task-*.md` (sorted by filename, which is task number)
+   - Concatenate the contents into `$TASKS_DIR/implementation-notes.md` with a `# Implementation Notes` header at the top
+   - If `$TASKS_DIR/notes/` is empty or missing, write `# Implementation Notes\n\nNo notes recorded.` and continue — do not block
+   - For any task that completed but did not produce a notes file, append `## Task NN: notes file missing` so the gap is visible in the final review
 
 3. **Execution metrics**: Write `$TASKS_DIR/execution-metrics.md` with structured data:
    ```markdown

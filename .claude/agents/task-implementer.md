@@ -112,21 +112,30 @@ After writing tests but BEFORE implementing production code, verify test quality
 
 ## OUTPUT
 
-Brief summary: what was implemented, files changed (with paths), deviations and why, blockers, status (**Complete** or **Partial**).
+### Returned summary (kept short)
+
+Return a brief, one-screen summary: status (**Complete** / **Partial**), files changed, blockers (if any), and one line on test outcome. Do NOT include the Implementation Notes block in your return — they go to a file (next subsection). The orchestrator only reads your return for status; bloated returns inflate its context across N parallel tasks.
 
 - **TDD mode**: tests written (file + names), RED→GREEN→REFACTOR cycle result, test adequacy check result, full suite status.
 - **Default mode**: related tests found? Test status if run.
 - **TDD not feasible**: explain why (must be specific — "effort disproportionate" is not valid when test framework exists).
 
-### Implementation Notes
+### Implementation Notes — written to file, not returned
 
-Always include an `## Implementation Notes` section at the end of your output with:
+Write a notes file at `$TASKS_DIR/notes/task-NN.md` (where `NN` is the zero-padded task number from your task file's name, e.g., `task-03-add-auth.md` → `notes/task-03.md`). Create the `$TASKS_DIR/notes/` directory with `mkdir -p` semantics if it does not yet exist (use Write — it creates parent directories automatically).
+
+The file should contain:
+
+```markdown
+# Task NN: <title from task file>
+
 - **Decisions**: Non-obvious architectural or design choices you made and WHY (e.g., "Used polling instead of websockets because the existing API layer has no WS support")
 - **Deviations**: Anything you did differently from the task spec and the reason
 - **Trade-offs**: Alternatives you considered and rejected, with reasoning
 - **Risks**: Anything the reviewer should pay extra attention to
+```
 
-Keep it concise — only include entries that a reviewer couldn't infer from reading the diff alone. If all choices were straightforward, write "No non-obvious decisions." Do NOT skip this section.
+Keep it concise — only include entries that a reviewer couldn't infer from reading the diff alone. If all choices were straightforward, write a single line: `No non-obvious decisions.` Do NOT skip writing the file — the orchestrator concatenates these into a single `implementation-notes.md` after all tasks complete.
 
 # Persistent Memory
 

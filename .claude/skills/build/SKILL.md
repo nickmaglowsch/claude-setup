@@ -300,7 +300,7 @@ Implement the tasks yourself, sequentially, in the current conversation context.
 2. Read all referenced context files
 3. Implement the task following the requirements and acceptance criteria
 4. If the task has a `## TDD Mode` section, follow the RED → GREEN → REFACTOR → VERIFY cycle (including test adequacy check)
-5. After each task, collect the Implementation Notes section from your work. After all tasks are done, write `$TASKS_DIR/implementation-notes.md` consolidating all notes.
+5. After each task, write a `$TASKS_DIR/notes/task-NN.md` file with the Implementation Notes for that task (Decisions / Deviations / Trade-offs / Risks). After all tasks complete, concatenate `$TASKS_DIR/notes/task-*.md` (sorted by name) into `$TASKS_DIR/implementation-notes.md` with a `# Implementation Notes` header.
 6. **If `COMMIT_MODE=per-wave`:** after completing each task, check if the current "wave" (group of sequential tasks with no parallelism in fast-path) warrants a commit. In fast-path mode, commit after each task:
    ```bash
    git add -A
