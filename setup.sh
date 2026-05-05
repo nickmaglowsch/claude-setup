@@ -179,6 +179,7 @@ CLAUDE_FILES=(
   ".claude/agents/qa-agent.md"
   ".claude/agents/refactor-planner.md"
   ".claude/agents/task-implementer.md"
+  ".claude/agents/tdd-mode.md"
   ".claude/agents/test-writer.md"
   ".claude/skills/build/SKILL.md"
   ".claude/skills/craft-pr/SKILL.md"

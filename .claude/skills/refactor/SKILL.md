@@ -208,9 +208,32 @@ Launch the `test-writer` agent using the Task tool with:
 - `subagent_type: "test-writer"`
 - Prompt: `Write tests for <target> to create a safety net before refactoring. Focus on covering the behavior that the refactoring tasks will touch.`
 
-Wait for it to complete, then read the test-writer's final output. It reports whether the tests it wrote pass. If all tests pass, proceed to Step 2. If any test fails, do NOT proceed — surface the failures to the user and ask whether to abort or to fix the failing tests first.
+Wait for it to complete, then read the test-writer's final output. It reports whether the tests it wrote pass. If all tests pass, proceed to Step 1.6. If any test fails, do NOT proceed — surface the failures to the user and ask whether to abort or to fix the failing tests first.
 
-## Step 2: Implement — Run orchestrator
+## Step 1.6: Fast-path detection — Should we skip the orchestrator?
+
+Read all `$TASKS_DIR/task-*.md` files and classify `FAST_PATH=true` if ANY of:
+- 2 or fewer tasks (regardless of dependencies)
+- All tasks are sequential: linear dependency chain OR all tasks touch overlapping files (no parallelism possible)
+- Only 1 task out of 3+ could run in parallel (orchestrator adds overhead for negligible parallelism)
+
+Otherwise `FAST_PATH=false`.
+
+Refactoring task files often have linear dependency chains (rename → extract → simplify → decompose) and tend toward fast-path more than feature builds.
+
+## Step 2: Implement
+
+### Fast path (`FAST_PATH=true`) — Direct implementation
+
+If `ORCHESTRATION_MODE=agent-teams`: inform the user "Fast-path detected — using direct implementation instead of Agent Teams; orchestration overhead is not justified for simple refactors." Skip the env-var setup from Step 0.2.
+
+Implement tasks yourself, sequentially, in the current session. For each task file in order: (1) read the task file fully, (2) read any referenced tests, (3) apply the refactor, (4) run **the project test command** (the same one Step 1.5 used to write the safety net, or whichever command the task file specifies) to verify behavior is preserved — refactor tasks rarely have their own per-task test commands; the safety net is the verification surface, (5) write `$TASKS_DIR/notes/task-NN.md` with notes on what was changed and why, plus anything risky for review (Decisions / Deviations / Trade-offs / Risks). After all tasks: concatenate `$TASKS_DIR/notes/task-*.md` (sorted) into `$TASKS_DIR/implementation-notes.md` with a `# Implementation Notes` header.
+
+Commit handling: if `COMMIT_MODE=per-wave`, after each task run `git add -A && git diff --staged --quiet || git commit -m "refactor: <task-objective>"`. If `COMMIT_MODE=per-task-at-end`, skip — commits happen in Step 2.5b.
+
+Fast-path keeps continuous session context across tasks (no cold reads) and avoids the orchestrator overhead, which is rarely justified for refactors with sequential dependencies.
+
+### Full path (`FAST_PATH=false`) — Run orchestrator
 
 **If `ORCHESTRATION_MODE=parallel`** (default):
 
@@ -224,8 +247,6 @@ Launch the `parallel-task-orchestrator` agent using the Task tool with:
 Wait for it to complete. Note any issues reported.
 
 **If `ORCHESTRATION_MODE=agent-teams`** (Beta):
-
-> **Note**: If the refactor pipeline adds fast-path detection in the future, the same override logic as the build SKILL should apply — inform the user that Agent Teams mode is skipped for simple tasks.
 
 First, enable the required env var by finding the user's settings file (check `.claude/settings.local.json`, then `.claude/settings.json`, then `~/.claude/settings.json`) and adding `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` to the `env` object, preserving all existing settings. If no settings file exists, create `.claude/settings.local.json` with the env var.
 
@@ -326,7 +347,7 @@ Wait for it to complete.
 
 Summarize the full refactoring run to the user:
 
-Check if `$TASKS_DIR/execution-metrics.md` exists (produced by the orchestrator). Use it to populate the metrics section.
+Check if `$TASKS_DIR/execution-metrics.md` exists (produced by the orchestrator in full-path mode). If not (fast-path mode), generate equivalent metrics inline from your own execution.
 
 ```
 ## Refactor Complete

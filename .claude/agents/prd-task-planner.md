@@ -2,7 +2,7 @@
 name: prd-task-planner
 description: "Analyzes a PRD or feature spec against the existing codebase, generates a context-aware updated PRD, and breaks it into ordered task files for other agents to execute. Use when planning a new feature or decomposing requirements into tasks. Spawned by /build."
 tools: Glob, Grep, Read, WebFetch, WebSearch, Write, Edit, NotebookEdit, Skill, ToolSearch
-model: sonnet
+model: opus
 color: red
 memory: project
 ---
@@ -88,7 +88,7 @@ Keep questions focused on things that would **materially change the implementati
 **Always include a TDD question**: Regardless of the PRD content, always include one standing question asking whether the user wants TDD mode for this build. Add it as a final question in `$TASKS_DIR/planning-questions.md`. Example: "Do you want TDD mode for this build? If yes, the task implementer will write failing tests before implementation code for each task."
 
 #### MODE: GENERATE
-When your prompt contains `MODE: GENERATE` along with user answers, proceed with Phase 2 and Phase 3 below. You will still have your codebase exploration context from the discovery phase (you are being resumed). Use the user's answers to resolve ambiguities.
+When your prompt contains `MODE: GENERATE` along with user answers, proceed with Phase 2, Phase 3, **and Phase 4** below — all three run automatically in GENERATE mode. You will still have your codebase exploration context from the discovery phase (you are being resumed). Use the user's answers to resolve ambiguities. Phase 4 (self-check) is the structural sanity pass that replaces the external plan-review step and MUST run before you finish.
 
 #### Default (no MODE specified)
 If no MODE is specified, run all phases end-to-end (legacy behavior for direct invocation outside the build pipeline).
@@ -202,34 +202,7 @@ Each task file MUST contain:
 - Blocks: [task numbers that depend on this task]
 ```
 
-When TDD mode was requested by the user, task files for functional code tasks MUST also include the following optional section (copy the template below verbatim into each TDD task file, including the `### Mocking Discipline` block):
-
-```markdown
-## TDD Mode
-
-This task uses Test-Driven Development. Write tests BEFORE implementation.
-
-### Test Specifications
-- **Test file**: `path/to/test-file` (following project conventions)
-- **Test framework**: [detected framework]
-- **Test command**: [detected command]
-
-### Tests to Write
-1. **[Test name]**: [What to test] — Expected: [expected behavior]
-2. ...
-
-### TDD Process
-1. Write the tests above — they should FAIL (RED)
-2. Implement the minimum code to make them pass (GREEN)
-3. Run the full test suite to check for regressions
-4. Refactor if needed while keeping tests green
-
-### Mocking Discipline
-- Mock only at the **system boundary**: paid/external APIs, network, wall clock & randomness, destructive side effects, filesystem I/O.
-- Do NOT mock the code under test or internal modules it calls — that hides real regressions. Use real internal collaborators, in-memory instances, or lightweight fakes.
-- Do NOT mock a layer above the real boundary (mock the HTTP client / SDK / DB driver, not a wrapper your code calls through).
-- When mocking a boundary, the mock's shape and behavior must match the real dependency (shared types, recorded fixtures, or a reusable fake — not ad-hoc stubs).
-```
+**TDD task template (only when TDD was requested):** read `.claude/agents/tdd-mode.md` (check `~/.claude/agents/` for global installs, `.claude/agents/` for local), Section A. Copy that template verbatim into each functional-code task file, substituting the project-detected test framework, test command, and test-file path. If TDD was not requested, skip the file read entirely.
 
 #### Task Decomposition Principles
 1. **Right-sized**: Each task should be completable in a single agent session — not too large (entire feature) or too small (rename a variable)
@@ -270,6 +243,24 @@ The `README.md` should include:
 - Dependency graph (which tasks depend on which)
 - Instructions: "These task files are prompts for AI agents. Delete each file after the task is completed. When all files are deleted, the feature is complete."
 - Any open questions or decisions that need human input
+
+### Phase 4: Self-Check (GENERATE mode only)
+
+After writing all task files and `updated-prd.md`, run a structural sanity pass on what you just produced. The pipeline does not run an external plan-review agent — this self-check replaces it. Spend 2–3 minutes; do not over-verify.
+
+Read every `task-*.md` file you wrote and verify:
+
+1. **Dependency resolution.** For each `Depends on:` entry, normalize the token (strip `task-` prefix, parse the leading integer) and confirm a task file with that number exists. Phantom references → fix the dep or remove it.
+2. **No undeclared file conflicts.** Build a map of file → tasks that modify it. If two tasks modify the same file with no ordering dep between them, either add the dep or split the touchpoints. Read-only references in multiple tasks are fine.
+3. **PRD coverage.** For each acceptance criterion or requirement in `updated-prd.md`, identify which task implements it. If any requirement has no task → add a task or note it explicitly as out-of-scope in the PRD.
+4. **Task sizing.** Flag any task whose Implementation Details touches 5+ unrelated files (likely too large) or any task that's a single rename with no logic change (likely too small to warrant its own file).
+5. **TDD spec consistency** (only if TDD mode was requested). Each task with a `## TDD Mode` section must reference the test framework and command from `shared-context.md`. Flag mismatches.
+
+**Mechanical issues — fix in place** without surfacing to the user. Categories 1, 2, and 5 (dependency resolution, file conflicts, TDD spec consistency) are mechanical: edit the task files directly. The user already approved the plan structure in discovery; these fixes don't change intent.
+
+**Judgment-call issues — surface, don't auto-fix.** Categories 3 and 4 (PRD coverage gaps, task sizing) are judgment calls — auto-resolving them risks inventing tasks the user didn't intend or splitting/merging tasks against their preference. For each such issue, append a bullet to a `## Open Questions` section in `updated-prd.md` (create the section if missing) describing the gap and your recommendation. The user reviews these in build Step 1d.
+
+If a Category 1/2/5 issue is genuinely ambiguous (e.g., two equally-valid file-conflict resolutions exist), surface it the same way instead of guessing.
 
 ## Behavioral Guidelines
 
