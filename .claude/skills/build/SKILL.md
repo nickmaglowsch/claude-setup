@@ -429,22 +429,31 @@ Launch the `code-reviewer` agent using the Task tool with:
 
 Wait for it to complete.
 
-## Step 3b: Auto-fix — Address critical review issues (one pass)
+## Step 3b: Auto-fix — Address critical review issues (opt-in, one pass)
 
 Read `$TASKS_DIR/review-report.md`. Check if the `### Critical` section contains any items.
 
-**If critical issues are found:**
-1. Collect all items listed under `### Critical` (file paths, line numbers, descriptions)
-2. For each distinct file affected, launch a `task-implementer` sub-agent (parallel where no file conflicts) with a prompt that includes:
-   - `TASKS_DIR=$TASKS_DIR` so the sub-agent knows where shared-context lives
-   - The specific critical issue(s) for that file verbatim from the report
-   - Instruction to fix only these specific issues, touching no other code
-3. Wait for all task-implementers to complete.
-4. Re-run the code-reviewer (same criteria as Step 3) **once more** against `$TASKS_DIR/updated-prd.md`. Write the updated report to `$TASKS_DIR/review-report.md` (overwrite).
-
 **If no critical issues:** proceed directly to Step 4.
 
-Do not loop — the auto-fix runs at most once. If critical issues persist after the retry, report them in Step 4.
+**If critical issues are found:**
+
+1. Present the list of critical issues to the user — one bullet per issue, with `file:line` references.
+
+2. Use `AskUserQuestion`: "How should we handle the N critical issues?"
+   - **"Auto-fix"** — spawn task-implementers to fix all critical issues in parallel, then re-review once
+   - **"Skip — I'll fix them"** — proceed to Step 4 with issues unfixed; the user takes them on manually
+   - **"Stop here"** — halt the pipeline at this point; user reviews state before deciding next move
+
+3. **If "Auto-fix"**:
+   - For each distinct file affected, launch a `task-implementer` sub-agent in parallel with:
+     - `TASKS_DIR=$TASKS_DIR` so it can find shared-context
+     - The specific critical issue(s) for that file verbatim from the report
+     - Instruction to fix only these specific issues, touching no other code
+   - Wait for all task-implementers to complete.
+   - Re-run the code-reviewer (same criteria as Step 3) **once** against `$TASKS_DIR/updated-prd.md`. Write the updated report to `$TASKS_DIR/review-report.md` (overwrite).
+   - Do not loop — the auto-fix runs at most once. If critical issues persist after the retry, report them in Step 4.
+
+4. **If "Skip" or "Stop here"**: proceed to Step 4 (or halt for "Stop here"). Do not spawn any sub-agents.
 
 ## Step 4: Report
 
