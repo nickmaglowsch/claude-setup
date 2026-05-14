@@ -275,19 +275,23 @@ _setup_codex_plugin() {
   echo "  Generating home-local Codex plugin:"
   echo "    $plugin_dir"
 
+  if ! command -v python3 >/dev/null 2>&1; then
+    echo "  Error: python3 is required but not installed; please install Python 3" >&2
+    return 1
+  fi
+
   SCRIPT_DIR="$SCRIPT_DIR" PLUGIN_DIR="$plugin_dir" MARKETPLACE_FILE="$marketplace_file" python3 <<'PY'
 import json
 import os
 import re
 import shutil
+import sys
+import traceback
 from pathlib import Path
 
-script_dir = Path(os.environ["SCRIPT_DIR"])
-plugin_dir = Path(os.environ["PLUGIN_DIR"]).expanduser()
-marketplace_file = Path(os.environ["MARKETPLACE_FILE"]).expanduser()
 plugin_name = "claude-setup-codex"
 
-skills = [
+fallback_skills = [
     "build",
     "debug-workflow",
     "refactor",
@@ -298,7 +302,7 @@ skills = [
     "init-claude-setup",
 ]
 
-agent_ref_names = [
+fallback_agent_ref_names = [
     "app-scout",
     "bug-fixer",
     "bug-investigator",
@@ -312,73 +316,78 @@ agent_ref_names = [
     "test-writer",
 ]
 
-plugin_dir.mkdir(parents=True, exist_ok=True)
-(plugin_dir / ".codex-plugin").mkdir(parents=True, exist_ok=True)
-(plugin_dir / "skills").mkdir(parents=True, exist_ok=True)
-(plugin_dir / "references" / "agents").mkdir(parents=True, exist_ok=True)
+def warn(function_name: str, pattern: str) -> None:
+    print(
+        f"Warning: {function_name} made no substitutions for pattern: {pattern}",
+        file=sys.stderr,
+    )
 
-manifest = {
-    "name": plugin_name,
-    "version": "0.1.0",
-    "description": "Codex-compatible skills generated from nickmaglowsch/claude-setup.",
-    "author": {
-        "name": "Nick Maglowsch",
-        "url": "https://github.com/nickmaglowsch",
-    },
-    "homepage": "https://github.com/nickmaglowsch/claude-setup",
-    "repository": "https://github.com/nickmaglowsch/claude-setup",
-    "license": "MIT",
-    "keywords": ["codex", "skills", "claude-setup", "software-development"],
-    "skills": "./skills/",
-    "interface": {
-        "displayName": "Claude Setup for Codex",
-        "shortDescription": "Codex skills generated from claude-setup workflows.",
-        "longDescription": (
-            "Home-local Codex plugin containing converted build, debug, refactor, QA, "
-            "PR, and grilling workflows. Claude setup remains the canonical source."
-        ),
-        "developerName": "Nick Maglowsch",
-        "category": "Productivity",
-        "capabilities": ["Interactive", "Write"],
-        "websiteURL": "https://github.com/nickmaglowsch/claude-setup",
-        "defaultPrompt": [
-            "Use the build skill to implement this PRD.",
-            "Run the debug workflow for this bug.",
-            "QA this running app like a user.",
-        ],
-        "brandColor": "#10A37F",
-    },
-}
-(plugin_dir / ".codex-plugin" / "plugin.json").write_text(
-    json.dumps(manifest, indent=2) + "\n",
-    encoding="utf-8",
-)
+def discover_skills(script_dir: Path) -> list[str]:
+    skills_dir = script_dir / ".claude" / "skills"
+    if not skills_dir.is_dir():
+        return fallback_skills
+    discovered = sorted(
+        {
+            path.name.strip()
+            for path in skills_dir.iterdir()
+            if path.is_dir() and (path / "SKILL.md").is_file() and path.name.strip()
+        }
+    )
+    return discovered or fallback_skills
+
+def discover_agent_refs(script_dir: Path) -> list[str]:
+    agents_dir = script_dir / ".claude" / "agents"
+    if not agents_dir.is_dir():
+        return fallback_agent_ref_names
+    discovered = sorted(
+        {
+            path.stem.strip()
+            for path in agents_dir.glob("*.md")
+            if path.is_file() and path.stem.strip() != "agent-teams-orchestrator"
+        }
+    )
+    return discovered or fallback_agent_ref_names
 
 def strip_agent_teams_sections(text: str) -> str:
-    text = re.sub(
-        r"\n## Step 0\.2: Orchestration Mode Selection\n.*?(?=\n## Step 0:)",
+    pattern = r"\n## Step 0\.2: Orchestration Mode Selection\n.*?(?=\n## Step 0:)"
+    text, count = re.subn(
+        pattern,
         "\n## Step 0.2: Orchestration Mode\n\nUse Codex's default delegation model. Set `ORCHESTRATION_MODE=parallel` for the rest of this workflow. The Claude-only team mode is intentionally not converted in this v1 plugin.\n",
         text,
         flags=re.S,
     )
-    text = re.sub(
-        r"\nCheck for a saved orchestration mode preference:\n.*?(?=\n## Step 0:)",
+    if count == 0 and "Orchestration Mode Selection" in text:
+        warn("strip_agent_teams_sections", pattern)
+
+    pattern = r"\nCheck for a saved orchestration mode preference:\n.*?(?=\n## Step 0:)"
+    text, count = re.subn(
+        pattern,
         "\nUse Codex's default delegation model. Set `ORCHESTRATION_MODE=parallel` for the rest of this workflow. The Claude-only team mode is intentionally not converted in this v1 plugin.\n\n",
         text,
         flags=re.S,
     )
-    text = re.sub(
-        r"\nIf `ORCHESTRATION_MODE=agent-teams`:.*?\n\n",
+    if count == 0 and "Check for a saved orchestration mode preference" in text:
+        warn("strip_agent_teams_sections", pattern)
+
+    pattern = r"\nIf `ORCHESTRATION_MODE=agent-teams`:.*?\n\n"
+    text, count = re.subn(
+        pattern,
         "\n",
         text,
         flags=re.S,
     )
-    text = re.sub(
-        r"\n\*\*If `ORCHESTRATION_MODE=agent-teams`\*\*.*?(?=\n## Step 2b:)",
+    if count == 0 and "`ORCHESTRATION_MODE=agent-teams`" in text:
+        warn("strip_agent_teams_sections", pattern)
+
+    pattern = r"\n\*\*If `ORCHESTRATION_MODE=agent-teams`\*\*.*?(?=\n## Step 2b:)"
+    text, count = re.subn(
+        pattern,
         "\n",
         text,
         flags=re.S,
     )
+    if count == 0 and "**If `ORCHESTRATION_MODE=agent-teams`**" in text:
+        warn("strip_agent_teams_sections", pattern)
     return text
 
 def convert_common(text: str, *, is_skill: bool) -> str:
@@ -400,27 +409,46 @@ def convert_common(text: str, *, is_skill: bool) -> str:
         "~/.claude/": "~/.codex/",
     }
     for old, new in replacements.items():
-        text = text.replace(old, new)
-    text = re.sub(
-        r"- `subagent_type: \"([^\"]+)\"`",
+        if old in text:
+            text = text.replace(old, new)
+
+    pattern = r"- `subagent_type: \"([^\"]+)\"`"
+    text, count = re.subn(
+        pattern,
         lambda m: f"- Codex helper prompt: `references/agents/{m.group(1)}.md`",
         text,
     )
-    text = re.sub(
-        r"Launch(?: the)? `([^`]+)` (?:agent )?with `subagent_type: \"([^\"]+)\"`",
+    if count == 0 and "subagent_type" in text:
+        warn("convert_common", pattern)
+
+    pattern = r"Launch(?: the)? `([^`]+)` (?:agent )?with `subagent_type: \"([^\"]+)\"`"
+    text, count = re.subn(
+        pattern,
         lambda m: f"Delegate to `{m.group(2)}` using `references/agents/{m.group(2)}.md`",
         text,
     )
-    text = re.sub(
-        r"with `subagent_type: \"([^\"]+)\"`",
+    if count == 0 and "Launch" in text and "subagent_type" in text:
+        warn("convert_common", pattern)
+
+    pattern = r"with `subagent_type: \"([^\"]+)\"`"
+    text, count = re.subn(
+        pattern,
         lambda m: f"using Codex delegation with `references/agents/{m.group(1)}.md`",
         text,
     )
-    text = re.sub(
-        r"`subagent_type: \"([^\"]+)\"`",
+    if count == 0 and "subagent_type" in text:
+        warn("convert_common", pattern)
+
+    pattern = r"`subagent_type: \"([^\"]+)\"`"
+    text, count = re.subn(
+        pattern,
         lambda m: f"`references/agents/{m.group(1)}.md`",
         text,
     )
+    if count == 0 and "subagent_type" in text:
+        warn("convert_common", pattern)
+    if "subagent_type" in text:
+        warn("convert_common", "remaining subagent_type text")
     text = text.replace("ORCHESTRATION_MODE=agent-teams", "ORCHESTRATION_MODE=parallel")
     text = text.replace("agent-teams", "parallel")
     text = text.replace("Agent Teams", "Claude-only team mode")
@@ -471,53 +499,109 @@ debug-output/
 - Keep Claude setup canonical; this skill only adds Codex-readable project compatibility.
 """
 
-for skill in skills:
-    src_dir = script_dir / ".claude" / "skills" / skill
-    out_dir = plugin_dir / "skills" / skill
-    out_dir.mkdir(parents=True, exist_ok=True)
-    if skill == "init-claude-setup":
-        body = init_codex_skill()
-    else:
-        body = (src_dir / "SKILL.md").read_text(encoding="utf-8")
-        body = convert_common(body, is_skill=True)
-    (out_dir / "SKILL.md").write_text(body, encoding="utf-8")
-    for extra in src_dir.iterdir():
-        if extra.is_file() and extra.name != "SKILL.md":
-            shutil.copy2(extra, out_dir / extra.name)
+def main() -> None:
+    script_dir = Path(os.environ["SCRIPT_DIR"])
+    plugin_dir = Path(os.environ["PLUGIN_DIR"]).expanduser()
+    marketplace_file = Path(os.environ["MARKETPLACE_FILE"]).expanduser()
+    skills = discover_skills(script_dir)
+    agent_ref_names = discover_agent_refs(script_dir)
 
-for name in agent_ref_names:
-    src = script_dir / ".claude" / "agents" / f"{name}.md"
-    if src.exists():
-        body = convert_common(src.read_text(encoding="utf-8"), is_skill=False)
-        (plugin_dir / "references" / "agents" / f"{name}.md").write_text(body, encoding="utf-8")
+    plugin_dir.mkdir(parents=True, exist_ok=True)
+    (plugin_dir / ".codex-plugin").mkdir(parents=True, exist_ok=True)
+    (plugin_dir / "skills").mkdir(parents=True, exist_ok=True)
+    (plugin_dir / "references" / "agents").mkdir(parents=True, exist_ok=True)
 
-marketplace_file.parent.mkdir(parents=True, exist_ok=True)
-if marketplace_file.exists():
-    data = json.loads(marketplace_file.read_text(encoding="utf-8"))
-else:
-    data = {
-        "name": "local",
-        "interface": {"displayName": "Local Plugins"},
-        "plugins": [],
+    manifest = {
+        "name": plugin_name,
+        "version": "0.1.0",
+        "description": "Codex-compatible skills generated from nickmaglowsch/claude-setup.",
+        "author": {
+            "name": "Nick Maglowsch",
+            "url": "https://github.com/nickmaglowsch",
+        },
+        "homepage": "https://github.com/nickmaglowsch/claude-setup",
+        "repository": "https://github.com/nickmaglowsch/claude-setup",
+        "license": "MIT",
+        "keywords": ["codex", "skills", "claude-setup", "software-development"],
+        "skills": "./skills/",
+        "interface": {
+            "displayName": "Claude Setup for Codex",
+            "shortDescription": "Codex skills generated from claude-setup workflows.",
+            "longDescription": (
+                "Home-local Codex plugin containing converted build, debug, refactor, QA, "
+                "PR, and grilling workflows. Claude setup remains the canonical source."
+            ),
+            "developerName": "Nick Maglowsch",
+            "category": "Productivity",
+            "capabilities": ["Interactive", "Write"],
+            "websiteURL": "https://github.com/nickmaglowsch/claude-setup",
+            "defaultPrompt": [
+                "Use the build skill to implement this PRD.",
+                "Run the debug workflow for this bug.",
+                "QA this running app like a user.",
+            ],
+            "brandColor": "#10A37F",
+        },
     }
-data.setdefault("name", "local")
-data.setdefault("interface", {}).setdefault("displayName", "Local Plugins")
-plugins = data.setdefault("plugins", [])
-entry = {
-    "name": plugin_name,
-    "source": {
-        "source": "local",
-        "path": f"./plugins/{plugin_name}",
-    },
-    "policy": {
-        "installation": "AVAILABLE",
-        "authentication": "ON_INSTALL",
-    },
-    "category": "Productivity",
-}
-plugins[:] = [p for p in plugins if p.get("name") != plugin_name]
-plugins.append(entry)
-marketplace_file.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+    (plugin_dir / ".codex-plugin" / "plugin.json").write_text(
+        json.dumps(manifest, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    for skill in skills:
+        src_dir = script_dir / ".claude" / "skills" / skill
+        out_dir = plugin_dir / "skills" / skill
+        out_dir.mkdir(parents=True, exist_ok=True)
+        if skill == "init-claude-setup":
+            body = init_codex_skill()
+        else:
+            body = (src_dir / "SKILL.md").read_text(encoding="utf-8")
+            body = convert_common(body, is_skill=True)
+        (out_dir / "SKILL.md").write_text(body, encoding="utf-8")
+        for extra in src_dir.iterdir():
+            if extra.is_file() and extra.name != "SKILL.md":
+                shutil.copy2(extra, out_dir / extra.name)
+
+    for name in agent_ref_names:
+        src = script_dir / ".claude" / "agents" / f"{name}.md"
+        if src.exists():
+            body = convert_common(src.read_text(encoding="utf-8"), is_skill=False)
+            (plugin_dir / "references" / "agents" / f"{name}.md").write_text(body, encoding="utf-8")
+
+    marketplace_file.parent.mkdir(parents=True, exist_ok=True)
+    if marketplace_file.exists():
+        data = json.loads(marketplace_file.read_text(encoding="utf-8"))
+    else:
+        data = {
+            "name": "local",
+            "interface": {"displayName": "Local Plugins"},
+            "plugins": [],
+        }
+    data.setdefault("name", "local")
+    data.setdefault("interface", {}).setdefault("displayName", "Local Plugins")
+    plugins = data.setdefault("plugins", [])
+    entry = {
+        "name": plugin_name,
+        "source": {
+            "source": "local",
+            "path": f"./plugins/{plugin_name}",
+        },
+        "policy": {
+            "installation": "AVAILABLE",
+            "authentication": "ON_INSTALL",
+        },
+        "category": "Productivity",
+    }
+    plugins[:] = [p for p in plugins if p.get("name") != plugin_name]
+    plugins.append(entry)
+    marketplace_file.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+
+try:
+    main()
+except Exception as exc:
+    print(f"Error: failed to generate Codex plugin: {exc}", file=sys.stderr)
+    print(traceback.format_exc(), file=sys.stderr)
+    sys.exit(1)
 PY
 
   echo "  Generated: ~/plugins/$plugin_name/.codex-plugin/plugin.json"
@@ -1236,7 +1320,8 @@ _setup_token_reducer_pack() {
 
 # --- Global install: copy agents + skills into ~/.claude/ ---
 perform_global_install() {
-  local compat_target_dir="$TARGET_DIR"
+  # Save the original project directory; TARGET_DIR is swapped to $HOME during global install.
+  local original_project_dir="$TARGET_DIR"
   TARGET_DIR="$HOME"
   local global_dir="$HOME/.claude"
   local is_update=false
@@ -1334,7 +1419,7 @@ perform_global_install() {
   # --- Token Reducer Pack ---
   _setup_token_reducer_pack
 
-  TARGET_DIR="$compat_target_dir"
+  TARGET_DIR="$original_project_dir"
   setup_compat_layer
   TARGET_DIR="$HOME"
 
