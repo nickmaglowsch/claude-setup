@@ -80,24 +80,46 @@ To add devcontainer support during an update (if you skipped it during initial s
 bash <(curl -fsSL https://raw.githubusercontent.com/nickmaglowsch/claude-setup/main/setup.sh) --update --add-devcontainer
 ```
 
-#### Other coding agents (OpenCode, Gemini CLI)
+#### Other coding agents (OpenCode, Gemini CLI, Codex CLI)
 
 Add `--compatible` to generate native agent files for other tools alongside the Claude setup:
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/nickmaglowsch/claude-setup/main/setup.sh) --compatible opencode,gemini
+bash <(curl -fsSL https://raw.githubusercontent.com/nickmaglowsch/claude-setup/main/setup.sh) --compatible opencode,gemini,codex
 ```
 
-You'll be prompted to choose models per agent system (heavy-tier and standard-tier). Generated files:
+For OpenCode and Gemini, you'll be prompted to choose models per agent system (heavy-tier and standard-tier). Generated files:
 
 | Flag | Generated | Also creates |
 |---|---|---|
 | `opencode` | `.opencode/agents/*.md` | `AGENTS.md → CLAUDE.md` symlink |
 | `gemini` | `.gemini/agents/*.toml` | `GEMINI.md → CLAUDE.md` symlink |
+| `codex` | `~/plugins/claude-setup-codex/` | `~/.agents/plugins/marketplace.json` entry |
 
-All agents are transpiled from the `.claude/agents/` source files — same system prompts, same role split (heavy tier: `bug-investigator`, `code-reviewer`, `qa-agent`; standard tier: everything else). Defaults: `anthropic/claude-opus-4-6` / `anthropic/claude-sonnet-4-6` for OpenCode, `gemini-2.5-pro` / `gemini-2.5-flash` for Gemini CLI.
+For OpenCode and Gemini, agents are transpiled from the `.claude/agents/` source files — same system prompts, same role split (heavy tier: `bug-investigator`, `code-reviewer`, `qa-agent`; standard tier: everything else). Defaults: `anthropic/claude-opus-4-6` / `anthropic/claude-sonnet-4-6` for OpenCode, `gemini-2.5-pro` / `gemini-2.5-flash` for Gemini CLI.
 
 The `AGENTS.md` / `GEMINI.md` symlinks point to `CLAUDE.md` so project-level instructions are shared across all agents automatically. Commit these files so teammates using other agents benefit too.
+
+##### Codex CLI compatibility
+
+`--compatible codex` generates a home-local Codex plugin instead of forking this repo:
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/nickmaglowsch/claude-setup/main/setup.sh) --compatible codex
+```
+
+Generated paths:
+
+- `~/plugins/claude-setup-codex/.codex-plugin/plugin.json`
+- `~/plugins/claude-setup-codex/skills/*/SKILL.md`
+- `~/plugins/claude-setup-codex/references/agents/*.md`
+- `~/.agents/plugins/marketplace.json`
+
+The marketplace entry uses `source.path: "./plugins/claude-setup-codex"`, `installation: "AVAILABLE"`, `authentication: "ON_INSTALL"`, and category `Productivity`. Re-running the installer updates the plugin in place and keeps a single marketplace entry.
+
+Use the generated workflows as Codex skills: `build`, `debug-workflow`, `refactor`, `qa`, `craft-pr`, `grill-me`, `grill-with-docs`, and `init-claude-setup`. Codex reads `AGENTS.md` for project instructions; when `CLAUDE.md` exists and `AGENTS.md` does not, the installer creates an `AGENTS.md → CLAUDE.md` symlink.
+
+Codex compatibility is v1 and covers skills, shared agent-prompt references, and documentation only. It does not convert Token Reducer hooks, the Claude status line, Claude Agent Teams, `run-claude.sh`, or the devcontainer Claude install.
 
 #### Token Reducer Pack
 
