@@ -275,6 +275,24 @@ This step is especially critical for refactoring — the primary success criteri
 - If tests fail: report the failures and ask whether to fix, proceed anyway, or stop
 - If no test suite exists, note this prominently — behavior preservation cannot be verified automatically
 
+## Step 2d: Simplify — Final polish pass (opt-in, one pass)
+
+The refactor tasks already did the structural work (rename/extract/decompose). A `/simplify` pass is an optional final polish that catches local cleanups the tasks introduced. It **mutates code**, so behavior preservation must be re-verified — the same primary success criterion as the refactor itself.
+
+**Guard:** Only offer this step if Step 2c passed with no regressions. If tests failed or there is no test suite to verify against, **skip this step entirely** — never apply unverifiable cleanups on top of a refactor. Set `SIMPLIFY_RAN=false`.
+
+1. Use `AskUserQuestion`: "Run a `/simplify` polish pass on the refactored code before review?"
+   - **"Yes — simplify"** — run the polish pass
+   - **"No — skip"** → set `SIMPLIFY_RAN=false` and proceed to Step 2.5
+
+2. **If "Yes"**: invoke the `simplify` skill via the Skill tool. Tell it to scope to the full branch diff against the base branch, so changes already committed in `per-wave`/`per-task-at-end` modes are covered — not just uncommitted edits. Wait for it to finish.
+
+3. **Re-verify behavior preservation**: re-run the Step 2b build check and the full test suite from Step 2c.
+   - If any test that passed before now fails, the cleanup broke behavior: report the regressions and ask whether to (a) keep simplify's changes and continue, (b) revert the simplify changes (`git checkout -- <files>` / `git restore`) and continue, or (c) stop. Do not silently proceed — behavior preservation is the contract.
+   - If green, set `SIMPLIFY_RAN=true`.
+
+Simplify's edits are left uncommitted and flow into the existing Step 2.5b commit logic.
+
 ## Step 2.5: Auto-commit and PR
 
 **Skip if `AUTO_COMMIT=false`.**
@@ -340,6 +358,7 @@ Launch the `code-reviewer` agent using the Task tool with:
   - Is the code measurably cleaner, simpler, or more maintainable than before?
   - Are the changes minimal and focused — no unrelated modifications?
   - If the scope included public APIs, are signatures preserved (or are breaking changes intentional and documented)?
+- **If `SIMPLIFY_RAN=true`**: append `A /simplify polish pass already ran on these changes — do NOT re-flag reuse, simplification, efficiency, or altitude items as Minor issues. Focus on behavior preservation, correctness, and whether the code is measurably cleaner.` so the report stays signal-dense.
 
 Wait for it to complete.
 
@@ -364,6 +383,9 @@ Check if `$TASKS_DIR/execution-metrics.md` exists (produced by the orchestrator 
 
 ### Tests
 - [all passed / N regressions / no test suite]
+
+### Simplify
+- [ran — behavior preserved / ran — broke X, user chose Y / skipped / not offered (no green baseline)]
 
 ### Execution Metrics
 - Tasks: [completed/total] | Waves: [N] | Retries: [N]
