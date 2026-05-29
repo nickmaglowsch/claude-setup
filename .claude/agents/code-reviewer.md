@@ -52,6 +52,8 @@ For every requirement: find the implementation, verify it's correct and complete
 - **Performance** — N+1 queries, missing indexes, unbounded rendering, large bundle adds
 - **Test coverage** — tests exist for new/changed code? existing tests still pass? edge cases and error paths covered? naming conventions match?
 
+**Simplify-aware mode** — if your prompt states that a `/simplify` cleanup or polish pass already ran on these changes, do NOT raise Minor issues for reuse, simplification, efficiency, or altitude — those dimensions were already handled and re-flagging them is noise. Still raise them at **Critical** or **Important** severity if a genuine correctness, security, or maintainability problem hides behind one (e.g. a "simplification" that changed behavior). This suppression applies only to the Minor tier and only to those four quality dimensions.
+
 If TDD-specific criteria are in your prompt, also check:
 - Tests exist for each TDD task and meaningfully validate acceptance criteria (not `expect(true).toBe(true)`-style assertions)
 - Tests written as specs (testing behavior) rather than after-the-fact verification

@@ -234,6 +234,24 @@ After the build check, run the project's full test suite to catch regressions an
 - If tests fail: report the failures and ask whether to proceed, fix, or skip
 - If no test infrastructure is detected, skip this step
 
+## Step 2d: Simplify — Quality cleanup pass (opt-in, one pass)
+
+A `/simplify` pass applies reuse/simplification/efficiency/altitude cleanups to the changes. It **mutates code**, so it must run against a verified-green baseline and re-verify afterward.
+
+**Guard:** Only offer this step if Step 2c passed (or was skipped with no detected failures). If Step 2c reported failures the user chose to proceed past, **skip this step entirely** — never simplify on a red baseline. Set `SIMPLIFY_RAN=false`.
+
+1. Use `AskUserQuestion`: "Run a `/simplify` quality cleanup pass on the changes before review?"
+   - **"Yes — simplify"** — run the cleanup pass
+   - **"No — skip"** → set `SIMPLIFY_RAN=false` and proceed to Step 2.5
+
+2. **If "Yes"**: invoke the `simplify` skill via the Skill tool. Tell it to scope to the full branch diff against the base branch, so changes already committed in `per-wave`/`per-task-at-end` modes are covered — not just uncommitted edits. Wait for it to finish.
+
+3. **Re-verify behavior**: re-run the Step 2b build check command and the Step 2c test command.
+   - If something that passed before now fails, the cleanup broke behavior: report the failing checks and ask whether to (a) keep simplify's changes and continue, (b) revert the simplify changes (`git checkout -- <files>` / `git restore`) and continue, or (c) stop. Do not silently proceed.
+   - If green, set `SIMPLIFY_RAN=true`.
+
+Simplify's edits are left uncommitted and flow into the existing Step 2.5b commit logic: included in the squash commit, swept into the `per-wave` post-run cleanup commit, or caught by the `per-task-at-end` miscellaneous-changes commit.
+
 ## Step 2.5: Auto-commit and PR
 
 **Skip if `AUTO_COMMIT=false`.**
@@ -270,6 +288,7 @@ Launch `code-reviewer` with:
 - If `implementation-notes.md` exists: tell it to read this file for implementer decision context.
 - If TDD was used: tell it to apply TDD-specific review criteria (test adequacy, mocking discipline, validity of any "TDD not feasible" declarations) — the reviewer agent has those checks built in.
 - If TDD was not used: tell it to check general test coverage as part of the standard review.
+- **If `SIMPLIFY_RAN=true`**: append `A /simplify cleanup pass already ran on these changes — do NOT re-flag reuse, simplification, efficiency, or altitude items as Minor issues. Focus on correctness, PRD compliance, security, and test adequacy.` so the report stays signal-dense.
 
 Wait for it to complete.
 
@@ -324,6 +343,9 @@ Summarize the full pipeline run to the user:
 ### Testing
 - [test suite status: all passed / X failed / not detected]
 - [if TDD: TDD compliance summary]
+
+### Simplify
+- [ran — behavior re-verified green / ran — broke X, user chose Y / skipped / not offered (red baseline)]
 
 ### Execution Metrics
 - Tasks: [completed/total] | Waves: [N] | Retries: [N]
