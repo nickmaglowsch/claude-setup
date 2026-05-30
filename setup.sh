@@ -183,6 +183,7 @@ CLAUDE_FILES=(
   ".claude/agents/tdd-mode.md"
   ".claude/agents/test-writer.md"
   ".claude/skills/build/SKILL.md"
+  ".claude/skills/build-lite/SKILL.md"
   ".claude/skills/craft-pr/SKILL.md"
   ".claude/skills/debug-workflow/SKILL.md"
   ".claude/skills/grill-me/SKILL.md"
@@ -192,6 +193,7 @@ CLAUDE_FILES=(
   ".claude/skills/init-claude-setup/SKILL.md"
   ".claude/skills/qa/SKILL.md"
   ".claude/skills/refactor/SKILL.md"
+  ".claude/skills/refactor-lite/SKILL.md"
   ".claude/hooks/token-reducer-nudge.sh"
   ".claude/statusline.sh"
 )
