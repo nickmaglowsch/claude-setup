@@ -8,8 +8,10 @@ A template for setting up Claude Code (agents, skills, memory) in any project. U
 |---|---|
 | [`/grill-me`, `/grill-with-docs`](#pre-build-grilling-grill-me-grill-with-docs) | Fuzzy idea → relentless interview → sharpened plan (run before `/build`) |
 | [`/build`](#the-build-pipeline-build) | PRD → plan → **plan review** → parallel implementation → code review |
+| [`/build-lite`](#lightweight-pipelines-build-lite-refactor-lite) | Feature → plan → approve → implement in one context — no fan-out, review separated |
 | [`/debug-workflow`](#the-debug-pipeline-debug-workflow) | Bug report → investigate → diagnose → TDD fix → review |
 | [`/refactor`](#the-refactor-pipeline-refactor) | Target → audit → (write tests) → refactor → behavior-preservation review |
+| [`/refactor-lite`](#lightweight-pipelines-build-lite-refactor-lite) | Target → audit → plan → approve → refactor in one context — no fan-out, review separated |
 | [`/qa`](#the-qa-pipeline-qa) | Running app → exploratory browser testing → QA report + Playwright E2E tests |
 | [`/craft-pr`](#craft-a-pr-craft-pr) | Branch's task files + diff → polished PR description |
 
@@ -225,13 +227,15 @@ Review `.claude/settings.local.json` to adjust permissions for your project.
 │   └── test-writer.md                    # Writes missing tests for existing code
 ├── skills/                           # User-invocable skills (slash commands)
 │   ├── build/SKILL.md                    # /build — plan → review-plan → implement → review
+│   ├── build-lite/SKILL.md               # /build-lite — plan → approve → implement in one context (no fan-out)
 │   ├── craft-pr/SKILL.md                 # /craft-pr — generates PR description from tasks + diff
 │   ├── debug-workflow/SKILL.md           # /debug-workflow — investigate → diagnose → TDD fix → review
 │   ├── grill-me/SKILL.md                 # /grill-me — pre-PRD interview to align on a fuzzy plan
 │   ├── grill-with-docs/                  # /grill-with-docs — grill + update CONTEXT.md/ADRs inline
 │   ├── init-claude-setup/SKILL.md        # /init-claude-setup — project-level init (gitignore, settings)
 │   ├── qa/SKILL.md                       # /qa — exploratory QA via browser + Playwright E2E tests
-│   └── refactor/SKILL.md                 # /refactor — audit → plan → (tests) → implement → review
+│   ├── refactor/SKILL.md                 # /refactor — audit → plan → (tests) → implement → review
+│   └── refactor-lite/SKILL.md            # /refactor-lite — audit → approve → refactor in one context (no fan-out)
 ├── agent-memory/                     # Persistent memory per agent (survives across sessions)
 └── settings.local.json               # Local Claude Code settings
 
@@ -455,6 +459,28 @@ Once work is done on a branch, `/craft-pr` reads `tasks/<branch>/*.md` plus the 
 ```bash
 /craft-pr
 ```
+
+## Lightweight Pipelines (`/build-lite`, `/refactor-lite`)
+
+The heavy `/build` and `/refactor` pipelines spend tokens to buy **parallelism** and **context isolation**: a planner agent, a fan-out of implementer sub-agents, and a reviewer agent, each spawning cold and re-reading the same files, with task files serialized between them. That trade pays off for large, parallelizable work — and not much else.
+
+For everyday features and cleanups, `/build-lite` and `/refactor-lite` do the same job in a **single warm context**:
+
+```
+explore (read-only) → plan → you approve → implement → verify build+tests → optional commit → offer /code-review
+```
+
+No sub-agent fan-out, no intermediate task files, no orchestration-mode/worktree/brainstorm prompts. Because nothing re-reads the codebase from a cold context, they typically cost **fewer tokens** than the full pipelines, not just less ceremony. Code review is deliberately **separated** — they finish by offering an independent [`/code-review`](https://docs.claude.com/en/docs/claude-code) pass rather than bundling it, so the reviewer sees the diff with fresh eyes.
+
+**Reach for the lite version by default.** Use the heavy `/build` / `/refactor` only when the work spans many independent files worth implementing in parallel, or genuinely exceeds a single context (large migrations, broad sweeps).
+
+| | Heavy (`/build`, `/refactor`) | Lite (`/build-lite`, `/refactor-lite`) |
+|---|---|---|
+| Implementation | Parallel sub-agent fan-out | Single warm context |
+| Planning | `prd-task-planner` agent + task files | Inline plan, approved in chat |
+| Review | Bundled `code-reviewer` agent | Separated — offers `/code-review` |
+| Git plumbing | Auto-commit / branch / PR / worktree opt-ins | Optional commit (+ optional push/PR) |
+| Best for | Large, parallelizable work | Everyday features & cleanups |
 
 ## Agent Memory
 
