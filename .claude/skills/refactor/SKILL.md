@@ -366,8 +366,8 @@ Simplify's edits are left uncommitted and flow into the existing Step 2.5b commi
 Check if `$TASKS_DIR/implementation-notes.md` and `$TASKS_DIR/execution-metrics.md` exist (produced by the orchestrator).
 
 Before launching the reviewer, gather a compact review packet:
-- Resolve `DEFAULT_BRANCH` from `origin/HEAD` with `main` fallback.
-- Capture `git diff --stat $DEFAULT_BRANCH...HEAD`, `git diff --name-only $DEFAULT_BRANCH...HEAD`, and `git log --oneline $DEFAULT_BRANCH..HEAD`.
+- If `DEFAULT_BRANCH` is not set, resolve it: `DEFAULT_BRANCH=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||')` (fallback `main` if empty or error).
+- Capture `git diff --stat "$DEFAULT_BRANCH"...HEAD`, `git diff --name-only "$DEFAULT_BRANCH"...HEAD`, and `git log --oneline "$DEFAULT_BRANCH"..HEAD`.
 - Capture build/test commands run in Steps 2b/2c and their pass/fail summaries. Do not paste full logs unless failures need specific excerpts.
 
 Launch the `code-reviewer` agent using the Task tool with:

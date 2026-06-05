@@ -474,7 +474,7 @@ explore (read-only) → plan → you approve → implement → verify build+test
 
 No sub-agent fan-out, no intermediate task files, no orchestration-mode/worktree/brainstorm prompts. Because nothing re-reads the codebase from a cold context, they typically cost **fewer tokens** than the full pipelines, not just less ceremony. Code review is deliberately **separated** — they finish by offering an independent [`/code-review`](https://docs.claude.com/en/docs/claude-code) pass rather than bundling it, so the reviewer sees the diff with fresh eyes.
 
-**Reach for the lite version by default.** The heavy `/build` / `/refactor` commands now perform their own cheap routing checks and switch into the lite workflow when lite is the better fit. Use the heavy commands when the work spans many independent files worth implementing in parallel, or genuinely exceeds a single context (large migrations, broad sweeps).
+**Just use `/build` or `/refactor` when you want automatic routing.** Both commands perform a cheap routing check and switch into the lite workflow when lite is the better fit. Invoke `/build-lite` or `/refactor-lite` directly when you explicitly want to skip the routing check and force the lightweight path. Use the heavy orchestrated path when the work spans many independent files worth implementing in parallel, or genuinely exceeds a single context (large migrations, broad sweeps).
 
 | | Heavy (`/build`, `/refactor`) | Lite (`/build-lite`, `/refactor-lite`) |
 |---|---|---|

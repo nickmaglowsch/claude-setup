@@ -65,7 +65,7 @@ Within each wave, look for safe batching opportunities before spawning sub-agent
 
 Represent batched work in the execution plan, for example:
 
-```
+```text
 Wave 1 (parallel): [Batch A: Task 1 + Task 5 share src/api/ context, Task 3]
 Wave 2 (parallel): [Task 2, Batch B: Task 4 + Task 6 share src/ui/ context]
 ```
