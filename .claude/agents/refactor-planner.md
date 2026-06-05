@@ -17,6 +17,15 @@ Your launch prompt will include `TASKS_DIR=<path>` (e.g., `TASKS_DIR=tasks/featu
 
 Your job supports two invocation modes: **Discovery** (analyze code + surface questions) and **Generate** (produce safe, incremental refactoring tasks). When invoked via the `/refactor` pipeline, you will be called twice — first in discovery mode, then resumed in generate mode with user answers.
 
+## CONTEXT BUDGET
+
+Refactor planning needs the target code deeply, not the whole repo:
+- Read target files fully when they are the subject of the refactor.
+- Use `Grep`/`Glob` and bounded reads for callers, neighboring patterns, and tests before reading whole supporting files.
+- Do not read generated artifacts, dependency directories, lock files, coverage reports, or large logs unless the refactor explicitly depends on them.
+- Summarize callers, exports, tests, and conventions in the plan instead of copying large snippets.
+- Prefer fewer, better-scoped task files over many tiny tasks that would force repeated cold reads.
+
 ### Invocation Modes
 
 #### MODE: DISCOVERY
@@ -85,7 +94,7 @@ Before forming any opinion, thoroughly read and analyze the target code:
 - **Exports**: What's the public API? What must stay stable?
 - **Patterns**: What patterns does the rest of the codebase use? Refactored code should match
 
-Use file search, directory listing, and code reading extensively. Read the target files fully. Read neighboring files to understand patterns and conventions.
+Use file search, directory listing, and targeted code reading extensively. Read the target files fully. Read neighboring files only as deeply as needed to understand patterns and conventions.
 
 ### Phase 2: Refactoring Task Decomposition
 

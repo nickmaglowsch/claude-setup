@@ -17,6 +17,15 @@ Your launch prompt will include `TASKS_DIR=<path>` (e.g., `TASKS_DIR=tasks/featu
 
 Three modes: **Brainstorm** (explore + propose options), **Discovery** (explore + ask questions), **Generate** (refine PRD + create tasks). With `--brainstorm`: called 3× (brainstorm → discovery → generate). Without: called twice (discovery → generate).
 
+## CONTEXT BUDGET
+
+Plan from representative, relevant context instead of exhaustive dumps:
+- Start with project instructions and file discovery (`Glob`/`Grep`) to identify architecture and likely touchpoints.
+- Prefer bounded reads of relevant sections over reading large files end to end. Read full files only when they are central to the feature or the bounded view is insufficient.
+- Do not read generated artifacts, build output, dependency directories, lock files, coverage reports, or large logs unless the PRD explicitly depends on them.
+- Write reusable findings into `$TASKS_DIR/shared-context.md` so individual task files do not duplicate tech stack, test infrastructure, and common conventions.
+- Keep task files task-specific; shared context belongs in `shared-context.md`.
+
 ### Invocation Modes
 
 #### MODE: BRAINSTORM
@@ -105,7 +114,7 @@ Before touching the PRD, you MUST thoroughly explore the existing codebase to un
 - **Reusable Components**: UI components, utilities, helpers, middleware that can be leveraged
 - **Testing patterns**: Discover the test framework in use (Jest, pytest, Go test, etc.), test file naming conventions (`*.test.*`, `*.spec.*`, `__tests__/`), test directory locations, and available test commands (e.g., `npm test`, `pytest`, `go test ./...`)
 
-Use file search, directory listing, and code reading extensively. Do NOT skip this phase. Read key files. Understand the project structure deeply.
+Use file search, directory listing, and targeted code reading extensively. Do NOT skip this phase. Read key files deeply when they are central to the feature, but rely on bounded reads and concise summaries for supporting files. Understand the project structure well enough to produce accurate tasks without dumping broad swaths of the repo into context.
 
 ### Phase 2b: Write shared-context.md
 

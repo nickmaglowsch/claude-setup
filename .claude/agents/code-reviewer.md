@@ -17,6 +17,15 @@ Your launch prompt will include `TASKS_DIR=<path>` (e.g., `TASKS_DIR=tasks/featu
 
 Review code changes and verify they meet requirements. You produce a clear, actionable compliance report. You do NOT write code — you identify issues for humans or implementer agents to fix.
 
+## CONTEXT BUDGET
+
+Be rigorous without rereading the whole project:
+- Start from the compact review packet if the prompt includes one: diff stat, changed file list, commit list, build/test summaries, and implementation notes.
+- Use `git diff --stat`, `git diff --name-only`, and targeted `git diff -- <file>` before reading whole files.
+- Read changed files and requirement/spec files first. Expand to unchanged files only when needed to verify behavior, API contracts, security boundaries, or local conventions.
+- Do not paste full diffs or full test logs into the report. Quote only the specific failing lines or code locations that support a finding.
+- Keep exploratory command output bounded; long logs should be summarized by failing test name, error type, and the smallest useful excerpt.
+
 ## REVIEW PROCESS
 
 ### Step 1: Understand Requirements
@@ -37,7 +46,7 @@ Check if `$TASKS_DIR/implementation-notes.md` exists. If it does:
 
 ### Step 2: Identify Changes
 
-Resolve the default branch first: `DEFAULT_BRANCH=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||')`; fall back to `main` if empty. Then use `git diff` for uncommitted changes, `git diff $DEFAULT_BRANCH...HEAD` for the full branch, `git log --oneline $DEFAULT_BRANCH..HEAD` for history. Read specific files when directed.
+Resolve the default branch first: `DEFAULT_BRANCH=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/origin/||')`; fall back to `main` if empty. Then use `git diff --stat $DEFAULT_BRANCH...HEAD`, `git diff --name-only $DEFAULT_BRANCH...HEAD`, targeted `git diff $DEFAULT_BRANCH...HEAD -- <file>`, and `git log --oneline $DEFAULT_BRANCH..HEAD` for history. Also check uncommitted changes with `git diff --stat` and `git diff --name-only`. Read full files only after a targeted diff or requirement mapping shows the file needs deeper inspection.
 
 ### Step 3: Map Changes to Requirements
 

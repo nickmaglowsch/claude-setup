@@ -14,6 +14,24 @@ The refactoring target (file path, directory, or description of what to improve)
 
 $ARGUMENTS
 
+## Step 0.03: Cheap routing check — should this be `/refactor-lite`?
+
+Before asking auto-commit, worktree, or orchestration questions, spend at most 2-3 minutes on a bounded read-only check:
+- Identify the target file(s) or package.
+- Use targeted `Glob`/`Grep`/bounded `Read` only where needed to estimate scope, callers, and whether independent parallel work exists.
+- Do not launch planner/test-writer/reviewer/implementer agents in this step.
+
+Route to `/refactor-lite` and stop this workflow if the refactor appears to be any of:
+- 1-2 likely refactor tasks.
+- A single target file/module, or mostly overlapping target files.
+- A linear sequence such as rename → extract → simplify → verify.
+- A cleanup where task isolation would force multiple agents to re-read the same code.
+- Documentation/config-only cleanup.
+
+Proceed with full `/refactor` only when the work likely needs 3+ independent refactor tasks that can run in parallel, or when the target is broad enough to exceed a single warm context.
+
+If routing to lite, tell the user: "This looks cheaper and equally safe as `/refactor-lite` because <reason>. Switching to the lite workflow." Then immediately follow `.claude/skills/refactor-lite/SKILL.md` from Step 1 using the same `$ARGUMENTS`, skipping all remaining full `/refactor` steps.
+
 ## Step 0.1: Auto-commit opt-in
 
 Ask: "Enable auto-commit and PR?" (Yes / No) → `AUTO_COMMIT`.
@@ -241,6 +259,7 @@ Launch the `parallel-task-orchestrator` agent using the Task tool with:
 - `subagent_type: "parallel-task-orchestrator"`
 - Tell it to read and execute all tasks from `$TASKS_DIR/`
 - Include `TASKS_DIR=$TASKS_DIR` in the launch prompt
+- Tell it to batch same-wave tasks that share module/directory context when safe, and to keep sub-agent returns short because detailed notes must be written to `$TASKS_DIR/notes/`.
 - **If `COMMIT_MODE=per-wave`**: Include `COMMIT_MODE=per-wave` in the launch prompt so the orchestrator commits after each wave.
 - **If `COMMIT_MODE=squash`, `per-task-at-end`, or `AUTO_COMMIT=false`**: Launch normally with no additional commit instructions.
 
@@ -346,12 +365,18 @@ Simplify's edits are left uncommitted and flow into the existing Step 2.5b commi
 
 Check if `$TASKS_DIR/implementation-notes.md` and `$TASKS_DIR/execution-metrics.md` exist (produced by the orchestrator).
 
+Before launching the reviewer, gather a compact review packet:
+- Resolve `DEFAULT_BRANCH` from `origin/HEAD` with `main` fallback.
+- Capture `git diff --stat $DEFAULT_BRANCH...HEAD`, `git diff --name-only $DEFAULT_BRANCH...HEAD`, and `git log --oneline $DEFAULT_BRANCH..HEAD`.
+- Capture build/test commands run in Steps 2b/2c and their pass/fail summaries. Do not paste full logs unless failures need specific excerpts.
+
 Launch the `code-reviewer` agent using the Task tool with:
 - `subagent_type: "code-reviewer"`
 - Tell it to review all changes against `$TASKS_DIR/refactor-plan.md`
 - **If `$TASKS_DIR/implementation-notes.md` exists**, tell it to read this file for implementer decision context
 - Tell it to write the review report to `$TASKS_DIR/refactor-review-report.md`
 - Include `TASKS_DIR=$TASKS_DIR` in the launch prompt
+- Include the compact review packet in the prompt. Tell it to review diff-scoped changes first, reading changed files and requirement files as needed, and to expand to unchanged files only when required to verify behavior, contracts, or conventions.
 - Include these refactor-specific review criteria in the prompt:
   - Is behavior preserved? Are there any logic changes that shouldn't be there?
   - Do all existing tests still pass?

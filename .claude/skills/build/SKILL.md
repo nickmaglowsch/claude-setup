@@ -18,6 +18,24 @@ $ARGUMENTS
 - If `$ARGUMENTS` starts with or contains `--brainstorm`, set `BRAINSTORM=true` and strip `--brainstorm` to get the clean PRD content.
 - Otherwise, `BRAINSTORM=false` and the full arguments are the PRD content.
 
+## Step 0.03: Cheap routing check — should this be `/build-lite`?
+
+Before asking auto-commit, worktree, or orchestration questions, spend at most 2-3 minutes on a bounded read-only check:
+- Read the PRD text, or the referenced PRD file if `$ARGUMENTS` is a path.
+- Use targeted `Glob`/`Grep`/bounded `Read` only when needed to identify likely files and whether independent parallel work exists.
+- Do not launch planner/reviewer/implementer agents in this step.
+
+Route to `/build-lite` and stop this workflow if the feature appears to be any of:
+- 1-2 likely implementation tasks.
+- A single user-facing workflow or localized change.
+- Mostly sequential work where later edits depend on earlier ones.
+- Work concentrated in one module/package or touching overlapping files.
+- A docs/config/UI copy/update task.
+
+Proceed with full `/build` only when the work likely needs 3+ independent implementation tasks that can run in parallel, or when it genuinely exceeds a single warm context (large migrations, broad feature sweeps, multi-package changes with limited file overlap).
+
+If routing to lite, tell the user: "This looks cheaper and equally safe as `/build-lite` because <reason>. Switching to the lite workflow." Then immediately follow `.claude/skills/build-lite/SKILL.md` from Step 1 using the same `$ARGUMENTS`, skipping all remaining full `/build` steps.
+
 ## Step 0.05: PRD adequacy check
 
 **Skip if `--brainstorm` was passed** — brainstorm mode is itself a form of pre-planning sharpening.
@@ -197,6 +215,8 @@ Launch the `parallel-task-orchestrator` agent using the Task tool with:
   ```
   TASKS_DIR=$TASKS_DIR
   Read and execute all tasks from `$TASKS_DIR/`
+  Batch same-wave tasks that share module/directory context when safe.
+  Keep sub-agent returns short; detailed decisions must go in `$TASKS_DIR/notes/`.
   ```
 - **If `COMMIT_MODE=per-wave`**: Include `COMMIT_MODE=per-wave` in the launch prompt so the orchestrator commits after each wave. Also include: `Use commit subject prefix 'feat:' instead of 'refactor:' for per-wave commits.`
 - **If `COMMIT_MODE=squash`, `per-task-at-end`, or `AUTO_COMMIT=false`**: Launch normally with no additional commit instructions.
@@ -282,9 +302,14 @@ Simplify's edits are left uncommitted and flow into the existing Step 2.5b commi
 
 Detect TDD usage by grepping any `task-*.md` for `## TDD Mode`. Note whether `$TASKS_DIR/implementation-notes.md` exists.
 
+Before launching the reviewer, gather a compact review packet:
+- Resolve `DEFAULT_BRANCH` from `origin/HEAD` with `main` fallback.
+- Capture `git diff --stat $DEFAULT_BRANCH...HEAD`, `git diff --name-only $DEFAULT_BRANCH...HEAD`, and `git log --oneline $DEFAULT_BRANCH..HEAD`.
+- Capture build/test commands run in Steps 2b/2c and their pass/fail summaries. Do not paste full logs unless failures need specific excerpts.
+
 Launch `code-reviewer` with:
 - `subagent_type: "code-reviewer"`
-- Base prompt: `TASKS_DIR=$TASKS_DIR\nReview all changes against $TASKS_DIR/updated-prd.md and write the review report to $TASKS_DIR/review-report.md.`
+- Base prompt: `TASKS_DIR=$TASKS_DIR\nReview all changes against $TASKS_DIR/updated-prd.md and write the review report to $TASKS_DIR/review-report.md.\nStart from this compact review packet: <diff stat, changed file list, commit list, build/test summaries>. Review diff-scoped changes first. Read changed files and requirement files as needed; only expand to unchanged files when required to verify behavior, contracts, or conventions.`
 - If `implementation-notes.md` exists: tell it to read this file for implementer decision context.
 - If TDD was used: tell it to apply TDD-specific review criteria (test adequacy, mocking discipline, validity of any "TDD not feasible" declarations) — the reviewer agent has those checks built in.
 - If TDD was not used: tell it to check general test coverage as part of the standard review.
