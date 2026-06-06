@@ -1,0 +1,15 @@
+{
+  "name": "claude-setup",
+  "owner": {
+    "name": "Nick Maglowsch"
+  },
+  "description": "Self-hosted marketplace for Claude Code workflows from claude-setup.",
+  "plugins": [
+    {
+      "name": "claude-setup",
+      "source": "./plugins/claude-setup",
+      "description": "Claude Code software delivery workflows from this repo",
+      "category": "Productivity"
+    }
+  ]
+}
