@@ -10,11 +10,11 @@ This directory contains the configuration for Claude Code's custom agents, skill
 │   ├── bug-fixer.md             # Fixes diagnosed bugs using adaptive TDD
 │   ├── bug-investigator.md      # Investigates bugs, reads logs, produces diagnosis
 │   ├── prd-task-planner.md      # Analyzes PRDs, explores codebase, generates task files
-│   ├── task-implementer.md      # Implements a single task from a task file
-│   ├── parallel-task-orchestrator.md  # Executes task files in parallel waves
-│   └── code-reviewer.md        # Reviews changes against PRD/spec
+│   ├── task-implementer.md      # Implements one task or a small related task batch
+│   ├── parallel-task-orchestrator.md  # Executes task files in batched parallel waves
+│   └── code-reviewer.md        # Reviews diff-scoped changes against PRD/spec
 ├── skills/                  # User-invocable skills (slash commands)
-│   ├── build/SKILL.md           # /build — full pipeline: plan → implement → review
+│   ├── build/SKILL.md           # /build — route-lite → plan → implement → diff-scoped review
 │   ├── craft-pr/SKILL.md       # /craft-pr — generates PR description from tasks + diff
 │   └── debug-workflow/SKILL.md  # /debug-workflow — investigate → diagnose → TDD fix → review
 ├── agent-memory/            # Persistent memory per agent (survives across sessions)
@@ -28,8 +28,10 @@ The `/build` skill orchestrates the full feature implementation lifecycle. Paste
 ### How it works
 
 ```
-PRD → [Plan] → [User Q&A] → [Implement] → [Test] → [Review] → Done
+PRD → [Cheap lite-routing check] → [Plan] → [User Q&A] → [Implement] → [Test] → [Diff-scoped review] → Done
 ```
+
+Before heavyweight setup, `/build` performs a bounded read-only routing check. Localized, sequential, or 1-2 task features switch into `/build-lite` in the same session so they can run in one warm context without sub-agent fan-out.
 
 #### Step 1: Two-Phase Planning (with user input)
 
@@ -50,11 +52,11 @@ The same planner agent is **resumed** (keeping all its codebase exploration cont
 
 #### Step 2: Parallel Implementation
 
-The `parallel-task-orchestrator` reads all task files, builds a dependency graph, and spawns `task-implementer` agents in parallel waves.
+The `parallel-task-orchestrator` reads all task files, builds a dependency graph, creates one shared context summary, batches related same-wave tasks when safe, and spawns `task-implementer` agents in parallel waves. Implementers write detailed notes to `tasks/notes/` and return short status summaries only.
 
 #### Step 3: Code Review
 
-The `code-reviewer` audits all changes against `tasks/updated-prd.md` and produces a compliance report.
+The `code-reviewer` audits all changes against `tasks/updated-prd.md` and produces a compliance report. It starts from a compact review packet (`git diff --stat`, changed file list, commit list, implementation notes, and build/test summaries), then reads full files only when needed to verify requirements, behavior, contracts, or conventions.
 
 ### Usage
 

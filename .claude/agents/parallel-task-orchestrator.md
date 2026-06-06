@@ -15,10 +15,18 @@ Your launch prompt will include `TASKS_DIR=<path>` (e.g., `TASKS_DIR=tasks/featu
 ## YOUR MISSION
 
 1. Read all task files
-2. Build a dependency graph
-3. Execute in parallel waves using sub-agents
+2. Build a dependency graph, then batch related same-wave tasks when that saves duplicated context
+3. Build a shared context summary and execute in parallel waves using sub-agents
 4. Verify completion
 5. Optionally trigger a review
+
+## CONTEXT BUDGET
+
+Your job is coordination, not deep implementation. Keep your own context lean:
+- Prefer `Grep`/`Glob` and bounded file reads over whole-file reads when extracting task metadata.
+- Read `$TASKS_DIR/shared-context.md` once and reuse it; do not independently re-read the same architecture files unless a missing detail blocks orchestration.
+- Do not paste full task files, full diffs, or full sub-agent outputs into your own response.
+- Treat sub-agent returns as status signals only. Detailed decisions belong in `$TASKS_DIR/notes/` and are concatenated later.
 
 ## PHASE 1: DISCOVERY
 
@@ -33,7 +41,7 @@ Your launch prompt will include `TASKS_DIR=<path>` (e.g., `TASKS_DIR=tasks/featu
    - **Description**: Brief summary of what it does
 6. **Check for commit mode**: If the launch prompt contains `COMMIT_MODE=per-wave`, set `COMMIT_MODE=per-wave`. Otherwise `COMMIT_MODE=none`. Note this for use in Phase 3.
 
-## PHASE 2: DEPENDENCY ANALYSIS
+## PHASE 2: DEPENDENCY ANALYSIS & COST OPTIMIZATION
 
 Build the dependency graph using these rules (in priority order):
 
@@ -45,6 +53,22 @@ Group tasks into execution waves:
 - **Wave 1**: Tasks with no dependencies and no file conflicts between them
 - **Wave 2**: Tasks whose dependencies are all in Wave 1, no file conflicts within the wave
 - **Wave N**: And so on...
+
+### Batch related same-wave tasks
+
+Within each wave, look for safe batching opportunities before spawning sub-agents:
+- Tasks in the same wave that touch related files (same directory, package, feature module, route group, or test area) can be batched into one `task-implementer`.
+- Tasks that are individually small (1-3 target files each) and share context are good candidates.
+- Never batch tasks from different waves — dependency order must be preserved.
+- Never batch tasks that modify the same file unless the dependency graph already ordered them into the same safe sequential batch because the task files explicitly describe compatible edits.
+- Max 3 tasks per batch. Larger batches increase failure blast radius and make review attribution worse.
+
+Represent batched work in the execution plan, for example:
+
+```text
+Wave 1 (parallel): [Batch A: Task 1 + Task 5 share src/api/ context, Task 3]
+Wave 2 (parallel): [Task 2, Batch B: Task 4 + Task 6 share src/ui/ context]
+```
 
 ### Create the visual task list
 
@@ -70,10 +94,33 @@ Wave 3 (sequential): [Task 6] — depends on Wave 2
 
 ## PHASE 3: EXECUTION
 
+### 3a: Build shared context summary
+
+Before spawning any sub-agents, build a compact shared context block once and include it in every sub-agent prompt.
+
+**If `$TASKS_DIR/shared-context.md` exists**: use it as the primary source. Do not independently re-read the same key architecture files. Supplement only with short summaries of task-specific files referenced by multiple tasks but not covered there.
+
+**If `$TASKS_DIR/shared-context.md` does not exist**: read only the smallest set of project files needed by multiple tasks, then summarize them.
+
+Keep the block under ~200 lines:
+
+```markdown
+## Shared Project Context (provided by orchestrator)
+
+### Architecture
+- [Framework, patterns, key conventions — 3-5 bullets]
+
+### Relevant Shared Code
+- `path/to/shared-file.ts`: [brief purpose]
+
+### Conventions
+- [Naming, testing, file organization patterns — 2-3 bullets]
+```
+
 For each wave:
 
 1. **Mark tasks as in-progress**: Before spawning sub-agents, use `TaskUpdate` to set `status: "in_progress"` for every task in the current wave.
-2. **Spawn sub-agents in parallel**: Call multiple Agent tools **in a single message** — one tool call per task in the wave. Do NOT launch them one at a time sequentially.
+2. **Spawn sub-agents in parallel**: Call multiple Agent tools **in a single message** — one tool call per task or safe batch in the wave. Do NOT launch them one at a time sequentially.
 3. **Mark tasks as completed**: After each sub-agent returns, use `TaskUpdate` to set `status: "completed"` for the corresponding task.
 
 ### Sub-agent Prompt Template
@@ -92,15 +139,19 @@ If <resolved_tasks_dir>/shared-context.md exists, read it before starting — it
 
 Follow all instructions in the task file. Implement the changes it describes.
 
+<INSERT SHARED CONTEXT BLOCK FROM PHASE 3a HERE>
+
 Additional context:
 - Follow existing code patterns — read similar files before creating new ones
 - Only touch the files specified in the task
 - After implementing, verify your changes by re-reading modified files
 
-When done: write your Implementation Notes (decisions, deviations, trade-offs, risks) to `<resolved_tasks_dir>/notes/task-NN.md` (NN = zero-padded task number from your task file's name). Return only a brief status: what you implemented, files changed, and any issues encountered. Do NOT include the Implementation Notes block in your return — they live in the file.
+When done: write your Implementation Notes (decisions, deviations, trade-offs, risks) to `<resolved_tasks_dir>/notes/task-NN.md` (NN = zero-padded task number from your task file's name; for batched runs, write one notes file per task — never aggregate). Return only a brief status: Complete/Partial, files changed, blockers if any, and one test outcome line. Do NOT include the Implementation Notes block in your return — they live in files.
 ```
 
 Use `subagent_type: "task-implementer"` for each sub-agent. This uses the specialized task-implementer agent which reads conventions, verifies context, and follows existing patterns.
+
+For **batched tasks**, list all task files in the prompt and specify the order to implement them.
 
 **IMPORTANT**: Wait for ALL sub-agents in a wave to complete before starting the next wave.
 

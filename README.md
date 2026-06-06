@@ -7,7 +7,7 @@ A template for setting up Claude Code (agents, skills, memory) in any project. U
 | Pipeline | What it does |
 |---|---|
 | [`/grill-me`, `/grill-with-docs`](#pre-build-grilling-grill-me-grill-with-docs) | Fuzzy idea → relentless interview → sharpened plan (run before `/build`) |
-| [`/build`](#the-build-pipeline-build) | PRD → plan → **plan review** → parallel implementation → code review |
+| [`/build`](#the-build-pipeline-build) | PRD → cheap lite-routing → plan → parallel/direct implementation → diff-scoped code review |
 | [`/build-lite`](#lightweight-pipelines-build-lite-refactor-lite) | Feature → plan → approve → implement in one context — no fan-out, review separated |
 | [`/debug-workflow`](#the-debug-pipeline-debug-workflow) | Bug report → investigate → diagnose → TDD fix → review |
 | [`/refactor`](#the-refactor-pipeline-refactor) | Target → audit → (write tests) → refactor → behavior-preservation review |
@@ -155,6 +155,8 @@ Compresses CLI command output before it reaches the context window. Git logs, te
 - Hooks into Claude Code automatically via `rtk init -g`
 - Only intercepts Bash tool calls — built-in tools like Read, Grep, and Glob bypass it
 
+RTK remains the shell-output safety net. The workflow prompts still prefer bounded commands, summarized failures, and compact review packets because RTK cannot remove duplicate cold reads across planner, implementer, orchestrator, and reviewer contexts.
+
 **Tier 3 — [context-mode](https://github.com/mksglu/context-mode) MCP server** (power users)
 
 An MCP server that optimizes context window usage through sandbox execution, an FTS5 knowledge base, and session continuity. Best for long/complex sessions where compaction is the bottleneck.
@@ -218,15 +220,15 @@ Review `.claude/settings.local.json` to adjust permissions for your project.
 │   ├── app-scout.md                      # Fast read-only project recon
 │   ├── bug-fixer.md                      # Fixes diagnosed bugs using adaptive TDD
 │   ├── bug-investigator.md               # Investigates bugs, reads logs, produces diagnosis
-│   ├── code-reviewer.md                  # Reviews code changes AND validates plans (pre-implementation)
-│   ├── parallel-task-orchestrator.md     # Executes task files in parallel waves
+│   ├── code-reviewer.md                  # Reviews diff-scoped code changes against PRD/spec
+│   ├── parallel-task-orchestrator.md     # Executes task files in batched parallel waves
 │   ├── prd-task-planner.md               # Analyzes PRDs, explores codebase, generates task files
 │   ├── qa-agent.md                       # Tests running apps via playwright-cli, produces QA report + E2E tests
 │   ├── refactor-planner.md               # Analyzes code smells and generates refactor tasks
-│   ├── task-implementer.md               # Implements a single task from a task file
+│   ├── task-implementer.md               # Implements one task or a small related task batch
 │   └── test-writer.md                    # Writes missing tests for existing code
 ├── skills/                           # User-invocable skills (slash commands)
-│   ├── build/SKILL.md                    # /build — plan → review-plan → implement → review
+│   ├── build/SKILL.md                    # /build — route-lite → plan → implement → diff-scoped review
 │   ├── build-lite/SKILL.md               # /build-lite — plan → approve → implement in one context (no fan-out)
 │   ├── craft-pr/SKILL.md                 # /craft-pr — generates PR description from tasks + diff
 │   ├── debug-workflow/SKILL.md           # /debug-workflow — investigate → diagnose → TDD fix → review
@@ -258,10 +260,12 @@ The `/build` skill orchestrates the full feature implementation lifecycle. Paste
 ### How it works
 
 ```
-PRD → [Adequacy check] → [Plan] → [User Q&A] → [Review Plan] → [Implement] → [Test] → [Review Code] → Done
+PRD → [Cheap lite-routing check] → [Adequacy check] → [Plan] → [User Q&A] → [Implement] → [Test] → [Diff-scoped review] → Done
 ```
 
 All outputs land in `tasks/<branch>/` (see [Branch-scoped work directories](#branch-scoped-work-directories)).
+
+Before any heavyweight setup, `/build` performs a bounded read-only routing check. If the work looks localized, sequential, or likely to be 1-2 implementation tasks, it switches into the `/build-lite` workflow in the same session. That avoids paying for auto-commit/worktree/orchestration questions and cold planner/implementer/reviewer contexts when a single warm context is cheaper and just as safe.
 
 Before any planning, `/build` checks whether the input PRD has enough substance. If it's a one-liner or full of hedges, you're offered three escapes: run [`/grill-me`](#pre-build-grilling-grill-me-grill-with-docs) (or [`/grill-with-docs`](#pre-build-grilling-grill-me-grill-with-docs) if the repo has a `CONTEXT.md`) first, switch to `--brainstorm` mode, or continue anyway. Skipped automatically when `--brainstorm` is already passed.
 
@@ -285,18 +289,16 @@ The same planner agent is **resumed** (keeping all its codebase exploration cont
 **Step 1d — Plan approval**
 The build orchestrator presents the plan (task list + dependencies) to you. You can approve or regenerate with feedback.
 
-**Step 1e — Plan Review (pre-implementation validation)**
-Before any code is written, the `code-reviewer` runs in **plan-review mode** against the generated task files and `updated-prd.md`. It performs five checks — dependency soundness, PRD coverage, task self-containedness, file-conflict detection across parallel waves, and TDD-mode sanity — and writes findings to `tasks/<branch>/plan-review-report.md` with severity (Critical / Important / Minor).
-
-You then decide: regenerate the plan with the reviewer's findings as feedback, proceed anyway, or abort. The loop has no hard cap but nudges you after 3 iterations if planner and reviewer can't converge. Skipped automatically on small plans (≤2 tasks) to avoid overhead.
+**Step 1e — Fast-path detection**
+The planner self-checks dependency soundness, PRD coverage, file conflicts, task sizing, and TDD consistency before returning. The build session then checks whether the generated task graph actually justifies orchestration. If the plan is small, sequential, or mostly touches overlapping files, it implements directly in the current warm context instead of spawning the orchestrator.
 
 #### Step 2: Parallel Implementation
 
-The `parallel-task-orchestrator` reads all task files, builds a dependency graph, and spawns `task-implementer` agents in parallel waves.
+The `parallel-task-orchestrator` reads all task files, builds a dependency graph, creates one shared context summary, batches related same-wave tasks when safe, and spawns `task-implementer` agents in parallel waves. Implementers write detailed notes to `tasks/<branch>/notes/` and return only short status summaries so the orchestrator does not absorb N large sub-agent outputs.
 
 #### Step 3: Code Review
 
-The `code-reviewer` audits all changes against `tasks/<branch>/updated-prd.md` and produces a compliance report.
+The `code-reviewer` audits all changes against `tasks/<branch>/updated-prd.md` and produces a compliance report. It starts from a compact review packet (`git diff --stat`, changed file list, commit list, implementation notes, and build/test summaries), then expands to full files only when needed to verify requirements, behavior, contracts, or conventions.
 
 ### Usage
 
@@ -424,7 +426,7 @@ The `/refactor` skill improves code quality without adding features. It's the sa
 Target → [Audit + Q&A] → [Tests (optional)] → [Implement] → [Build check] → [Test verify] → [Review] → Done
 ```
 
-The `refactor-planner` agent audits the target file/directory, surfaces clarifying questions (scope, API compatibility, whether to write tests first), then generates ordered refactor tasks in `tasks/<branch>/`. If you asked for tests first, the `test-writer` agent fills in coverage gaps *before* any refactoring starts — giving you a safety net against regressions. The `code-reviewer` then validates that behavior was preserved and the result is measurably cleaner.
+Before heavyweight setup, `/refactor` also performs a cheap routing check. Single-file, localized, or linear refactors switch into `/refactor-lite` in the same session; full `/refactor` is reserved for broad cleanup with real parallelism. When the full pipeline is justified, the `refactor-planner` agent audits the target file/directory, surfaces clarifying questions (scope, API compatibility, whether to write tests first), then generates ordered refactor tasks in `tasks/<branch>/`. If you asked for tests first, the `test-writer` agent fills in coverage gaps *before* any refactoring starts — giving you a safety net against regressions. The `code-reviewer` then validates that behavior was preserved and the result is measurably cleaner using the same compact, diff-scoped review packet.
 
 ```bash
 /refactor src/auth/
@@ -472,13 +474,13 @@ explore (read-only) → plan → you approve → implement → verify build+test
 
 No sub-agent fan-out, no intermediate task files, no orchestration-mode/worktree/brainstorm prompts. Because nothing re-reads the codebase from a cold context, they typically cost **fewer tokens** than the full pipelines, not just less ceremony. Code review is deliberately **separated** — they finish by offering an independent [`/code-review`](https://docs.claude.com/en/docs/claude-code) pass rather than bundling it, so the reviewer sees the diff with fresh eyes.
 
-**Reach for the lite version by default.** Use the heavy `/build` / `/refactor` only when the work spans many independent files worth implementing in parallel, or genuinely exceeds a single context (large migrations, broad sweeps).
+**Just use `/build` or `/refactor` when you want automatic routing.** Both commands perform a cheap routing check and switch into the lite workflow when lite is the better fit. Invoke `/build-lite` or `/refactor-lite` directly when you explicitly want to skip the routing check and force the lightweight path. Use the heavy orchestrated path when the work spans many independent files worth implementing in parallel, or genuinely exceeds a single context (large migrations, broad sweeps).
 
 | | Heavy (`/build`, `/refactor`) | Lite (`/build-lite`, `/refactor-lite`) |
 |---|---|---|
 | Implementation | Parallel sub-agent fan-out | Single warm context |
 | Planning | `prd-task-planner` agent + task files | Inline plan, approved in chat |
-| Review | Bundled `code-reviewer` agent | Separated — offers `/code-review` |
+| Review | Bundled, diff-scoped `code-reviewer` agent | Separated — offers `/code-review` |
 | Git plumbing | Auto-commit / branch / PR / worktree opt-ins | Optional commit (+ optional push/PR) |
 | Best for | Large, parallelizable work | Everyday features & cleanups |
 
