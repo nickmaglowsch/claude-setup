@@ -97,10 +97,12 @@ Store `WORKTREE_PATH=""` as the default. It is set to the new worktree's relativ
 
 Check for a saved orchestration mode preference:
 - Run: `cat ~/.claude/user-preferences.json 2>/dev/null`
-- If the file exists and contains an `"orchestrationMode"` key:
+- Parse the file safely. If it is missing, unreadable, or invalid JSON, continue to the prompt below.
+- If `"orchestrationMode"` is `parallel` or `agent-teams`:
   - Log: "Using saved orchestration mode: `<value>`"
-  - Set `ORCHESTRATION_MODE` to the saved value (`parallel` or `agent-teams`)
+  - Set `ORCHESTRATION_MODE` to the saved value
   - Skip the rest of this step and proceed to Step 0.
+- If `"orchestrationMode"` exists but has any other value, warn that the saved value is invalid and continue to the prompt below.
 
 If no saved preference, ask the user which orchestration mode to use:
 

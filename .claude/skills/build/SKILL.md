@@ -92,7 +92,10 @@ Ask: "Run workflow in a new git worktree?" → `USE_WORKTREE`. Default `WORKTREE
 
 ## Step 0.2: Orchestration Mode Selection
 
-Check `~/.claude/user-preferences.json` for `"orchestrationMode"` — if present, set `ORCHESTRATION_MODE` to its value (`parallel` or `agent-teams`) and skip the rest of this step.
+Check `~/.claude/user-preferences.json` for a saved orchestration mode preference:
+- Parse the file safely. If it is missing, unreadable, or invalid JSON, continue to the prompt below.
+- If `"orchestrationMode"` is `parallel` or `agent-teams`, log "Using saved orchestration mode: `<value>`", set `ORCHESTRATION_MODE` to that value, and skip the rest of this step.
+- If `"orchestrationMode"` exists but has any other value, warn that the saved value is invalid and continue to the prompt below.
 
 Otherwise ask via `AskUserQuestion` ("How should tasks be implemented?"):
 - **Default (Recommended)**: `parallel` — sub-agent approach with wave-based parallel execution

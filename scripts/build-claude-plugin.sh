@@ -16,6 +16,7 @@ mkdir -p "$PLUGIN_DIR/skills" "$PLUGIN_DIR/agents" "$PLUGIN_DIR/references/agent
 
 cp -R "$REPO_ROOT/.claude/skills/." "$PLUGIN_DIR/skills/"
 for agent in "$REPO_ROOT"/.claude/agents/*.md; do
+  [ -e "$agent" ] || continue
   if [ "$(basename "$agent")" = "tdd-mode.md" ]; then
     cp "$agent" "$PLUGIN_DIR/references/agents/"
   else
@@ -43,5 +44,10 @@ find "$PLUGIN_DIR/skills" "$PLUGIN_DIR/agents" "$PLUGIN_DIR/references" -type f 
     s#/build(?![A-Za-z0-9_/-])#/claude-setup:build#g;
     s#/qa(?![A-Za-z0-9_/-])#/claude-setup:qa#g;
   '
+
+perl -0pi -e '
+  s#Check whether `agents/` or `\.claude/settings\.local\.json`#Check whether `.claude/agents/` or `.claude/settings.local.json`#g;
+  s#If `agents/` exists#If `.claude/agents/` exists#g;
+' "$PLUGIN_DIR/skills/init-claude-setup/SKILL.md"
 
 echo "Rebuilt $PLUGIN_DIR from .claude sources"

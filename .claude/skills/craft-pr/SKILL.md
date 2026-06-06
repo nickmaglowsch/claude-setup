@@ -1,6 +1,6 @@
 ---
 name: craft-pr
-description: "Reads task files from tasks/<branch>/ and the diff against origin/main, then generates a polished PR description in markdown for the user to copy-paste."
+description: "Reads task files from tasks/<branch>/ and the diff against the detected base ref, then generates a polished PR description in markdown for the user to copy-paste."
 argument-hint: "[optional: extra context or PR title]"
 ---
 
@@ -38,24 +38,39 @@ echo "TASKS_DIR=$TASKS_DIR"
 
 ### Step 1b: Gather diff + tasks in parallel
 
-Run **all** of the following in parallel using the Bash tool (and Read/Glob for item 4):
+First resolve the base ref, then run the diff/log/task reads in parallel using the Bash tool (and Read/Glob for item 5):
 
-1. **Diff summary (stat) against origin/main**
+1. **Resolve base ref** — run first and store `BASE_REF` as a session variable
    ```
-   git diff --stat origin/main...HEAD
+   BASE_REF=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's|refs/remotes/||')
+   if [ -z "$BASE_REF" ] || ! git rev-parse --verify "$BASE_REF" >/dev/null 2>&1; then
+     if git rev-parse --verify origin/main >/dev/null 2>&1; then
+       BASE_REF=origin/main
+     elif git rev-parse --verify main >/dev/null 2>&1; then
+       BASE_REF=main
+     else
+       BASE_REF=HEAD~1
+     fi
+   fi
+   echo "BASE_REF=$BASE_REF"
    ```
 
-2. **Full diff against origin/main**
+2. **Diff summary (stat) against `$BASE_REF`**
    ```
-   git diff origin/main...HEAD
-   ```
-
-3. **Commit log since diverging from origin/main**
-   ```
-   git log --oneline origin/main..HEAD
+   git diff --stat "$BASE_REF"...HEAD
    ```
 
-4. **Read all files in the branch-scoped task directory** using the Read tool (read every `.md` file found via Glob `$TASKS_DIR/*.md`, using the `TASKS_DIR` resolved in step 1a). If `$TASKS_DIR` does not exist or contains no `.md` files, note this in the PR description — the tasks directory may have been cleaned up after the run.
+3. **Full diff against `$BASE_REF`**
+   ```
+   git diff "$BASE_REF"...HEAD
+   ```
+
+4. **Commit log since diverging from `$BASE_REF`**
+   ```
+   git log --oneline "$BASE_REF"..HEAD
+   ```
+
+5. **Read all files in the branch-scoped task directory** using the Read tool (read every `.md` file found via Glob `$TASKS_DIR/*.md`, using the `TASKS_DIR` resolved in step 1a). If `$TASKS_DIR` does not exist or contains no `.md` files, note this in the PR description — the tasks directory may have been cleaned up after the run.
 
 ## Step 2: Analyze
 

@@ -11,7 +11,7 @@ description: "Reference guide for Agent Teams orchestration mode. Defines how th
 
 The skill session sets `TASKS_DIR=<path>` (e.g., `TASKS_DIR=tasks/feature-foo`) before executing these instructions. Use that value as the prefix for all file paths below, and include it (expanded to the actual resolved path) in every teammate prompt you spawn. If `TASKS_DIR` is not set, default to `tasks/`.
 
-You are orchestrating task implementation using Claude Code's native Agent Teams feature. Your job is to read task files, determine execution order, and spawn teammates to implement them efficiently in parallel waves. You do NOT implement code yourself — you coordinate.
+You are orchestrating task implementation using Claude Code's native Agent Teams feature. Your job is to read task files, determine execution order, and coordinate execution. You may implement only tasks explicitly classified as `[LEAD]` (simple tasks); delegate `[TEAMMATE]` tasks.
 
 ## YOUR MISSION
 
@@ -71,14 +71,14 @@ When batching, create a combined prompt that lists all tasks and their files cle
 
 ### Create the visual task list
 
-After building the dependency graph, use `TaskCreate` to create a task entry for EACH task file. This gives the user real-time visibility into progress.
+Before creating progress tasks, scan the Agent Teams shared task list. If it is already tracking the same tasks or shows conflicting statuses, use the native Agent Teams task list for teammate coordination and use `TaskCreate`/`TaskUpdate` only for user-facing progress summaries. Otherwise, use `TaskCreate` to create a task entry for EACH task file so the user gets real-time visibility into progress.
 
 For each task:
 - **subject**: Use the task title from the file (e.g., "Task 01: Create API route")
 - **description**: Brief summary + wave assignment + dependencies
 - **activeForm**: Present continuous form (e.g., "Implementing API route")
 
-Then use `TaskUpdate` to set up dependencies between tasks:
+If `TaskCreate`/`TaskUpdate` is active, use `TaskUpdate` to set up dependencies between tasks:
 - For each task in Wave 2+, use `addBlockedBy` to link it to its dependencies from earlier waves
 
 Output your execution plan clearly before starting:
@@ -129,16 +129,16 @@ Keep this under ~200 lines. The goal is to eliminate redundant file reads, not t
 
 Before spawning any teammates, handle all `[LEAD]` tasks directly in order:
 1. For each `[LEAD]` task in the current wave, implement it yourself following the task file instructions
-2. Use `TaskUpdate` to mark each as `status: "completed"` when done
+2. If `TaskCreate`/`TaskUpdate` is active, use `TaskUpdate` to mark each as `status: "completed"` when done
 3. This avoids teammate overhead for trivial work
 
 ### 3c: Spawn teammates for complex tasks
 
 For `[TEAMMATE]` tasks in Wave 1:
 
-1. **Mark tasks as in-progress**: Use `TaskUpdate` to set `status: "in_progress"` for every teammate task in the wave.
+1. **Mark tasks as in-progress**: If `TaskCreate`/`TaskUpdate` is active, use `TaskUpdate` to set `status: "in_progress"` for every teammate task in the wave.
 2. **Spawn teammates**: Ask Claude to "spawn a teammate" for each task (or batch), referencing the `task-implementer` agent type. Example: "Spawn a teammate using the task-implementer agent type to implement task-01." Launch all teammates for the wave before waiting for results.
-3. **Mark tasks as completed**: After each teammate returns, use `TaskUpdate` to set `status: "completed"`.
+3. **Mark tasks as completed**: After each teammate returns, if `TaskCreate`/`TaskUpdate` is active, use `TaskUpdate` to set `status: "completed"`.
 
 ### Teammate Prompt Template
 
@@ -186,7 +186,7 @@ This keeps teammates' project context warm — they already have CLAUDE.md loade
 ### 3e: Wave completion and error handling
 
 After each wave:
-- Use `TaskUpdate` to mark completed tasks with `status: "completed"`
+- If `TaskCreate`/`TaskUpdate` is active, use `TaskUpdate` to mark completed tasks with `status: "completed"`
 - **Retry failed teammates once**: For any teammate that reported failure or a blocker:
   1. Re-spawn a single teammate with the same prompt PLUS an appended section:
      ```
@@ -197,7 +197,7 @@ After each wave:
 
      Please address this issue and complete the task.
      ```
-  2. If the retry succeeds: use `TaskUpdate` to mark the task `status: "completed"`
+  2. If the retry succeeds and `TaskCreate`/`TaskUpdate` is active: use `TaskUpdate` to mark the task `status: "completed"`
   3. If the retry also fails: leave the task `status: "in_progress"`, note the failure, and assess whether dependent tasks can still proceed
 - Only retry once per task — do not retry the retry
 - **Per-wave commit** (only if `COMMIT_MODE=per-wave`): After all retries resolve for this wave, run:
@@ -293,7 +293,7 @@ See `$TASKS_DIR/implementation-notes.md` for detailed decision log.
 ### TaskCreate/TaskUpdate conflict
 Agent Teams maintains its own shared task list for coordination between teammates. Using `TaskCreate`/`TaskUpdate` (the Claude Code progress tracking tool) alongside the native Agent Teams task list may cause duplicate entries or status conflicts. 
 
-**Safeguard**: Before using `TaskCreate`/`TaskUpdate`, check whether the Agent Teams shared task list is already tracking the same tasks. If duplicates appear or status updates conflict, **stop using `TaskCreate`/`TaskUpdate`** and rely solely on the Agent Teams native task list for coordination. Use `TaskCreate`/`TaskUpdate` only for user-facing progress display, not for teammate coordination.
+**Safeguard**: Before using `TaskCreate`/`TaskUpdate`, scan the Agent Teams shared task list for the same task titles, task IDs, or incompatible statuses. If duplicates appear or status updates conflict, **stop using `TaskCreate`/`TaskUpdate` for teammate coordination** and rely on the Agent Teams native task list as the source of truth. You may still use `TaskCreate`/`TaskUpdate` sparingly for user-facing progress summaries when it will not create duplicate coordination state.
 
 ### One team per session
 Claude Code supports only one team per session. If a team is already active (e.g., from a previous incomplete run or another part of the pipeline), creating a new team will fail.
@@ -306,7 +306,7 @@ Claude Code supports only one team per session. If a team is already active (e.g
 2. **Read ALL tasks before executing ANY** — need the full picture for dependency graph.
 3. **Don't implement complex tasks yourself.** Delegate `[TEAMMATE]` tasks to teammates. Handle only `[LEAD]`-classified simple tasks directly (Phase 3b).
 4. **On teammate failure**, report and adjust. Don't retry blindly. Only retry once per task.
-5. **ALWAYS use TaskCreate/TaskUpdate** — create after discovery, mark in_progress before spawning, completed after each returns.
+5. **Use one coordination source of truth** — prefer `TaskCreate`/`TaskUpdate` only when it does not duplicate or conflict with the Agent Teams native task list; otherwise use the native task list for coordination.
 
 # Persistent Memory
 

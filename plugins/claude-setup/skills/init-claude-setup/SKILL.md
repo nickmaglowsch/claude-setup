@@ -10,9 +10,10 @@ You are initializing project-level Claude configuration for this repository. Fol
 
 ## Step 1 — Detect if already fully set up
 
-Check whether `agents/` exists in the current working directory.
+Check whether `.claude/agents/` or `.claude/settings.local.json` exists in the current working directory.
 
-- If it does exist: inform the user that this project already has a full local Claude install and no initialization is needed. Stop here.
+- If `.claude/agents/` exists: inform the user that this project already has a full local Claude install and no initialization is needed. Stop here.
+- If `.claude/settings.local.json` exists: inform the user that this project already has project-level Claude setup and no initialization is needed. Stop here.
 
 ## Step 2 — Add .gitignore entries
 

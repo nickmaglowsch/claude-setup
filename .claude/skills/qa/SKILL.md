@@ -44,7 +44,7 @@ Use Bash to run `rm -rf "$QA_OUTPUT_DIR"` to clear only this branch's QA artifac
 
 ## Step 0.5: App Recon — Discover how to interact with the app
 
-**Parse flags:** If `$ARGUMENTS` starts with `--fresh`, set `FRESH=true` and strip `--fresh` to get the clean scope. Otherwise `FRESH=false`.
+**Parse flags:** If `$ARGUMENTS` starts with `--fresh`, set `FRESH=true` and strip `--fresh` to get the clean scope. Otherwise `FRESH=false`. Store the cleaned scope as `QA_SCOPE`; use `QA_SCOPE` everywhere below instead of raw `$ARGUMENTS`.
 
 Check whether to run app-scout:
 - Run via Bash: `find .claude/app-context.md -mmin -60 2>/dev/null`
@@ -60,7 +60,7 @@ Wait for it to complete. If the agent fails or the file is not created, log a wa
 Read `.claude/app-context.md` (from Step 0.5). Build the qa-agent prompt as follows (if `.claude/app-context.md` does not exist, omit the App Context section but always include `QA_OUTPUT_DIR`):
 
 ```
-Test scope: $ARGUMENTS (if empty: test all major flows)
+Test scope: $QA_SCOPE (if empty: test all major flows)
 
 QA_OUTPUT_DIR=$QA_OUTPUT_DIR
 

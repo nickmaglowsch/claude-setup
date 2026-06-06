@@ -52,7 +52,7 @@ Scan the project:
 Determine:
 - **Test directory**: prefer existing location, default to `e2e/`
 - **Language**: TypeScript if `tsconfig.json` exists, else JavaScript
-- **Config**: whether `playwright.config.ts` needs to be created
+- **Config**: whether `playwright.config.ts` (TypeScript) or `playwright.config.js` (JavaScript) needs to be created
 
 ---
 
@@ -189,7 +189,7 @@ Generate Playwright test files for every flow that **passed** (passing flows = r
 
 ### Step 7: Set up Playwright config (if missing)
 
-If no `playwright.config.ts` exists, create one at the project root:
+If no `playwright.config.*` exists, create a config at the project root that matches the detected language: `playwright.config.ts` for TypeScript projects, otherwise `playwright.config.js`.
 
 ```typescript
 import { defineConfig, devices } from '@playwright/test';
@@ -299,7 +299,7 @@ After writing both outputs, print a summary:
 2. **Test as a user.** Navigate the UI — don't read source to understand flows.
 3. **Screenshot failures.** Every FAIL needs a screenshot in `$QA_OUTPUT_DIR/screenshots/`.
 4. **Prefer accessibility selectors.** `getByRole`, `getByLabel`, `getByPlaceholder` over CSS.
-5. **One assertion per test.** Split tests that assert many things.
+5. **Keep assertions focused and meaningful.** Assert all critical outcomes for the scenario (URL, state, visible result) without overloading unrelated checks; group related assertions that validate one end-to-end flow instead of fragmenting coverage into weak tests.
 6. **Don't block on auth.** Note it and test public-facing flows instead.
 7. **Mark skipped tests explicitly.** `test.skip()` with a reason — don't omit the test.
 8. **Validate test files run.** Always run `--list` to catch syntax errors before finishing.
