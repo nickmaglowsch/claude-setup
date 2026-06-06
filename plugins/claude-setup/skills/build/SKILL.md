@@ -18,23 +18,23 @@ $ARGUMENTS
 - If `$ARGUMENTS` starts with or contains `--brainstorm`, set `BRAINSTORM=true` and strip `--brainstorm` to get the clean PRD content.
 - Otherwise, `BRAINSTORM=false` and the full arguments are the PRD content.
 
-## Step 0.03: Cheap routing check — should this be `/build-lite`?
+## Step 0.03: Cheap routing check — should this be `/claude-setup:build-lite`?
 
 Before asking auto-commit, worktree, or orchestration questions, spend at most 2-3 minutes on a bounded read-only check:
 - Read the PRD text, or the referenced PRD file if `$ARGUMENTS` is a path.
 - Use targeted `Glob`/`Grep`/bounded `Read` only when needed to identify likely files and whether independent parallel work exists.
 - Do not launch planner/reviewer/implementer agents in this step.
 
-Route to `/build-lite` and stop this workflow if the feature appears to be any of:
+Route to `/claude-setup:build-lite` and stop this workflow if the feature appears to be any of:
 - 1-2 likely implementation tasks.
 - A single user-facing workflow or localized change.
 - Mostly sequential work where later edits depend on earlier ones.
 - Work concentrated in one module/package or touching overlapping files.
 - A docs/config/UI copy/update task.
 
-Proceed with full `/build` only when the work likely needs 3+ independent implementation tasks that can run in parallel, or when it genuinely exceeds a single warm context (large migrations, broad feature sweeps, multi-package changes with limited file overlap).
+Proceed with full `/claude-setup:build` only when the work likely needs 3+ independent implementation tasks that can run in parallel, or when it genuinely exceeds a single warm context (large migrations, broad feature sweeps, multi-package changes with limited file overlap).
 
-If routing to lite, tell the user: "This looks cheaper and equally safe as `/build-lite` because <reason>. Switching to the lite workflow." Then immediately follow `.claude/skills/build-lite/SKILL.md` from Step 1 using the same `$ARGUMENTS`, skipping all remaining full `/build` steps.
+If routing to lite, tell the user: "This looks cheaper and equally safe as `/claude-setup:build-lite` because <reason>. Switching to the lite workflow." Then immediately follow `skills/build-lite/SKILL.md` from Step 1 using the same `$ARGUMENTS`, skipping all remaining full `/claude-setup:build` steps.
 
 ## Step 0.05: PRD adequacy check
 
@@ -43,12 +43,12 @@ If routing to lite, tell the user: "This looks cheaper and equally safe as `/bui
 Treat the PRD as underspecified if any of: shorter than ~3 sentences; expresses a desire without naming user-facing behavior/scope/success criteria; contains hedges ("not sure if...", "maybe..."); the chat session has no prior design context.
 
 If underspecified, check the repo root for `CONTEXT.md` / `CONTEXT-MAP.md` and offer via `AskUserQuestion`:
-- **"Run `/grill-with-docs` first"** (only when CONTEXT doc detected)
-- **"Run `/grill-me` first"**
+- **"Run `/claude-setup:grill-with-docs` first"** (only when CONTEXT doc detected)
+- **"Run `/claude-setup:grill-me` first"**
 - **"Continue anyway"** — proceed; planner discovery picks up the slack
 - **"Switch to `--brainstorm`"**
 
-For grill/brainstorm choices, exit cleanly: "Stopping `/build`. Re-run after sharpening." Do not invoke the chosen skill yourself — the user re-invokes manually so the grilling session has a clean context. For "Continue anyway", proceed to Step 0.1.
+For grill/brainstorm choices, exit cleanly: "Stopping `/claude-setup:build`. Re-run after sharpening." Do not invoke the chosen skill yourself — the user re-invokes manually so the grilling session has a clean context. For "Continue anyway", proceed to Step 0.1.
 
 ## Step 0.1: Auto-commit opt-in
 
@@ -202,7 +202,7 @@ The planner already self-checked dependency soundness, file conflicts, PRD cover
 
 If `ORCHESTRATION_MODE=agent-teams`: inform the user "Fast-path detected — using direct implementation instead of Agent Teams; orchestration overhead is not justified." Skip the env-var setup from Step 0.2.
 
-Implement tasks yourself, sequentially, in the current session. For each task file in order: (1) read the task file fully, (2) read referenced context files, (3) implement, (4) if `## TDD Mode` is present, follow Section B of `.claude/agents/tdd-mode.md` (RED → adequacy check → GREEN → REFACTOR → VERIFY). (5) write `$TASKS_DIR/notes/task-NN.md` with Implementation Notes — same template the `task-implementer` agent uses (Decisions / Deviations / Trade-offs / Risks; one bullet per category, or a single `No non-obvious decisions.` line if all choices were obvious). After all tasks: concatenate `$TASKS_DIR/notes/task-*.md` (sorted) into `$TASKS_DIR/implementation-notes.md` with a `# Implementation Notes` header.
+Implement tasks yourself, sequentially, in the current session. For each task file in order: (1) read the task file fully, (2) read referenced context files, (3) implement, (4) if `## TDD Mode` is present, follow Section B of `references/agents/tdd-mode.md` (RED → adequacy check → GREEN → REFACTOR → VERIFY). (5) write `$TASKS_DIR/notes/task-NN.md` with Implementation Notes — same template the `task-implementer` agent uses (Decisions / Deviations / Trade-offs / Risks; one bullet per category, or a single `No non-obvious decisions.` line if all choices were obvious). After all tasks: concatenate `$TASKS_DIR/notes/task-*.md` (sorted) into `$TASKS_DIR/implementation-notes.md` with a `# Implementation Notes` header.
 
 Commit handling: if `COMMIT_MODE=per-wave`, after each task run `git add -A && git diff --staged --quiet || git commit -m "feat: <task-objective>"`. If `COMMIT_MODE=per-task-at-end`, skip — commits happen in Step 2.5b.
 
@@ -233,7 +233,7 @@ Wait for it to complete. Note any issues reported.
 First, enable the required env var by finding the user's settings file (check `.claude/settings.local.json`, then `.claude/settings.json`, then `~/.claude/settings.json`) and adding `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` to the `env` object, preserving all existing settings. If no settings file exists, create `.claude/settings.local.json` with the env var.
 
 Do NOT spawn a sub-agent. Instead, execute Agent Teams orchestration directly in this session:
-1. Read `.claude/agents/agent-teams-orchestrator.md` (check `~/.claude/agents/` for global installs, `.claude/agents/` for local)
+1. Read `agents/agent-teams-orchestrator.md`
 2. Follow those instructions directly in this session to orchestrate tasks using Agent Teams teammates, passing `TASKS_DIR=$TASKS_DIR` so teammates know where to read and write task files
 3. Produce the same outputs: `$TASKS_DIR/implementation-notes.md` and `$TASKS_DIR/execution-metrics.md`
 

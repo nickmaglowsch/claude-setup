@@ -14,23 +14,23 @@ The refactoring target (file path, directory, or description of what to improve)
 
 $ARGUMENTS
 
-## Step 0.03: Cheap routing check — should this be `/refactor-lite`?
+## Step 0.03: Cheap routing check — should this be `/claude-setup:refactor-lite`?
 
 Before asking auto-commit, worktree, or orchestration questions, spend at most 2-3 minutes on a bounded read-only check:
 - Identify the target file(s) or package.
 - Use targeted `Glob`/`Grep`/bounded `Read` only where needed to estimate scope, callers, and whether independent parallel work exists.
 - Do not launch planner/test-writer/reviewer/implementer agents in this step.
 
-Route to `/refactor-lite` and stop this workflow if the refactor appears to be any of:
+Route to `/claude-setup:refactor-lite` and stop this workflow if the refactor appears to be any of:
 - 1-2 likely refactor tasks.
 - A single target file/module, or mostly overlapping target files.
 - A linear sequence such as rename → extract → simplify → verify.
 - A cleanup where task isolation would force multiple agents to re-read the same code.
 - Documentation/config-only cleanup.
 
-Proceed with full `/refactor` only when the work likely needs 3+ independent refactor tasks that can run in parallel, or when the target is broad enough to exceed a single warm context.
+Proceed with full `/claude-setup:refactor` only when the work likely needs 3+ independent refactor tasks that can run in parallel, or when the target is broad enough to exceed a single warm context.
 
-If routing to lite, tell the user: "This looks cheaper and equally safe as `/refactor-lite` because <reason>. Switching to the lite workflow." Then immediately follow `.claude/skills/refactor-lite/SKILL.md` from Step 1 using the same `$ARGUMENTS`, skipping all remaining full `/refactor` steps.
+If routing to lite, tell the user: "This looks cheaper and equally safe as `/claude-setup:refactor-lite` because <reason>. Switching to the lite workflow." Then immediately follow `skills/refactor-lite/SKILL.md` from Step 1 using the same `$ARGUMENTS`, skipping all remaining full `/claude-setup:refactor` steps.
 
 ## Step 0.1: Auto-commit opt-in
 
@@ -272,7 +272,7 @@ Wait for it to complete. Note any issues reported.
 First, enable the required env var by finding the user's settings file (check `.claude/settings.local.json`, then `.claude/settings.json`, then `~/.claude/settings.json`) and adding `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` to the `env` object, preserving all existing settings. If no settings file exists, create `.claude/settings.local.json` with the env var.
 
 Do NOT spawn a sub-agent. Instead, execute Agent Teams orchestration directly in this session:
-1. Read `.claude/agents/agent-teams-orchestrator.md` (check `~/.claude/agents/` for global installs, `.claude/agents/` for local)
+1. Read `agents/agent-teams-orchestrator.md`
 2. Follow those instructions directly in this session to orchestrate tasks using Agent Teams teammates, passing `TASKS_DIR=$TASKS_DIR` as session context
 3. Produce the same outputs: `$TASKS_DIR/implementation-notes.md` and `$TASKS_DIR/execution-metrics.md`
 

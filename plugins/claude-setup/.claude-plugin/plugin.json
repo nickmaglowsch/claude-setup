@@ -1,0 +1,34 @@
+{
+  "name": "claude-setup",
+  "displayName": "Claude Setup",
+  "version": "0.1.0",
+  "description": "Claude Code software delivery workflows packaged as namespaced skills and agents.",
+  "author": {
+    "name": "Nick Maglowsch",
+    "url": "https://github.com/nickmaglowsch"
+  },
+  "homepage": "https://github.com/nickmaglowsch/claude-setup",
+  "repository": "https://github.com/nickmaglowsch/claude-setup",
+  "license": "MIT",
+  "keywords": [
+    "claude-code",
+    "skills",
+    "agents",
+    "software-delivery",
+    "workflow"
+  ],
+  "skills": "./skills",
+  "agents": [
+    "./agents/agent-teams-orchestrator.md",
+    "./agents/app-scout.md",
+    "./agents/bug-fixer.md",
+    "./agents/bug-investigator.md",
+    "./agents/code-reviewer.md",
+    "./agents/parallel-task-orchestrator.md",
+    "./agents/prd-task-planner.md",
+    "./agents/qa-agent.md",
+    "./agents/refactor-planner.md",
+    "./agents/task-implementer.md",
+    "./agents/test-writer.md"
+  ]
+}

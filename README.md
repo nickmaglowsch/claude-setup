@@ -195,6 +195,45 @@ cp -r /tmp/claude-setup/.devcontainer/ /path/to/your/project/.devcontainer/
 cp /tmp/claude-setup/run-claude.sh /path/to/your/project/
 ```
 
+### Option C: Claude Code plugin marketplace
+
+If you want a versioned, self-hosted plugin install without running the shell installer, add this repo as a Claude Code plugin marketplace:
+
+```bash
+claude plugin marketplace add nickmaglowsch/claude-setup
+claude plugin install claude-setup@claude-setup
+```
+
+Plugin skills are namespaced to avoid conflicts:
+
+```bash
+/claude-setup:build
+/claude-setup:debug-workflow
+/claude-setup:refactor
+/claude-setup:qa
+/claude-setup:craft-pr
+/claude-setup:grill-me
+/claude-setup:grill-with-docs
+```
+
+The plugin packages the Claude Code skills and agents under `plugins/claude-setup/`. It does not install RTK, add token-reducer hooks, wire the status line, create cron auto-updates, install the devcontainer, or add `run-claude.sh`. Use the one-liner shell installer when you want the canonical unnamespaced `/build` experience and those installer-managed extras.
+
+For local marketplace testing from a clone:
+
+```bash
+scripts/build-claude-plugin.sh
+claude plugin validate .
+claude plugin validate ./plugins/claude-setup --strict
+claude plugin marketplace add ./ --scope local
+claude plugin install claude-setup@claude-setup
+```
+
+Release checklist:
+- Bump `plugins/claude-setup/.claude-plugin/plugin.json` version
+- Regenerate with `scripts/build-claude-plugin.sh`
+- Run both validation commands above
+- Tag the release if desired
+
 ### After setup
 
 ```bash

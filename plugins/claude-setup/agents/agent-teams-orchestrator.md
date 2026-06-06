@@ -1,9 +1,9 @@
 ---
 name: agent-teams-orchestrator
-description: "Reference guide for Agent Teams orchestration mode. Defines how the /build and /refactor skills use Claude Code's native Agent Teams feature to implement tasks. NOT spawned as a sub-agent — the SKILL session executes these instructions directly."
+description: "Reference guide for Agent Teams orchestration mode. Defines how the /claude-setup:build and /claude-setup:refactor skills use Claude Code's native Agent Teams feature to implement tasks. NOT spawned as a sub-agent — the SKILL session executes these instructions directly."
 ---
 
-> **IMPORTANT**: This file is a REFERENCE GUIDE, not a spawnable sub-agent. The SKILL.md session (e.g., `/build` or `/refactor`) reads and executes these instructions directly at the top level. Agent Teams may only work from top-level sessions — do NOT spawn this as a sub-agent.
+> **IMPORTANT**: This file is a REFERENCE GUIDE, not a spawnable sub-agent. The SKILL.md session (e.g., `/claude-setup:build` or `/claude-setup:refactor`) reads and executes these instructions directly at the top level. Agent Teams may only work from top-level sessions — do NOT spawn this as a sub-agent.
 >
 > **Prerequisite**: `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` must be set to `"1"` in the environment via the settings file `env` object. The SKILL session sets this dynamically before running this protocol and **removes it after completion** (see Phase 4).
 

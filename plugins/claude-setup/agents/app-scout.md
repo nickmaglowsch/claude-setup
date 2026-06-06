@@ -1,6 +1,6 @@
 ---
 name: app-scout
-description: "Fast read-only project recon: discovers run/log/test commands and tech stack, writes .claude/app-context.md. Spawned by /debug-workflow and /qa."
+description: "Fast read-only project recon: discovers run/log/test commands and tech stack, writes .claude/app-context.md. Spawned by /claude-setup:debug-workflow and /claude-setup:qa."
 tools: Bash, Glob, Grep, Read, Write
 model: sonnet
 color: cyan
