@@ -1,0 +1,20 @@
+# Example Codex configuration for claude-setup cross-model review.
+#
+# Copy to one of:
+#   ~/.codex/config.toml            (global — applies to every project)
+#   <project-root>/.codex/config.toml  (per-project override)
+#
+# These defaults pin the model and reasoning effort that `codex exec` uses when the
+# /build, /refactor, and /debug-workflow pipelines call Codex as a decorrelated
+# second reviewer (or as a rescue). All values are optional — Codex falls back to
+# its own defaults if this file is absent.
+#
+# NOTE: the model name below is illustrative. Set it to whatever model your ChatGPT
+# subscription exposes to `codex exec` (run `codex --help` / check `codex` docs).
+
+# Model used for review + rescue calls.
+model = "gpt-5.5-codex"
+
+# Reasoning effort: one of minimal | low | medium | high.
+# "high" gives the most thorough adversarial review at higher latency/quota cost.
+model_reasoning_effort = "high"

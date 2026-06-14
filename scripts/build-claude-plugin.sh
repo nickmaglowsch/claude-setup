@@ -50,4 +50,32 @@ perl -0pi -e '
   s#If `agents/` exists#If `.claude/agents/` exists#g;
 ' "$PLUGIN_DIR/skills/init-claude-setup/SKILL.md"
 
+# Bundle the cross-model review helpers + a SessionStart self-heal hook so plugin
+# marketplace installs (which never run setup.sh) still bootstrap Codex. The hook is
+# auto-discovered from hooks/hooks.json and references the bundled script via
+# ${CLAUDE_PLUGIN_ROOT}. Excluded from the perl namespacing pass above (it only
+# rewrites skills/agents/references), so these files are copied verbatim.
+rm -rf "$PLUGIN_DIR/scripts" "$PLUGIN_DIR/hooks"
+mkdir -p "$PLUGIN_DIR/scripts" "$PLUGIN_DIR/hooks"
+cp "$REPO_ROOT/scripts/ensure-codex.sh" "$PLUGIN_DIR/scripts/ensure-codex.sh"
+cp "$REPO_ROOT/scripts/codex-review.sh" "$PLUGIN_DIR/scripts/codex-review.sh"
+chmod +x "$PLUGIN_DIR/scripts/ensure-codex.sh" "$PLUGIN_DIR/scripts/codex-review.sh"
+cat > "$PLUGIN_DIR/hooks/hooks.json" <<'HOOKS_EOF'
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/ensure-codex.sh\""
+          }
+        ]
+      }
+    ]
+  }
+}
+HOOKS_EOF
+
 echo "Rebuilt $PLUGIN_DIR from .claude sources"

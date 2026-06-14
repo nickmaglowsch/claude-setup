@@ -182,6 +182,42 @@ bash <(curl -fsSL https://raw.githubusercontent.com/nickmaglowsch/claude-setup/m
 
 If auto-updates are enabled, you'll also get a one-time nudge about Tier 3 the next time you open Claude Code.
 
+#### Cross-Model Review (Codex / GPT)
+
+An optional, opt-in layer that adds GPT (via the [Codex](https://github.com/openai/codex) CLI) as a **decorrelated second reviewer** and a **rescue** for the pipelines. Claude Code stays the harness and Claude's `code-reviewer` stays the PRIMARY reviewer — Codex augments, it never replaces. Both models run on their own subscriptions; **Codex consumes your ChatGPT quota separately** from Claude.
+
+Every Codex call is a direct `codex exec` invocation (no MCP server or plugin required for automation) and **fails soft**: if Codex is missing, unauthenticated, or over quota, the step logs `SKIPPED` and the pipeline continues. All review calls run in Codex's **read-only** sandbox; the only step that may write is the debug rescue's Tier B, and only behind a flag.
+
+**Setup.** Offered interactively during `setup.sh`, or run standalone:
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/nickmaglowsch/claude-setup/main/setup.sh) --cross-review
+```
+
+This installs the Codex CLI (`npm install -g @openai/codex` if missing), copies the review helpers to `~/.claude/scripts/` (`codex-review.sh`, `ensure-codex.sh`), and registers a `SessionStart` self-heal hook so Codex is bootstrapped even for plugin-marketplace installs that never run `setup.sh`. Re-running is idempotent. After install, authenticate once:
+
+```bash
+codex login   # uses your ChatGPT subscription — do this once
+```
+
+**What it adds to each pipeline:**
+
+| Pipeline | Always-on | Opt-in flag |
+|---|---|---|
+| `/build` | Plan convergence — Codex adversarially cross-checks the task plan before implementation; BLOCKER/MAJOR findings route back to the planner | `--cross-review` — Codex second opinion on the diff after `code-reviewer`; BLOCKER/MAJOR merged into critical issues |
+| `/build-lite` | Plan convergence — Codex cross-checks the plan inline before approval | `--cross-review` — Codex second opinion on the diff at the review handoff |
+| `/refactor` | Plan convergence — focused on behavior preservation, decomposition soundness, regression risk | `--cross-review` — Codex second opinion on the diff, focused on observable-behavior changes |
+| `/refactor-lite` | Plan convergence — behavior-preservation cross-check inline before approval | `--cross-review` — Codex second opinion on the diff at the review handoff |
+| `/debug-workflow` | — | Rescue handoff (auto-triggers after 2 failed fix attempts): Tier A asks Codex for a fresh root cause + minimal patch (read-only), then re-engages `bug-fixer`. `--codex-write` enables Tier B, letting Codex edit code directly (`--sandbox workspace-write`), reviewed by `code-reviewer` before commit |
+
+Plan convergence runs in both the full and lite build/refactor pipelines, so coverage survives the automatic `/build`→`/build-lite` (and `/refactor`→`/refactor-lite`) routing. In the **full** pipelines the cross-model diff review also auto-triggers (without `--cross-review`) when the diff touches sensitive areas — auth, payments, crypto/secrets, concurrency, DB migrations, or external I/O; in the **lite** pipelines the diff review is opt-in via `--cross-review` only.
+
+**Config (optional).** Pin Codex's model and reasoning effort by copying [`.codex/config.toml.example`](.codex/config.toml.example) to `~/.codex/config.toml` (global) or `<project>/.codex/config.toml` (per-project).
+
+**Shared project instructions.** Codex reads `AGENTS.md` for project context. The `--compatible` step already creates an `AGENTS.md → CLAUDE.md` symlink when `CLAUDE.md` exists, so Codex automatically gets the same project instructions as Claude — no extra setup needed.
+
+> The interactive `/codex` plugin (best-effort installed during `--cross-review`) is optional manual-use sugar only. The pipelines do **not** depend on it or on any MCP server, and the plugin's review-gate Stop hook is intentionally left disabled to avoid Claude↔Codex loops.
+
 ### Option B: Manual copy
 
 If you just want the core Claude Code setup:
@@ -216,7 +252,7 @@ Plugin skills are namespaced to avoid conflicts:
 /claude-setup:grill-with-docs
 ```
 
-The plugin packages the Claude Code skills and agents under `plugins/claude-setup/`. It does not install RTK, add token-reducer hooks, wire the status line, create cron auto-updates, install the devcontainer, or add `run-claude.sh`. Use the one-liner shell installer when you want the canonical unnamespaced `/build` experience and those installer-managed extras.
+The plugin packages the Claude Code skills and agents under `plugins/claude-setup/`. It does not install RTK, add token-reducer hooks, wire the status line, create cron auto-updates, install the devcontainer, or add `run-claude.sh`. It does ship one hook: a `SessionStart` self-heal that bootstraps the Codex CLI for [Cross-Model Review](#cross-model-review-codex--gpt) (a fast no-op once Codex is present; you still run `codex login` once). Use the one-liner shell installer when you want the canonical unnamespaced `/build` experience and those installer-managed extras.
 
 For local marketplace testing from a clone:
 
@@ -350,6 +386,8 @@ Or reference a file:
 /build $(cat path/to/prd.md)
 ```
 
+Pass `--cross-review` for a GPT/Codex second opinion on the diff (also auto-triggers on sensitive diffs); the always-on plan convergence pass runs regardless. See [Cross-Model Review](#cross-model-review-codex--gpt).
+
 ### Running agents individually
 
 You can also invoke agents directly via the Task tool:
@@ -444,6 +482,8 @@ The `code-reviewer` audits the fix against `tasks/<branch>/bug-diagnosis.md` wit
 /debug-workflow Login fails with 500 error after upgrading auth library. Logs: 'docker logs app-api'. Tests: 'npm test -- --grep auth'
 ```
 
+If `bug-fixer` fails twice on the same approach, a Codex rescue auto-triggers (read-only root-cause + minimal patch). Pass `--codex-write` to let Codex edit code directly (reviewed before commit). See [Cross-Model Review](#cross-model-review-codex--gpt).
+
 ### Running agents individually
 
 ```
@@ -470,9 +510,10 @@ Before heavyweight setup, `/refactor` also performs a cheap routing check. Singl
 ```bash
 /refactor src/auth/
 /refactor path/to/really-gnarly-file.ts
+/refactor --cross-review src/auth/   # add a GPT/Codex second opinion on the diff
 ```
 
-The pipeline supports auto-commit with three commit modes (squash / per-wave / per-task-at-end) and can open a PR via `gh`.
+The pipeline supports auto-commit with three commit modes (squash / per-wave / per-task-at-end) and can open a PR via `gh`. Plan convergence (a Codex cross-check of the refactor plan) runs automatically; see [Cross-Model Review](#cross-model-review-codex--gpt).
 
 ## The QA Pipeline (`/qa`)
 
