@@ -1,7 +1,7 @@
 ---
 name: build-lite
 description: "Lightweight build: explore → plan → approve → implement in a single Opus context, no sub-agent fan-out. Verifies build + tests, optionally commits, and offers a separate /code-review pass at the end. Use by default for everyday features; reach for /build only when the work needs parallel fan-out or exceeds one context."
-argument-hint: "<feature description or path to a PRD/spec file>"
+argument-hint: "[--cross-review] <feature description or path to a PRD/spec file>"
 ---
 
 # Build (Lite)
@@ -14,6 +14,8 @@ Use this by default. Reach for the heavier `/build` only when the work spans man
 
 `$ARGUMENTS` — a feature description, or a path to a PRD/spec file.
 
+**Parse flags:** if `$ARGUMENTS` contains `--cross-review`, set `CROSS_REVIEW=true` and strip it (else `CROSS_REVIEW=false`) — adds an opt-in GPT/Codex second opinion on the diff at the review handoff (Step 6). The remainder is the feature description / path.
+
 ## Step 1: Understand
 
 - Read `$ARGUMENTS`. If it points to a file, read the file.
@@ -22,14 +24,34 @@ Use this by default. Reach for the heavier `/build` only when the work spans man
 
 ## Step 2: Plan
 
-Present a concise plan as text:
+Compose a concise plan:
 - One-line restatement of the goal.
 - Numbered implementation steps.
 - Files to create/modify, one-line reason each.
 - Test approach — what will prove it works.
 - Any assumptions or open questions.
 
-Then ask via `AskUserQuestion`: "Proceed with this plan?"
+### Step 2a: Plan convergence — Codex adversarial cross-check (always-on)
+
+Before presenting the plan for approval, run a **read-only, fail-soft** second opinion on it from a decorrelated model (GPT via the Codex CLI). It never blocks — if Codex is unavailable it logs SKIPPED and you present the plan as-is.
+
+1. Resolve the helper: `CODEX_REVIEW="$HOME/.claude/scripts/codex-review.sh"; [ -f "$CODEX_REVIEW" ] || CODEX_REVIEW="scripts/codex-review.sh"`. If neither exists, log "Plan convergence skipped — codex-review.sh not installed" and present the plan as-is.
+2. Resolve a branch-scoped artifact dir:
+   ```bash
+   RAW_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+   SANITIZED=$(echo "${RAW_BRANCH:-nobranch}" | tr '/' '-' | tr -cs 'A-Za-z0-9._-' '-' | sed 's/^-*//; s/-*$//')
+   CODEX_DIR="tasks/${SANITIZED:-nobranch}"; mkdir -p "$CODEX_DIR"
+   ```
+3. Write `$CODEX_DIR/codex-plan-prompt.md` = the plan text followed by this instruction verbatim:
+   > You are an adversarial plan reviewer with different training than the planner. Do NOT rewrite the plan or produce code. Challenge it: the overall approach, hidden or unstated assumptions, step ordering, missing edge cases, and simpler or safer alternatives. Rank every finding as BLOCKER, MAJOR, or MINOR. If the plan is sound, say so explicitly. Be concise.
+4. Run `bash "$CODEX_REVIEW" "$CODEX_DIR/codex-plan-review.md" "$CODEX_DIR/codex-plan-prompt.md"`. Read the result:
+   - `SKIPPED:` → note it; present the plan as-is.
+   - **BLOCKER/MAJOR** present → revise the plan to address the valid findings *before* presenting it; tell the user what changed (and any findings you deliberately reject, with why).
+   - **MINOR** only / none → present the plan, noting any MINOR items as advisory.
+
+   This is a single inline pass — converge once, then present. The user may always override and proceed with the plan as-is.
+
+Then present the (possibly revised) plan and ask via `AskUserQuestion`: "Proceed with this plan?"
 - **"Proceed"** → Step 3.
 - **"Revise"** → take feedback, re-present the plan, loop.
 - **"Cancel"** → stop cleanly.
@@ -57,7 +79,20 @@ Ask: "Commit these changes?"
 
 ## Step 6: Review handoff
 
-End with `AskUserQuestion`: "Run an independent `/code-review` pass on these changes?"
+**If `CROSS_REVIEW=true`, first run a cross-model second opinion on the diff** (read-only, fail-soft — GPT via the Codex CLI; never blocks):
+1. Resolve the helper: `CODEX_REVIEW="$HOME/.claude/scripts/codex-review.sh"; [ -f "$CODEX_REVIEW" ] || CODEX_REVIEW="scripts/codex-review.sh"`. If neither exists, log "Cross-review skipped — codex-review.sh not installed" and continue to the handoff.
+2. Resolve a branch-scoped artifact dir:
+   ```bash
+   RAW_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+   SANITIZED=$(echo "${RAW_BRANCH:-nobranch}" | tr '/' '-' | tr -cs 'A-Za-z0-9._-' '-' | sed 's/^-*//; s/-*$//')
+   CODEX_DIR="tasks/${SANITIZED:-nobranch}"; mkdir -p "$CODEX_DIR"
+   ```
+3. Capture the diff: `git diff` plus, if you committed in Step 5, the branch diff against the base branch. If the combined diff is empty, log "Cross-review skipped — empty diff" and continue.
+4. Write `$CODEX_DIR/codex-diff-prompt.md` = the diff text followed by this instruction verbatim:
+   > You are a second code reviewer with different training than the primary reviewer. Review ONLY the diff below. Focus on correctness bugs, security issues, race conditions, and missed edge cases. Do NOT restyle or suggest cosmetic changes. Rank each finding BLOCKER, MAJOR, or MINOR with a file:line reference. If you find nothing substantive, say so. Be concise.
+5. Run `bash "$CODEX_REVIEW" "$CODEX_DIR/codex-diff-review.md" "$CODEX_DIR/codex-diff-prompt.md"`. Read the result; unless it starts with `SKIPPED:`, surface the GPT findings to the user (BLOCKER/MAJOR prominently). Advisory only — it does not block.
+
+Then end with `AskUserQuestion`: "Run an independent `/code-review` pass on these changes?"
 - **"Yes"** → invoke the `code-review` skill, scoped to the diff.
 - **"No"** → print "Done. Run `/code-review` when you want an independent pass." and stop.
 

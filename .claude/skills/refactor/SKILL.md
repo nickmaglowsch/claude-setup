@@ -1,7 +1,7 @@
 ---
 name: refactor
 description: "Refactoring pipeline: analyzes a target file or directory for code quality issues, plans safe incremental improvements, optionally writes tests first as a safety net, implements the changes, and reviews the result. Orchestrates refactor-planner → (test-writer) → parallel-task-orchestrator → code-reviewer."
-argument-hint: "<file, directory, or description of what to refactor>"
+argument-hint: "[--cross-review] <file, directory, or description of what to refactor>"
 ---
 
 # Refactor Pipeline
@@ -13,6 +13,8 @@ You are orchestrating the full refactoring pipeline. Follow these steps strictly
 The refactoring target (file path, directory, or description of what to improve):
 
 $ARGUMENTS
+
+**Parse flags before proceeding:** If `$ARGUMENTS` contains `--cross-review`, set `CROSS_REVIEW=true` and strip it; otherwise `CROSS_REVIEW=false` (opt-in GPT/Codex second opinion on the diff — see Step 3.5). The remaining text is the refactoring target.
 
 ## Step 0.03: Cheap routing check — should this be `/refactor-lite`?
 
@@ -30,7 +32,7 @@ Route to `/refactor-lite` and stop this workflow if the refactor appears to be a
 
 Proceed with full `/refactor` only when the work likely needs 3+ independent refactor tasks that can run in parallel, or when the target is broad enough to exceed a single warm context.
 
-If routing to lite, tell the user: "This looks cheaper and equally safe as `/refactor-lite` because <reason>. Switching to the lite workflow." Then immediately follow `.claude/skills/refactor-lite/SKILL.md` from Step 1 using the same `$ARGUMENTS`, skipping all remaining full `/refactor` steps.
+If routing to lite, tell the user: "This looks cheaper and equally safe as `/refactor-lite` because <reason>. Switching to the lite workflow." Then immediately follow `.claude/skills/refactor-lite/SKILL.md` from Step 1 using the same `$ARGUMENTS`, skipping all remaining full `/refactor` steps. **If `--cross-review` was passed, carry it through** so the lite pipeline still runs the cross-model diff review. (Plan convergence is always-on in the lite pipeline too.)
 
 ## Step 0.1: Auto-commit opt-in
 
@@ -207,16 +209,47 @@ This step always runs. Do not skip it.
    Then add: "You can also open and edit any file in `$TASKS_DIR/` directly before proceeding."
 
 3. Use `AskUserQuestion` with a single question: "How would you like to proceed?"
-   - **"Looks good — start refactoring"** — continue to Step 1.5
+   - **"Looks good — start refactoring"** — continue to Step 1d.5
    - **"Regenerate with feedback"** — user provides feedback via the "Other" field
 
-4. **If user approves**: proceed to Step 1.5.
+4. **If user approves**: proceed to Step 1d.5.
 
 5. **If user requests regeneration**: resume the **same** refactor-planner agent (from Step 1a) with:
    - `resume: "<agent-id-from-step-1a>"`
    - Prompt: `MODE: GENERATE\n\nTASKS_DIR=$TASKS_DIR\n\nUser feedback on the refactoring plan:\n<feedback>\n\nPlease regenerate the task files incorporating this feedback.`
    - Wait for it to complete, then **loop back to the top of Step 1d**.
-   - **Iteration cap**: max 3 regeneration cycles. If the user requests a 4th, stop looping — surface the stuck state and ask whether to abort the workflow or proceed to Step 1.5 with the current plan.
+   - **Iteration cap**: max 3 regeneration cycles. If the user requests a 4th, stop looping — surface the stuck state and ask whether to abort the workflow or proceed to Step 1d.5 with the current plan.
+
+## Step 1d.5: Plan convergence — Codex adversarial cross-check (always-on)
+
+This step always runs. It is a **read-only, fail-soft** second opinion on the refactoring *plan* (not the code) from a decorrelated model — GPT via the Codex CLI — before any changes begin. The `refactor-planner` stays authoritative; Codex only challenges. It never mutates files and never hard-blocks: if Codex is unavailable the step logs SKIPPED and continues.
+
+1. **Resolve the review helper** (run in Bash, store as `CODEX_REVIEW`):
+   ```bash
+   CODEX_REVIEW="$HOME/.claude/scripts/codex-review.sh"
+   [ -f "$CODEX_REVIEW" ] || CODEX_REVIEW="scripts/codex-review.sh"
+   ```
+   If neither path exists, log "Plan convergence skipped — codex-review.sh not installed" and proceed to Step 1.5.
+
+2. **Build the prompt.** Write `$TASKS_DIR/codex-plan-prompt.md` containing, in order:
+   - The full contents of `$TASKS_DIR/refactor-plan.md`.
+   - A compact task list: each task's number, `## Objective`, and `## Dependencies`.
+   - This adversarial-reviewer instruction verbatim:
+     > You are an adversarial refactoring reviewer with different training than the planner. Do NOT rewrite the plan or produce code. Challenge it specifically on: whether each step preserves observable behavior, the soundness of the decomposition (are steps truly independent and safely ordered?), and regression risk per step. Also flag missing safety nets and simpler/safer sequencing. Rank every finding as BLOCKER, MAJOR, or MINOR. If the plan is sound, say so explicitly. Be concise.
+
+3. **Run the review** (read-only, fail-soft):
+   ```bash
+   bash "$CODEX_REVIEW" "$TASKS_DIR/codex-plan-review.md" "$TASKS_DIR/codex-plan-prompt.md"
+   ```
+
+4. **Act on the result.** Read `$TASKS_DIR/codex-plan-review.md`:
+   - If it starts with `SKIPPED:` — note "Plan convergence: SKIPPED (<reason>)" and proceed to Step 1.5. Do not block.
+   - If it contains any **BLOCKER** or **MAJOR** findings — summarize them to the user, then resume the **same** `refactor-planner` agent (ID from Step 1a) with `MODE: GENERATE\n\nTASKS_DIR=$TASKS_DIR\n\nA second-opinion plan review (GPT) raised these issues:\n<BLOCKER/MAJOR findings verbatim>\n\nRevise the task files to address them where valid; note any you deliberately reject and why.`, wait for it, then **loop back to Step 1d** to re-present and re-approve the revised plan.
+   - If it contains only **MINOR** findings (or none) — surface them as advisory notes and proceed to Step 1.5.
+
+   The user may always override and approve the current plan as-is.
+
+   **Iteration cap:** run plan convergence at most twice. On a second pass, treat any remaining findings as advisory and proceed to Step 1.5 regardless.
 
 ## Step 1.5: Safety net — Write missing tests (if requested)
 
@@ -389,6 +422,34 @@ Launch the `code-reviewer` agent using the Task tool with:
 
 Wait for it to complete.
 
+## Step 3.5: Second-opinion diff review — Codex (conditional)
+
+A decorrelated second reviewer (GPT via the Codex CLI) over the refactor diff. **Read-only and fail-soft** — never mutates code, never hard-blocks. Claude's `code-reviewer` (Step 3) remains the PRIMARY reviewer; this only augments it.
+
+**Run this step if** `CROSS_REVIEW=true` **OR** the diff touches sensitive areas (authentication/authorization, payments/billing, cryptography or secrets, concurrency/locking/async, database migrations or schema changes, or external I/O). If none apply and `CROSS_REVIEW=false`, skip directly to Step 4.
+
+1. **Resolve the helper** (same as Step 1d.5):
+   ```bash
+   CODEX_REVIEW="$HOME/.claude/scripts/codex-review.sh"
+   [ -f "$CODEX_REVIEW" ] || CODEX_REVIEW="scripts/codex-review.sh"
+   ```
+   If neither exists, log "Cross-review skipped — codex-review.sh not installed" and proceed to Step 4.
+
+2. **Capture the diff and build the prompt.** Capture the full branch diff (`git diff "$DEFAULT_BRANCH"...HEAD` plus any uncommitted `git diff`). If empty, log "Cross-review skipped — empty diff" and proceed to Step 4. Otherwise write `$TASKS_DIR/codex-diff-prompt.md` containing the diff text followed by this instruction verbatim:
+   > You are a second reviewer of a refactor, with different training than the primary reviewer. Review ONLY the diff below. A refactor must preserve observable behavior — focus on any change in observable behavior, public API/contract changes, lost edge cases, and regression risk. Do NOT suggest cosmetic or stylistic changes. Rank each finding BLOCKER, MAJOR, or MINOR with a file:line reference. If behavior is preserved, say so explicitly. Be concise.
+
+3. **Run the review** (read-only, fail-soft):
+   ```bash
+   bash "$CODEX_REVIEW" "$TASKS_DIR/codex-diff-review.md" "$TASKS_DIR/codex-diff-prompt.md"
+   ```
+
+4. **Merge findings.** Read `$TASKS_DIR/codex-diff-review.md`:
+   - If it starts with `SKIPPED:` — note it and proceed to Step 4. Do not block.
+   - Otherwise, append a `## Second-opinion (GPT) findings` section to `$TASKS_DIR/refactor-review-report.md` with the Codex findings, **excluding** any that duplicate an issue Claude already raised (dedupe by `file:line` + topic).
+   - Surface every non-overlapping **BLOCKER** or **MAJOR** finding prominently to the user in Step 4 (the refactor pipeline has no auto-fix loop) so they can be addressed before merge. Leave MINOR findings as advisory.
+
+Then proceed to Step 4.
+
 ## Step 4: Report
 
 Summarize the full refactoring run to the user:
@@ -422,6 +483,8 @@ Check if `$TASKS_DIR/execution-metrics.md` exists (produced by the orchestrator 
 - [compliance score]
 - [behavior preserved: yes/no]
 - [critical issues if any]
+- Plan convergence (Codex): [findings routed back / advisory only / SKIPPED]
+- Cross-model diff review (Codex): [ran — N findings (list BLOCKER/MAJOR) / not triggered / SKIPPED]
 
 ### Auto-Commit
 - [skipped — not enabled]

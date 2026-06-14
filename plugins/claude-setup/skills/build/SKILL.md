@@ -1,7 +1,7 @@
 ---
 name: build
 description: "Full build pipeline: takes a PRD, breaks it into tasks, implements them in parallel, and reviews the result. Orchestrates prd-task-planner → parallel-task-orchestrator → code-reviewer."
-argument-hint: "[--brainstorm] <PRD or path to PRD file>"
+argument-hint: "[--brainstorm] [--cross-review] <PRD or path to PRD file>"
 ---
 
 # Build Pipeline
@@ -15,8 +15,9 @@ The raw arguments (may include `--brainstorm` flag):
 $ARGUMENTS
 
 **Parse flags before proceeding:**
-- If `$ARGUMENTS` starts with or contains `--brainstorm`, set `BRAINSTORM=true` and strip `--brainstorm` to get the clean PRD content.
-- Otherwise, `BRAINSTORM=false` and the full arguments are the PRD content.
+- If `$ARGUMENTS` contains `--brainstorm`, set `BRAINSTORM=true` and strip it. Otherwise `BRAINSTORM=false`.
+- If `$ARGUMENTS` contains `--cross-review`, set `CROSS_REVIEW=true` and strip it. Otherwise `CROSS_REVIEW=false`. (Opt-in GPT/Codex second opinion on the diff — see Step 3.5.)
+- After stripping all recognized flags, the remaining text (or referenced file path) is the clean PRD content.
 
 ## Step 0.03: Cheap routing check — should this be `/claude-setup:build-lite`?
 
@@ -34,7 +35,7 @@ Route to `/claude-setup:build-lite` and stop this workflow if the feature appear
 
 Proceed with full `/claude-setup:build` only when the work likely needs 3+ independent implementation tasks that can run in parallel, or when it genuinely exceeds a single warm context (large migrations, broad feature sweeps, multi-package changes with limited file overlap).
 
-If routing to lite, tell the user: "This looks cheaper and equally safe as `/claude-setup:build-lite` because <reason>. Switching to the lite workflow." Then immediately follow `skills/build-lite/SKILL.md` from Step 1 using the same `$ARGUMENTS`, skipping all remaining full `/claude-setup:build` steps.
+If routing to lite, tell the user: "This looks cheaper and equally safe as `/claude-setup:build-lite` because <reason>. Switching to the lite workflow." Then immediately follow `skills/build-lite/SKILL.md` from Step 1 using the same `$ARGUMENTS`, skipping all remaining full `/claude-setup:build` steps. **If `--cross-review` was passed, carry it through** so the lite pipeline still runs the cross-model diff review. (Plan convergence is always-on in the lite pipeline too.)
 
 ## Step 0.05: PRD adequacy check
 
@@ -182,8 +183,39 @@ Always runs. Read all `task-*.md` files; for each, extract task number, title, `
 Add: "You can also open and edit any file in `$TASKS_DIR/` directly before proceeding."
 
 Use `AskUserQuestion`: "How would you like to proceed?"
-- **"Looks good — start implementation"** → Step 1e
+- **"Looks good — start implementation"** → Step 1d.5
 - **"Regenerate with feedback"** → resume the same `prd-task-planner` agent (ID from Step 1a) with `MODE: GENERATE\n\nUser feedback on the task plan:\n<feedback>\n\nPlease regenerate the task files incorporating this feedback.`, wait, then loop back to the top of Step 1d.
+
+## Step 1d.5: Plan convergence — Codex adversarial cross-check (always-on)
+
+This step always runs. It is a **read-only, fail-soft** second opinion on the *plan* (not the code) from a decorrelated model — GPT via the Codex CLI — before any implementation begins. Claude's planner stays authoritative; Codex only challenges. It never mutates files and never hard-blocks: if Codex is unavailable the step logs SKIPPED and continues.
+
+1. **Resolve the review helper** (run in Bash, store as `CODEX_REVIEW`):
+   ```bash
+   CODEX_REVIEW="$HOME/.claude/scripts/codex-review.sh"
+   [ -f "$CODEX_REVIEW" ] || CODEX_REVIEW="scripts/codex-review.sh"
+   ```
+   If neither path exists, log "Plan convergence skipped — codex-review.sh not installed" and proceed to Step 1e.
+
+2. **Build the prompt.** Write `$TASKS_DIR/codex-plan-prompt.md` containing, in order:
+   - The full contents of `$TASKS_DIR/updated-prd.md`.
+   - A compact task list: each task's number, title, and `## Dependencies`.
+   - This adversarial-reviewer instruction verbatim:
+     > You are an adversarial plan reviewer with different training than the planner. Do NOT rewrite the plan or produce code. Challenge it: the overall approach, hidden or unstated assumptions, task ordering and dependency soundness, missing edge cases, and simpler or safer alternatives. Rank every finding as BLOCKER, MAJOR, or MINOR. If the plan is sound, say so explicitly. Be concise.
+
+3. **Run the review** (read-only, fail-soft):
+   ```bash
+   bash "$CODEX_REVIEW" "$TASKS_DIR/codex-plan-review.md" "$TASKS_DIR/codex-plan-prompt.md"
+   ```
+
+4. **Act on the result.** Read `$TASKS_DIR/codex-plan-review.md`:
+   - If it starts with `SKIPPED:` — note "Plan convergence: SKIPPED (<reason>)" and proceed to Step 1e. Do not block.
+   - If it contains any **BLOCKER** or **MAJOR** findings — summarize them to the user, then resume the **same** `prd-task-planner` agent (ID from Step 1a) with `MODE: GENERATE\n\nA second-opinion plan review (GPT) raised these issues:\n<BLOCKER/MAJOR findings verbatim>\n\nRevise the task files to address them where valid; note any you deliberately reject and why.`, wait for it, then **loop back to Step 1d** to re-present and re-approve the revised plan.
+   - If it contains only **MINOR** findings (or none) — surface them as advisory notes and proceed to Step 1e.
+
+   The user may always override and approve the current plan as-is.
+
+   **Iteration cap:** run plan convergence at most twice. On a second pass, treat any remaining findings as advisory and proceed to Step 1e regardless.
 
 ## Step 1e: Fast-path detection — Should we skip the orchestrator?
 
@@ -320,6 +352,34 @@ Launch `code-reviewer` with:
 
 Wait for it to complete.
 
+## Step 3.5: Second-opinion diff review — Codex (conditional)
+
+A decorrelated second reviewer (GPT via the Codex CLI) over the same diff. **Read-only and fail-soft** — never mutates code, never hard-blocks. Claude's `code-reviewer` (Step 3) remains the PRIMARY reviewer; this only augments it.
+
+**Run this step if** `CROSS_REVIEW=true` **OR** the diff touches sensitive areas. To decide the latter, inspect the changed-file list / diff for any of: authentication or authorization, payments/billing, cryptography or secrets, concurrency/locking/async, database migrations or schema changes, or external I/O (network, webhooks, file/subprocess). If none apply and `CROSS_REVIEW=false`, skip directly to Step 3b.
+
+1. **Resolve the helper** (same as Step 1d.5):
+   ```bash
+   CODEX_REVIEW="$HOME/.claude/scripts/codex-review.sh"
+   [ -f "$CODEX_REVIEW" ] || CODEX_REVIEW="scripts/codex-review.sh"
+   ```
+   If neither exists, log "Cross-review skipped — codex-review.sh not installed" and proceed to Step 3b.
+
+2. **Capture the diff and build the prompt.** Run `git diff` (and `git diff --staged` if changes are staged). If the combined diff is empty, log "Cross-review skipped — empty diff" and proceed to Step 3b. Otherwise write `$TASKS_DIR/codex-diff-prompt.md` containing the diff text followed by this instruction verbatim:
+   > You are a second code reviewer with different training than the primary reviewer. Review ONLY the diff below. Focus on correctness bugs, security issues, race conditions, and missed edge cases. Do NOT restyle or suggest cosmetic changes. Rank each finding BLOCKER, MAJOR, or MINOR with a file:line reference. If you find nothing substantive, say so. Be concise.
+
+3. **Run the review** (read-only, fail-soft):
+   ```bash
+   bash "$CODEX_REVIEW" "$TASKS_DIR/codex-diff-review.md" "$TASKS_DIR/codex-diff-prompt.md"
+   ```
+
+4. **Merge findings.** Read `$TASKS_DIR/codex-diff-review.md`:
+   - If it starts with `SKIPPED:` — note it and proceed to Step 3b. Do not block.
+   - Otherwise, append a `## Second-opinion (GPT) findings` section to `$TASKS_DIR/review-report.md` with the Codex findings, **excluding** any that duplicate an issue Claude already raised (dedupe by `file:line` + topic).
+   - **Promote** every non-overlapping Codex **BLOCKER** or **MAJOR** finding into the report's `### Critical` section so Step 3b handles it identically to Claude's critical findings. Leave MINOR findings as advisory in the GPT section.
+
+Then proceed to Step 3b.
+
 ## Step 3b: Auto-fix — Address critical review issues (opt-in, one pass)
 
 Read `$TASKS_DIR/review-report.md`. Check if the `### Critical` section contains any items.
@@ -384,6 +444,8 @@ Summarize the full pipeline run to the user:
 - [compliance score]
 - [critical issues if any]
 - [if implementation notes reviewed: decision assessment summary]
+- Plan convergence (Codex): [findings routed back / advisory only / SKIPPED]
+- Cross-model diff review (Codex): [ran — N findings merged / not triggered / SKIPPED]
 
 ### Auto-Commit
 - [skipped — not enabled]

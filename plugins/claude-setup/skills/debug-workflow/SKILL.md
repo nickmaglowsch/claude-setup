@@ -1,7 +1,7 @@
 ---
 name: debug-workflow
 description: "Debug pipeline: investigates a bug, diagnoses root cause, writes failing tests, implements fix via TDD, and reviews the result. Orchestrates bug-investigator -> bug-fixer -> code-reviewer."
-argument-hint: "[--fresh] <bug description in plain language>"
+argument-hint: "[--fresh] [--codex-write] <bug description in plain language>"
 ---
 
 # Debug Pipeline
@@ -16,7 +16,7 @@ $ARGUMENTS
 
 ## Step 0.1: Parse flags and auto-commit opt-in
 
-If `$ARGUMENTS` starts with `--fresh`: `FRESH=true`, strip it → `BUG_DESCRIPTION`. Else `FRESH=false`, `BUG_DESCRIPTION=$ARGUMENTS`.
+Parse flags from `$ARGUMENTS` (order-independent): if `--fresh` is present set `FRESH=true` and strip it (else `FRESH=false`); if `--codex-write` is present set `CODEX_WRITE=true` and strip it (else `CODEX_WRITE=false`). The remaining text is `BUG_DESCRIPTION`. `--codex-write` enables the optional Tier B Codex rescue (lets Codex edit code directly) — see Step 2r.
 
 Ask: "Enable auto-commit and PR?" (Yes / No) → `AUTO_COMMIT`.
 
@@ -266,6 +266,48 @@ Launch the `bug-fixer` agent using the Task tool with:
 
 Wait for it to complete. Note any TDD skips or issues reported. Save the bug-fixer's Implementation Notes output for passing to the reviewer.
 
+### Step 2 outcome — detect repeated failure
+
+After bug-fixer returns, determine whether the fix succeeded: the previously-failing test now passes (or, if no test was feasible, the reported issue no longer reproduces) **and** no new regressions were introduced. Track `FIX_ATTEMPTS` = the number of bug-fixer attempts that did **not** resolve the bug.
+
+- **Success** → proceed to Step 2b.
+- **Failure (attempt 1)** → resume the **same** bug-fixer agent once with explicit feedback: what it tried, why it failed (test output / error), and an instruction to try a *materially different* approach — not a re-run of the same one. Wait for it.
+  - If this second attempt **succeeds** → proceed to Step 2b.
+  - If it **fails the same way** (now `FIX_ATTEMPTS >= 2` on the same approach/root cause) → go to **Step 2r: Codex rescue**.
+
+## Step 2r: Codex rescue — repeated-failure handoff (conditional)
+
+Only runs when Step 2 reached `FIX_ATTEMPTS >= 2` (two failed fix attempts on the same approach). Hands the stuck bug to a decorrelated model (GPT via the Codex CLI) for a fresh root cause and a minimal patch. **Tier A (default) is read-only and fail-soft.** Tier B (Codex edits the workspace directly) runs **only** when `CODEX_WRITE=true`.
+
+1. **Resolve the helper:**
+   ```bash
+   CODEX_REVIEW="$HOME/.claude/scripts/codex-review.sh"
+   [ -f "$CODEX_REVIEW" ] || CODEX_REVIEW="scripts/codex-review.sh"
+   ```
+   If neither exists and Tier B is not requested, log "Rescue skipped — codex-review.sh not installed" and proceed to Step 2b with the unresolved state (report it in Step 4).
+
+2. **Build the rescue prompt.** Write `$TASKS_DIR/codex-rescue-prompt.md` containing:
+   - The original bug report (`BUG_DESCRIPTION`).
+   - The full contents of `$TASKS_DIR/bug-diagnosis.md`.
+   - The failing test command and its latest output/error.
+   - A short summary of what each prior bug-fixer attempt tried and why it failed.
+   - This instruction verbatim:
+     > Two fix attempts have failed on the same approach. You are a decorrelated debugger. Find the REAL root cause (it may differ from the diagnosis above) and propose the smallest safe patch as a unified diff. Do not restyle unrelated code. State the root cause in 2-3 sentences, then give the diff.
+
+3. **Tier A (default — read-only):**
+   - Run: `bash "$CODEX_REVIEW" "$TASKS_DIR/codex-rescue.md" "$TASKS_DIR/codex-rescue-prompt.md"`.
+   - Read `$TASKS_DIR/codex-rescue.md`. If it starts with `SKIPPED:`, note it and proceed to Step 2b with the unresolved state.
+   - Otherwise, resume the **same** bug-fixer agent with this file as new input: `Read $TASKS_DIR/codex-rescue.md. A decorrelated debugger (GPT) proposed this root cause and patch. Evaluate it, apply the parts that are correct, and verify the failing test now passes with no regressions.` Wait for it, then proceed to Step 2b. `code-reviewer` (Step 3) validates the result as usual.
+
+4. **Tier B (only if `CODEX_WRITE=true`):**
+   - Let Codex edit the workspace directly — this is the **only** step in any pipeline where a Codex call may write:
+     ```bash
+     codex exec --sandbox workspace-write "$(cat "$TASKS_DIR/codex-rescue-prompt.md")"
+     ```
+     If `codex` is missing or the command errors, fall back to Tier A (and if that also skips, proceed unresolved). Never let it hard-fail the pipeline.
+   - **Before any commit**, run `code-reviewer` over Codex's changes: launch it scoped to the uncommitted diff, reviewed against `$TASKS_DIR/bug-diagnosis.md`, and confirm the failing test now passes with no regressions. If it finds critical issues, surface them and resume `bug-fixer` to address them. (This pre-commit review is in addition to the standard Step 3 review, because Step 2.5 commits before Step 3.)
+   - Proceed to Step 2b.
+
 ## Step 2b: Build check — Verify the project compiles
 
 Before reviewing, run a quick build/lint check to catch obvious breakage:
@@ -340,6 +382,7 @@ Summarize the full debug pipeline run to the user:
 - [What was changed]
 - [Tests added or why not]
 - [Implementation decisions: key notes from bug-fixer]
+- Codex rescue: [not triggered / Tier A — re-engaged bug-fixer with GPT root cause / Tier B — Codex wrote patch, reviewed pre-commit / SKIPPED — codex unavailable]
 
 ### Verification
 - [Test results]
