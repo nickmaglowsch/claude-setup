@@ -1476,8 +1476,8 @@ _setup_cross_review_bootstrap() {
     fi
   done
 
-  # --- SessionStart self-heal hook ---
-  _install_codex_session_hook
+  # --- SessionStart self-heal hook (non-fatal: never abort the bootstrap) ---
+  _install_codex_session_hook || true
   echo ""
 
   # --- One-time auth reminder (we never script the OAuth login) ---

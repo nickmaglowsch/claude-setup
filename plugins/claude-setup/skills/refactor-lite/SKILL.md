@@ -43,7 +43,7 @@ Before presenting the plan for approval, run a **read-only, fail-soft** second o
    ```
 3. Write `$CODEX_DIR/codex-plan-prompt.md` = the plan text followed by this instruction verbatim:
    > You are an adversarial refactoring reviewer with different training than the planner. Do NOT rewrite the plan or produce code. Challenge it specifically on: whether each step preserves observable behavior, the soundness of the decomposition and step ordering, and regression risk per step. Also flag missing safety nets and simpler/safer sequencing. Rank every finding as BLOCKER, MAJOR, or MINOR. If the plan is sound, say so explicitly. Be concise.
-4. Run `bash "$CODEX_REVIEW" "$CODEX_DIR/codex-plan-review.md" "$CODEX_DIR/codex-plan-prompt.md"`. Read the result:
+4. Run `bash "$CODEX_REVIEW" "$CODEX_DIR/codex-plan-review.md" "$CODEX_DIR/codex-plan-prompt.md"`. Read the result from `$CODEX_DIR/codex-plan-review.md` (the helper writes Codex's output there; it is either a single `SKIPPED: <reason>` line or free-text findings tagged BLOCKER / MAJOR / MINOR):
    - `SKIPPED:` → note it; present the plan as-is.
    - **BLOCKER/MAJOR** present → revise the plan to address the valid findings *before* presenting it; tell the user what changed (and any findings you deliberately reject, with why).
    - **MINOR** only / none → present the plan, noting any MINOR items as advisory.
@@ -82,10 +82,15 @@ Ask: "Commit these changes?"
    SANITIZED=$(echo "${RAW_BRANCH:-nobranch}" | tr '/' '-' | tr -cs 'A-Za-z0-9._-' '-' | sed 's/^-*//; s/-*$//')
    CODEX_DIR="tasks/${SANITIZED:-nobranch}"; mkdir -p "$CODEX_DIR"
    ```
-3. Capture the diff: `git diff` plus, if you committed in Step 6, the branch diff against the base branch. If the combined diff is empty, log "Cross-review skipped — empty diff" and continue.
-4. Write `$CODEX_DIR/codex-diff-prompt.md` = the diff text followed by this instruction verbatim:
+3. Capture the diff into `$CODEX_DIR/codex-diff-prompt.md`. Uncommitted work shows up in `git diff`; if you committed in Step 6 you're on a feature branch, so also include the branch diff against the base. Resolve the base branch dynamically, then write the diff:
+   ```bash
+   BASE=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@.*/@@'); BASE="${BASE:-main}"
+   { git diff; git diff "$BASE"...HEAD 2>/dev/null; } > "$CODEX_DIR/codex-diff-prompt.md"
+   ```
+   If `$CODEX_DIR/codex-diff-prompt.md` is empty, log "Cross-review skipped — empty diff" and continue to the handoff.
+4. Append this instruction verbatim to `$CODEX_DIR/codex-diff-prompt.md` (after the diff text):
    > You are a second reviewer of a refactor, with different training than the primary reviewer. Review ONLY the diff below. A refactor must preserve observable behavior — focus on any change in observable behavior, public API/contract changes, lost edge cases, and regression risk. Do NOT suggest cosmetic or stylistic changes. Rank each finding BLOCKER, MAJOR, or MINOR with a file:line reference. If behavior is preserved, say so explicitly. Be concise.
-5. Run `bash "$CODEX_REVIEW" "$CODEX_DIR/codex-diff-review.md" "$CODEX_DIR/codex-diff-prompt.md"`. Read the result; unless it starts with `SKIPPED:`, surface the GPT findings to the user (BLOCKER/MAJOR prominently). Advisory only — it does not block.
+5. Run `bash "$CODEX_REVIEW" "$CODEX_DIR/codex-diff-review.md" "$CODEX_DIR/codex-diff-prompt.md"`. Read the result from `$CODEX_DIR/codex-diff-review.md`; unless it starts with `SKIPPED:`, surface the GPT findings to the user (BLOCKER/MAJOR prominently). Advisory only — it does not block.
 
 Then end with `AskUserQuestion`: "Run an independent `/code-review` pass?"
 - **"Yes"** → invoke the `code-review` skill, scoped to the diff.

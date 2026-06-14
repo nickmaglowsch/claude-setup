@@ -36,9 +36,10 @@ fi
 
 PROMPT_CONTENT="$(cat "$PROMPT_FILE")"
 
-# `codex exec` defaults to a read-only sandbox, so this call cannot mutate the
-# workspace. `-o` writes Codex's result to the output file.
-if codex exec -o "$OUTPUT_FILE" "$PROMPT_CONTENT" >/dev/null 2>&1; then
+# `-s read-only` explicitly enforces the read-only sandbox (not just the default),
+# so this call can never mutate the workspace even if config/defaults drift.
+# `-o` writes Codex's result to the output file.
+if codex exec -s read-only -o "$OUTPUT_FILE" "$PROMPT_CONTENT" >/dev/null 2>&1; then
   # Guard against a successful-but-empty result.
   if [ ! -s "$OUTPUT_FILE" ]; then
     echo "SKIPPED: codex review failed (empty result)" > "$OUTPUT_FILE"

@@ -32,7 +32,7 @@ Route to `/claude-setup:refactor-lite` and stop this workflow if the refactor ap
 
 Proceed with full `/claude-setup:refactor` only when the work likely needs 3+ independent refactor tasks that can run in parallel, or when the target is broad enough to exceed a single warm context.
 
-If routing to lite, tell the user: "This looks cheaper and equally safe as `/claude-setup:refactor-lite` because <reason>. Switching to the lite workflow." Then immediately follow `skills/refactor-lite/SKILL.md` from Step 1 using the same `$ARGUMENTS`, skipping all remaining full `/claude-setup:refactor` steps. **If `--cross-review` was passed, carry it through** so the lite pipeline still runs the cross-model diff review. (Plan convergence is always-on in the lite pipeline too.)
+If routing to lite, tell the user: "This looks cheaper and equally safe as `/claude-setup:refactor-lite` because <reason>. Switching to the lite workflow." Then immediately follow `skills/refactor-lite/SKILL.md` from Step 1 using the refactoring target as its input, skipping all remaining full `/claude-setup:refactor` steps. **`--cross-review` was already parsed and stripped above, so do not rely on the flag surviving in the text — carry the parsed value over directly: set `CROSS_REVIEW` in the lite workflow to the value you parsed here.** If `CROSS_REVIEW=true`, the lite pipeline runs its cross-model diff review. Plan convergence is always-on in the lite pipeline regardless.
 
 ## Step 0.1: Auto-commit opt-in
 

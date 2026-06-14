@@ -35,7 +35,7 @@ Route to `/build-lite` and stop this workflow if the feature appears to be any o
 
 Proceed with full `/build` only when the work likely needs 3+ independent implementation tasks that can run in parallel, or when it genuinely exceeds a single warm context (large migrations, broad feature sweeps, multi-package changes with limited file overlap).
 
-If routing to lite, tell the user: "This looks cheaper and equally safe as `/build-lite` because <reason>. Switching to the lite workflow." Then immediately follow `.claude/skills/build-lite/SKILL.md` from Step 1 using the same `$ARGUMENTS`, skipping all remaining full `/build` steps. **If `--cross-review` was passed, carry it through** so the lite pipeline still runs the cross-model diff review. (Plan convergence is always-on in the lite pipeline too.)
+If routing to lite, tell the user: "This looks cheaper and equally safe as `/build-lite` because <reason>. Switching to the lite workflow." Then immediately follow `.claude/skills/build-lite/SKILL.md` from Step 1 using the clean PRD content as its input, skipping all remaining full `/build` steps. **`--cross-review` was already parsed and stripped above, so do not rely on the flag surviving in the text — carry the parsed value over directly: set `CROSS_REVIEW` in the lite workflow to the value you parsed here.** If `CROSS_REVIEW=true`, the lite pipeline runs its cross-model diff review. Plan convergence is always-on in the lite pipeline regardless.
 
 ## Step 0.05: PRD adequacy check
 
