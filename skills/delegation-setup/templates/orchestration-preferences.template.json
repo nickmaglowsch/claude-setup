@@ -1,0 +1,19 @@
+{
+  "_comment": "TEMPLATE — /delegation-setup replaces every <placeholder> with live model IDs from mcp__paseo__list_models. Role categories are the ones all paseo skills read: impl, ui, research, planning, audit.",
+  "providers": {
+    "impl": "claude/<claude-workhorse-id>",
+    "ui": "claude/<claude-workhorse-id>",
+    "research": "claude/<claude-cheap-id>",
+    "planning": "codex/<openai-workhorse-id>",
+    "audit": "codex/<openai-workhorse-id>"
+  },
+  "preferences": [
+    "Route by tier, not habit: the Claude workhorse is the implementation default; the OpenAI workhorse is the default contrarian reviewer and design challenger.",
+    "Escalate to claude/<claude-frontier-id> ONLY when a problem already resisted a first attempt or is clearly gnarly architecture. Never for routine work — it is the most expensive tier.",
+    "Escalate to codex/<openai-frontier-id> (thinking xhigh) for hard contrarian analysis, high-stakes reviews, or when a review is repeatedly inconclusive. Ordinary reviews stay on the OpenAI workhorse.",
+    "Cross-family pairing: work authored by a Claude agent gets reviewed by a Codex agent, and vice versa. Frontier-vs-frontier only to settle hard disagreements.",
+    "Downshift to claude/<claude-trivial-id> or codex/<openai-trivial-id> for trivial mechanical work: test scaffolding, renames, format-only changes, log spelunking.",
+    "Always pass an explicit provider to create_agent. Never let an agent inherit or default its model.",
+    "Before spawning, state the chosen tier and a one-line reason (task difficulty class + role)."
+  ]
+}

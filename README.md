@@ -30,6 +30,17 @@ rather have copies.
 | `paseo-loop` | Runs an agent loop until an exit condition is met. | Paseo MCP |
 | `paseo-help` | Answers questions about the Paseo app itself — setup, providers, troubleshooting. | — |
 
+### Delegation / routing
+
+| Skill | What it does | Needs |
+|---|---|---|
+| `delegation-setup` | Templates the think-before-handoff `DELEGATION.md` into `~/.claude` and generates `~/.paseo/orchestration-preferences.json` from the *live* model list. | Paseo (optional) |
+| `delegation-audit` | Offline transcript scan for misroutes, turn-budget blowouts, and the costliest agents; proposes edits to the policy. | — |
+
+Vendored from [nickmaglowsch/claude-delegation-routing](https://github.com/nickmaglowsch/claude-delegation-routing),
+with `${CLAUDE_PLUGIN_ROOT}` paths repointed at `~/.claude/skills/...`. If you'd rather
+track upstream, install the plugin instead and drop these two.
+
 ### Git & PRs
 
 | Skill | What it does | Needs |
