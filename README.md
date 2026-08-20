@@ -65,6 +65,33 @@ track upstream, install the plugin instead and drop these two.
 | `ccc` | Semantic code search over an indexed codebase. | `cocoindex-code` |
 | `meeting-recall` | Answers questions about past meetings from the local Meetily transcript DB. | Meetily |
 
+## Plugins I don't vendor
+
+Skills I use that live in someone else's repo — install them, don't copy them, so
+upstream fixes land:
+
+```
+/plugin marketplace add DietrichGebert/ponytail   && /plugin install ponytail@ponytail
+/plugin marketplace add trayio/tray-plugins       && /plugin install tray-workflows@tray-plugins
+/plugin marketplace add anthropics/skills         && /plugin install example-skills@anthropic-agent-skills
+/plugin install skill-creator@claude-plugins-official
+```
+
+- **ponytail** — lazy-senior-dev mode; laziest solution that actually works. Runs on a
+  SessionStart hook, so it's on in every session.
+- **tray-workflows** — building and debugging Tray.io workflows.
+- **example-skills** — Anthropic's skill collection. Source of `skills/web-artifacts-builder`
+  here; install this instead of using the vendored copy if you want it maintained.
+- **skill-creator** — scaffolding and tuning new skills. `claude-plugins-official` is
+  available by default, no marketplace add needed.
+
+Mine, kept in their own repos rather than duplicated here:
+
+```
+/plugin marketplace add nickmaglowsch/claude-paseo-review  && /plugin install paseo-review@paseo-review
+/plugin marketplace add nickmaglowsch/skill-audit-plugin    && /plugin install skill-audit@skill-audit-marketplace
+```
+
 ## Layout
 
 Plain `skills/<name>/SKILL.md` — no installer, no plugin manifest. Skills are portable
