@@ -75,6 +75,7 @@ upstream fixes land:
 /plugin marketplace add trayio/tray-plugins       && /plugin install tray-workflows@tray-plugins
 /plugin marketplace add anthropics/skills         && /plugin install example-skills@anthropic-agent-skills
 /plugin install skill-creator@claude-plugins-official
+/plugin marketplace add AminBlg/SimpleEnglish     && /plugin install simple-english@simple-english
 ```
 
 - **ponytail** — lazy-senior-dev mode; laziest solution that actually works. Runs on a
@@ -84,6 +85,9 @@ upstream fixes land:
   here; install this instead of using the vendored copy if you want it maintained.
 - **skill-creator** — scaffolding and tuning new skills. `claude-plugins-official` is
   available by default, no marketplace add needed.
+- **simple-english** — rewrites technical text to ASD-STE100 Simplified Technical
+  English: short sentences, one word one meaning, active voice. Good for READMEs,
+  runbooks, and anything a non-native reader has to get right first time.
 
 Mine, kept in their own repos rather than duplicated here:
 
