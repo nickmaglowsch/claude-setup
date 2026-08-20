@@ -1,6 +1,1 @@
 .DS_Store
-.devcontainer/.env
-.claude/settings.local.json
-.claude-worktrees/
-.claude/auth.local.md
-tasks/**

@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+# Print PR review comments by a specific user, newest first, with file:line context.
+# Only returns comments tied to file lines (the kind that show up next to code).
+#
+# Usage:
+#   gh-line-comments-by <user> [PR#] [--json] [--unresolved-only]
+#
+# If PR# is omitted, uses the PR for the current branch.
+# --unresolved-only filters out comments that are part of a resolved thread.
+
+set -euo pipefail
+
+user_filter=""
+pr=""
+fmt="text"
+unresolved_only="false"
+
+for arg in "$@"; do
+  case "$arg" in
+    --json) fmt="json" ;;
+    --unresolved-only) unresolved_only="true" ;;
+    -h|--help)
+      grep '^# ' "$0" | sed 's/^# \{0,1\}//'
+      exit 0 ;;
+    *)
+      if [ -z "$user_filter" ]; then user_filter="$arg"
+      elif [ -z "$pr" ]; then pr="$arg"
+      else echo "unexpected argument: $arg" >&2; exit 64
+      fi ;;
+  esac
+done
+
+if [ -z "$user_filter" ]; then
+  echo "usage: gh-line-comments-by <user> [PR#] [--json] [--unresolved-only]" >&2
+  exit 64
+fi
+
+if [ -z "$pr" ]; then
+  pr=$(gh pr view --json number -q .number 2>/dev/null || true)
+fi
+if [ -z "$pr" ]; then
+  echo "no PR found for current branch — pass PR# explicitly" >&2
+  exit 1
+fi
+
+unset GITHUB_TOKEN
+lc=$(printf '%s' "$user_filter" | tr '[:upper:]' '[:lower:]')
+
+raw=$(gh api --paginate "repos/{owner}/{repo}/pulls/$pr/comments" \
+  --jq "[.[] | select(.user.login | ascii_downcase | startswith(\"$lc\"))] | sort_by(.created_at) | reverse")
+
+if [ "$unresolved_only" = "true" ]; then
+  owner_repo=$(gh repo view --json nameWithOwner -q .nameWithOwner)
+  owner=${owner_repo%/*}
+  repo=${owner_repo#*/}
+  threads=$(gh api graphql -f query="
+    query(\$owner:String!, \$repo:String!, \$pr:Int!) {
+      repository(owner:\$owner, name:\$repo) {
+        pullRequest(number:\$pr) {
+          reviewThreads(first:100) {
+            nodes { isResolved comments(first:50) { nodes { databaseId } } }
+          }
+        }
+      }
+    }" -F owner="$owner" -F repo="$repo" -F pr="$pr" \
+    --jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved) | .comments.nodes[].databaseId]')
+  raw=$(printf '%s' "$raw" | jq --argjson resolved "$threads" '[.[] | select((.id as $id | $resolved | index($id)) | not)]')
+fi
+
+if [ "$fmt" = "json" ]; then
+  printf '%s' "$raw"
+  exit 0
+fi
+
+count=$(printf '%s' "$raw" | jq 'length')
+if [ "$count" -eq 0 ]; then
+  echo "No line-level comments by '$user_filter' on PR #$pr."
+  exit 0
+fi
+
+echo "PR #$pr — $count line-level comment(s) by '$user_filter' (newest first):"
+echo
+printf '%s' "$raw" | jq -r '.[] | "── \(.path):\(.line // .original_line) @ \(.created_at) — \(.user.login)\n\(.body)\n"'

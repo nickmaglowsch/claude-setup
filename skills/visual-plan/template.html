@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PLAN_TITLE</title>
+<style>
+:root{
+  --bg:#fbfbfa; --fg:#1a1a19; --muted:#6b6b66; --line:#e3e3df; --card:#fff;
+  --accent:#2f6f4f; --accent-soft:#e8f2ec; --warn:#8a5a1a; --warn-soft:#fdf1de;
+  --danger:#9b3232; --danger-soft:#fbe9e9;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#16171a; --fg:#e8e8e6; --muted:#9a9a95; --line:#2c2e33; --card:#1e2024;
+  --accent:#6fbf8f; --accent-soft:#1d2c24; --warn:#d9a45b; --warn-soft:#2e2519;
+  --danger:#e08585; --danger-soft:#2e1d1d;
+}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);
+  font:16px/1.6 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.bar{position:sticky;top:0;z-index:10;display:flex;gap:1rem;align-items:baseline;
+  padding:.7rem 1.5rem;background:var(--bg);border-bottom:1px solid var(--line)}
+.bar b{font-size:.95rem}
+.bar .sp{flex:1}
+main{max-width:60rem;margin:0 auto;padding:2rem 1.5rem 6rem}
+h1{font-size:2.1rem;line-height:1.2;margin:.5rem 0 .3rem;letter-spacing:-.02em}
+h2{font-size:1.35rem;margin:3rem 0 1rem;letter-spacing:-.01em}
+h3{font-size:1.05rem;margin:0}
+.sub{color:var(--muted);margin:0 0 2rem}
+.lede{font-size:1.2rem;line-height:1.55;max-width:44rem;margin:1.5rem 0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;
+  padding:1.25rem 1.4rem;margin:1rem 0}
+.d-head{display:flex;gap:.75rem;align-items:flex-start;margin-bottom:.4rem}
+.n{flex:none;width:1.7rem;height:1.7rem;border-radius:50%;background:var(--accent-soft);
+  color:var(--accent);font-size:.8rem;font-weight:700;display:grid;place-items:center}
+.why{color:var(--muted);font-size:.92rem;margin:.2rem 0 1rem 2.45rem}
+.pill{flex:none;font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;
+  padding:.2rem .55rem;border-radius:99px;background:var(--warn-soft);color:var(--warn)}
+.pill.decided{background:var(--accent-soft);color:var(--accent)}
+.pill.deferred{background:var(--line);color:var(--muted)}
+.opts{display:grid;gap:.75rem;grid-template-columns:repeat(auto-fit,minmax(15rem,1fr))}
+.opt{border:1px solid var(--line);border-radius:8px;padding:.9rem 1rem;cursor:pointer;
+  display:block;transition:border-color .12s,background .12s}
+.opt:hover{border-color:var(--accent)}
+.opt:has(input:checked){border-color:var(--accent);background:var(--accent-soft)}
+.opt input{margin-right:.5rem}
+.opt .rec{font-size:.68rem;color:var(--accent);border:1px solid var(--accent);
+  border-radius:99px;padding:.05rem .4rem;margin-left:.4rem;vertical-align:middle}
+.opt ul{margin:.6rem 0 0;padding-left:1.2rem;font-size:.88rem}
+.opt li{list-style:"+  "}
+.opt li.con{list-style:"\2212  ";color:var(--danger)}
+.meta{margin-top:.7rem;font-size:.78rem;color:var(--muted);display:flex;gap:.9rem;flex-wrap:wrap}
+.risk-high{color:var(--danger)} .risk-med{color:var(--warn)}
+textarea,input[type=text]{width:100%;margin-top:.9rem;padding:.55rem .7rem;font:inherit;
+  font-size:.9rem;background:transparent;color:var(--fg);
+  border:1px solid var(--line);border-radius:6px;resize:vertical}
+.q{display:flex;gap:.75rem;align-items:flex-start}
+.q .blk{flex:none;font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;
+  padding:.15rem .45rem;border-radius:4px;background:var(--danger-soft);color:var(--danger)}
+.dgm{margin:1.5rem 0 2.5rem}
+.dgm figcaption{color:var(--muted);font-size:.85rem;margin-top:.6rem;text-align:center}
+.dgm-head{display:flex;align-items:center;gap:.75rem;margin-bottom:.7rem}
+.dgm-head h3{flex:1}
+.exc{height:28rem;border:1px solid var(--line);border-radius:8px;overflow:hidden;
+  resize:vertical;background:var(--card)}
+.exc:fullscreen{height:100%;border:0;border-radius:0;resize:none}
+.exc .excalidraw{--zIndex-layerUI:5}
+pre.src{white-space:pre;overflow-x:auto;font-size:.8rem;color:var(--muted);
+  border:1px dashed var(--line);border-radius:8px;padding:1rem;text-align:left}
+.hint{color:var(--muted);font-size:.78rem;text-align:center;margin:.5rem 0 0}
+button{font:inherit;font-size:.85rem;padding:.4rem .9rem;border-radius:6px;cursor:pointer;
+  border:1px solid var(--line);background:var(--card);color:var(--fg)}
+button.go{background:var(--accent);color:var(--bg);border-color:var(--accent)}
+#out{width:100%;height:20rem;font-family:ui-monospace,monospace;font-size:.78rem}
+ol.next{padding-left:1.3rem} ol.next li{margin:.4rem 0}
+@media print{.bar,button,#exp,.hint{display:none}.card{break-inside:avoid}.exc{height:20rem}}
+</style>
+</head>
+<body>
+
+<script type="application/json" id="plan">
+PLAN_JSON
+</script>
+
+<div class="bar">
+  <b id="bt"></b><span class="sp"></span>
+  <span id="prog" style="color:var(--muted);font-size:.85rem"></span>
+  <button class="go" onclick="exportPlan()">Export decisions</button>
+</div>
+
+<main>
+  <h1 id="t"></h1>
+  <p class="sub" id="s"></p>
+  <div class="lede" id="ctx"></div>
+  <div id="body"></div>
+  <details id="exp"><summary style="cursor:pointer;color:var(--muted);margin-top:3rem">
+    Exported JSON — paste back to whatever agent implements this</summary>
+    <textarea id="out" readonly></textarea>
+  </details>
+</main>
+
+<script>window.EXCALIDRAW_ASSET_PATH = "https://unpkg.com/@excalidraw/excalidraw@0.17.6/dist/";</script>
+<script src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@excalidraw/excalidraw@0.17.6/dist/excalidraw.production.min.js"></script>
+
+<script>
+const P = JSON.parse(document.getElementById('plan').textContent);
+const esc = s => String(s??'').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+window.PLAN = P; window.SCENES = [];
+
+document.title = P.title;
+bt.textContent = P.title;
+t.textContent = P.title;
+s.textContent = [P.subtitle, P.date].filter(Boolean).join('  ·  ');
+ctx.textContent = P.context || '';
+
+const sec = (title, html) => `<h2>${esc(title)}</h2>${html}`;
+let h = '';
+
+if (P.diagrams?.length) h += sec('How it fits together', P.diagrams.map((d,i) => `
+  <figure class="dgm">
+    <div class="dgm-head">
+      <h3>${esc(d.title||'')}</h3>
+      <button onclick="fullscreen(${i})">⤢ Full screen</button>
+    </div>
+    <div class="exc" id="exc${i}"></div>
+    <p class="hint">Editable — drag boxes, draw arrows, annotate. Edits ship with the export.</p>
+    ${d.caption ? `<figcaption>${esc(d.caption)}</figcaption>` : ''}
+  </figure>`).join(''));
+
+if (P.decisions?.length) h += sec('Decisions', P.decisions.map((d,i) => `
+  <section class="card" data-d="${esc(d.id)}">
+    <div class="d-head">
+      <span class="n">${i+1}</span><h3>${esc(d.question)}</h3>
+      <span class="sp" style="flex:1"></span>
+      <span class="pill ${esc(d.status||'open')}">${esc(d.status||'open')}</span>
+    </div>
+    ${d.why ? `<p class="why">${esc(d.why)}</p>` : ''}
+    <div class="opts">${(d.options||[]).map(o => `
+      <label class="opt">
+        <input type="radio" name="${esc(d.id)}" value="${esc(o.id)}"
+          ${(d.chosen||d.recommended)===o.id?'checked':''}>
+        <b>${esc(o.label)}</b>${o.id===d.recommended?'<span class="rec">recommended</span>':''}
+        <ul>
+          ${(o.pros||[]).map(p=>`<li>${esc(p)}</li>`).join('')}
+          ${(o.cons||[]).map(c=>`<li class="con">${esc(c)}</li>`).join('')}
+        </ul>
+        <div class="meta">
+          ${o.effort?`<span>effort: ${esc(o.effort)}</span>`:''}
+          ${o.risk?`<span class="risk-${esc(o.risk)}">risk: ${esc(o.risk)}</span>`:''}
+        </div>
+      </label>`).join('')}
+    </div>
+    <textarea rows="2" placeholder="Meeting note / rationale…">${esc(d.note||'')}</textarea>
+  </section>`).join(''));
+
+if (P.openQuestions?.length) h += sec('Open questions', P.openQuestions.map(q => `
+  <section class="card" data-q="${esc(q.id)}">
+    <div class="q">
+      ${q.blocking?'<span class="blk">blocking</span>':''}
+      <div style="flex:1">
+        <h3>${esc(q.q)}</h3>
+        ${q.why?`<p class="why" style="margin-left:0">${esc(q.why)}</p>`:''}
+        <input type="text" value="${esc(q.answer||'')}"
+          placeholder="${esc(q.owner ? 'Answer — owner: '+q.owner : 'Answer…')}">
+      </div>
+    </div>
+  </section>`).join(''));
+
+if (P.nextSteps?.length) h += sec('If we agree today',
+  `<ol class="next">${P.nextSteps.map(n=>`<li>${esc(n)}</li>`).join('')}</ol>`);
+
+body.innerHTML = h;
+
+const prog = () => {
+  const n = P.decisions?.length || 0;
+  if (!n) return;
+  const done = [...document.querySelectorAll('[data-d]')]
+    .filter(s => s.querySelector('input:checked')).length;
+  document.getElementById('prog').textContent = `${done}/${n} decided`;
+};
+body.addEventListener('change', prog); prog();
+
+window.fullscreen = i => document.fullscreenElement
+  ? document.exitFullscreen()
+  : document.getElementById('exc'+i)?.requestFullscreen?.();
+
+// Excalidraw scene -> the only part an implementer cares about: labels, arrows, scribbled notes.
+// The full scene stays in the editor; use its own menu to save a .excalidraw file.
+window.sceneKey = els => els.map(e => e.id+':'+e.version).sort().join();
+function describe(els){
+  els = els.filter(e => !e.isDeleted);
+  const label = {};
+  els.forEach(e => { if (e.type==='text' && e.containerId) label[e.containerId] = e.text.trim(); });
+  const name = id => label[id] || '(unlabelled)';
+  return {
+    nodes: els.filter(e => e.type!=='text' && e.type!=='arrow' && label[e.id]).map(e => label[e.id]),
+    edges: els.filter(e => e.type==='arrow' && e.startBinding && e.endBinding)
+      .map(a => `${name(a.startBinding.elementId)} -> ${name(a.endBinding.elementId)}`
+        + (label[a.id] ? ` [${label[a.id]}]` : '')),
+    notes: els.filter(e => e.type==='text' && !e.containerId).map(e => e.text.trim()).filter(Boolean),
+  };
+}
+
+function exportPlan(){
+  const out = {
+    title: P.title,
+    diagrams: (P.diagrams||[]).map((d,i) => {
+      const sc = window.SCENES[i];
+      if (!sc) return {title: d.title, unavailable: true};
+      return {title: d.title, edited: window.sceneKey(sc.elements) !== sc.seed, ...describe(sc.elements)};
+    }),
+    decisions: [...document.querySelectorAll('[data-d]')].map(s => ({
+      id: s.dataset.d,
+      question: s.querySelector('h3').textContent,
+      chosen: s.querySelector('input:checked')?.value ?? null,
+      note: s.querySelector('textarea').value.trim() || undefined,
+    })),
+    answers: [...document.querySelectorAll('[data-q]')].map(s => ({
+      id: s.dataset.q,
+      q: s.querySelector('h3').textContent,
+      answer: s.querySelector('input').value.trim() || null,
+    })),
+  };
+  const json = JSON.stringify(out, null, 2);
+  document.getElementById('out').value = json;
+  document.getElementById('exp').open = true;
+  document.getElementById('out').select();
+  navigator.clipboard?.writeText(json).catch(()=>{}); // ponytail: file:// blocks clipboard, textarea is the fallback
+}
+window.exportPlan = exportPlan;
+</script>
+
+<script type="module">
+import { parseMermaidToExcalidraw } from 'https://esm.sh/@excalidraw/mermaid-to-excalidraw@1.1.2';
+const dark = matchMedia('(prefers-color-scheme:dark)').matches;
+
+for (const [i, d] of (window.PLAN.diagrams || []).entries()) {
+  const host = document.getElementById('exc'+i);
+  if (!host) continue;
+  try {
+    // A saved .excalidraw scene wins over the mermaid seed — that's how an edited diagram round-trips.
+    const elements = d.scene?.elements
+      ? d.scene.elements
+      : ExcalidrawLib.convertToExcalidrawElements(
+          (await parseMermaidToExcalidraw(d.mermaid || '', {fontSize: 16})).elements);
+    window.SCENES[i] = {elements, seed: window.sceneKey(elements)};
+    ReactDOM.createRoot(host).render(React.createElement(ExcalidrawLib.Excalidraw, {
+      initialData: {elements, appState:{viewBackgroundColor:'transparent'}, scrollToContent:true},
+      theme: dark ? 'dark' : 'light',
+      onChange: els => { window.SCENES[i].elements = els; },
+    }));
+  } catch (e) {
+    const pre = document.createElement('pre');
+    pre.className = 'src';
+    pre.textContent = (d.mermaid || '') + `\n\n( editor unavailable — ${e.message} )`;
+    host.replaceWith(pre);
+  }
+}
+</script>
+</body>
+</html>
